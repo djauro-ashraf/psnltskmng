@@ -20,6 +20,7 @@ dependencies:
   shared_preferences: ^2.5.4
 
 dev_dependencies:
+  flutter_launcher_icons: ^0.14.4
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
@@ -27,6 +28,23 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
+
+  assets:
+    - assets/icon/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon_white.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/app_icon_transparent.png"
+  web:
+    generate: true
+    image_path: "assets/icon/app_icon_white.png"
+  windows:
+    generate: true
+    image_path: "assets/icon/app_icon_white.png"
 
   # Spectral (headings, numerals) and IBM Plex Sans (interface text).
   # Both are SIL Open Font License 1.1; the licenses sit next to the files.

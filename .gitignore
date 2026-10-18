@@ -46,3 +46,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Google Drive OAuth client for --dart-define-from-file (see docs/DRIVE_SETUP.md)
+/drive.json

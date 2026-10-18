@@ -11,9 +11,8 @@ final class DriveBackupFile {
   final DateTime? modifiedTime;
 }
 
-/// Reads and writes the backup file in the app's own hidden Google Drive
-/// folder (`appDataFolder`, scope `drive.appdata`): the app sees only what it
-/// wrote itself, and the file does not show in the user's Drive.
+/// Reads and writes the backup file on Google Drive (scope `drive.file`): the
+/// app sees only what it wrote itself.
 ///
 /// Plain REST calls over `package:http`, so a test can answer them with a fake
 /// client. The text is always UTF-8 on the wire and in memory (a note may hold
@@ -39,7 +38,6 @@ final class DriveFileApi {
   Future<DriveBackupFile?> find() async {
     final uri = Uri.parse(_files).replace(
       queryParameters: {
-        'spaces': 'appDataFolder',
         'q': "name = '$fileName' and trashed = false",
         'fields': 'files(id,modifiedTime)',
         'orderBy': 'modifiedTime desc',
@@ -100,7 +98,6 @@ final class DriveFileApi {
     const boundary = 'qrm-backup-boundary-7f3a9c';
     final metadata = jsonEncode({
       'name': fileName,
-      'parents': ['appDataFolder'],
       'mimeType': 'application/json',
     });
     final body = [

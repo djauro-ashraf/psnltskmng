@@ -495,7 +495,6 @@ void main() {
         expect(_text(onDrive.notes!), _text(_someNotes()));
         expect(backup.toJsonString(), server.content);
         expect(server.createdMetadata?['name'], 'qrm-backup.json');
-        expect(server.createdMetadata?['parents'], ['appDataFolder']);
       });
 
       test('shows when it was done, here and in the settings', () async {

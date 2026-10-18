@@ -122,7 +122,7 @@ void main() {
       expect(request.bodyFields['scope'], GoogleDeviceAuth.scope);
       expect(
         GoogleDeviceAuth.scope,
-        'https://www.googleapis.com/auth/drive.appdata email',
+        'https://www.googleapis.com/auth/drive.file email',
       );
 
       expect(code.deviceCode, 'device-1');

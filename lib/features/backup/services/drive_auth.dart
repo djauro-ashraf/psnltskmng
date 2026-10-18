@@ -67,7 +67,7 @@ abstract interface class DriveAuth {
 /// short code on google.com/device, so no browser has to be embedded, no
 /// redirect has to be caught, and the same code runs on every platform.
 ///
-/// Only the scopes `drive.appdata` (the app's own hidden folder in Drive) and
+/// Only the scopes `drive.file` (the app's own files in Drive) and
 /// `email` (to show which account) are asked for. The long-lived refresh token
 /// is kept in the secure store, the short-lived access token only in memory.
 final class GoogleDeviceAuth implements DriveAuth {
@@ -83,9 +83,9 @@ final class GoogleDeviceAuth implements DriveAuth {
        _clock = clock ?? DateTime.now,
        _delay = delay ?? Future<void>.delayed;
 
-  /// The scopes: the app's own Drive folder, and the account's e-mail.
+  /// The scopes: the app's own files in Drive, and the account's e-mail.
   static const String scope =
-      'https://www.googleapis.com/auth/drive.appdata email';
+      'https://www.googleapis.com/auth/drive.file email';
 
   static const String _deviceUrl = 'https://oauth2.googleapis.com/device/code';
   static const String _tokenUrl = 'https://oauth2.googleapis.com/token';

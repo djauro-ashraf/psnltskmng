@@ -1,0 +1,124 @@
+name: Build & Release Android APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag (e.g. v1.0.0 or leave empty for "latest")'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & Publish APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Configure Drive credentials
+        env:
+          DRIVE_CLIENT_ID: ${{ secrets.GOOGLE_DRIVE_CLIENT_ID }}
+          DRIVE_CLIENT_SECRET: ${{ secrets.GOOGLE_DRIVE_CLIENT_SECRET }}
+        run: |
+          if [ -n "$DRIVE_CLIENT_ID" ] && [ -n "$DRIVE_CLIENT_SECRET" ]; then
+            echo "Injecting Google Drive credentials from repository secrets..."
+            cat <<EOF > drive.json
+          {
+            "GOOGLE_DRIVE_CLIENT_ID": "$DRIVE_CLIENT_ID",
+            "GOOGLE_DRIVE_CLIENT_SECRET": "$DRIVE_CLIENT_SECRET"
+          }
+          EOF
+          elif [ -f drive.json ]; then
+            echo "Using existing drive.json from repository..."
+          else
+            echo "No Drive credentials configured in secrets; building standard release APK."
+          fi
+
+      - name: Build Android Release APK
+        run: |
+          if [ -f drive.json ]; then
+            flutter build apk --release --dart-define-from-file=drive.json
+          else
+            flutter build apk --release
+          fi
+
+      - name: Prepare APK for Release
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk personaltskmng.apk
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: personaltskmng-apk
+          path: personaltskmng.apk
+
+      - name: Determine Release Details
+        id: release_info
+        run: |
+          if [ -n "${{ github.event.inputs.release_tag }}" ]; then
+            TAG="${{ github.event.inputs.release_tag }}"
+            IS_PRERELEASE="false"
+            TITLE="Release $TAG"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            IS_PRERELEASE="false"
+            TITLE="Release $TAG"
+          else
+            TAG="latest"
+            IS_PRERELEASE="false"
+            TITLE="Personal Task Manager - Latest Build"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_info.outputs.tag }}
+          name: ${{ steps.release_info.outputs.title }}
+          body: |
+            ### 📱 Personal Task Manager (QRM) Android APK
+            
+            Download and install the APK on your Android device directly from the Assets section below.
+            
+            - **Filename:** `personaltskmng.apk`
+            - **Commit:** `${{ github.sha }}`
+            - **Branch / Ref:** `${{ github.ref_name }}`
+            
+            #### How to Install on Android:
+            1. Tap on `personaltskmng.apk` under **Assets** on your phone to download it.
+            2. Open the downloaded file from your notifications or Downloads folder.
+            3. If prompted, allow "Install unknown apps" for your browser.
+            4. Tap **Install** (or **Update**).
+          files: personaltskmng.apk
+          prerelease: ${{ steps.release_info.outputs.prerelease == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

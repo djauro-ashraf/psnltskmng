@@ -22,7 +22,6 @@ void main() {
     expect(await api.find(), isNull);
     final request = server.requests.single;
     expect(request.method, 'GET');
-    expect(request.url.queryParameters['spaces'], 'appDataFolder');
     expect(
       request.url.queryParameters['q'],
       "name = 'qrm-backup.json' and trashed = false",
@@ -30,7 +29,7 @@ void main() {
     expect(request.headers['Authorization'], 'Bearer access-1');
   });
 
-  test('save creates the file in the hidden app folder, in one request', () async {
+  test('save creates the file in Drive, in one request', () async {
     final file = await api.save('{"hello":"world"}');
 
     expect(file.id, 'file-1');
@@ -38,7 +37,6 @@ void main() {
     expect(server.content, '{"hello":"world"}');
     expect(server.created, 1);
     expect(server.createdMetadata?['name'], 'qrm-backup.json');
-    expect(server.createdMetadata?['parents'], ['appDataFolder']);
     // find, then the one multipart create (the file is never created empty).
     expect(server.requests.map((r) => r.method), ['GET', 'POST']);
     expect(server.requests.last.url.queryParameters['uploadType'], 'multipart');

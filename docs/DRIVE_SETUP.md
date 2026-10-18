@@ -14,8 +14,7 @@ build" and the copy-and-paste export/import still works.
 3. **OAuth consent screen** (called "Google Auth Platform" in newer consoles):
    - User type **External**; app name (anything), your e-mail as support and
      developer contact.
-   - **Scopes**: add `.../auth/drive.appdata` ("See, create and delete its own
-     configuration data in your Google Drive") and `.../auth/userinfo.email`
+   - **Scopes**: add `.../auth/drive.file` ("See, edit, create, and delete only the specific Google Drive files you use with this app") and `.../auth/userinfo.email`
      (and `openid`). These are the only two the app asks for. It cannot see
      your other Drive files.
    - **Audience / test users**: while the app is in *Testing*, add your own
@@ -72,9 +71,7 @@ never replace a good backup on Drive with an empty state.
 
 ## Where things are kept
 
-- The backup: `qrm-backup.json` in Drive's hidden *app data* folder. It does not
-  show up in the Drive file list. To remove it: Google Account > Security >
-  Third-party access > this app > Delete hidden app data (or disconnect).
+- The backup: `qrm-backup.json` in Google Drive (the app can only access files it created itself). To remove it: delete the file from Drive, or revoke access in your Google Account.
 - The sign-in (a refresh token) and the e-mail: the device's secure storage
   (`flutter_secure_storage`), never `shared_preferences`, never the backup.
 

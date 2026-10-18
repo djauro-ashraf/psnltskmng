@@ -62,11 +62,6 @@ final class FakeDriveServer {
     final query = request.url.queryParameters;
 
     if (request.method == 'GET' && path == '/drive/v3/files') {
-      if (query['spaces'] != 'appDataFolder') {
-        return _json({
-          'error': {'code': 400, 'message': 'wrong space'},
-        }, 400);
-      }
       final id = fileId;
       return _json({
         'files': [

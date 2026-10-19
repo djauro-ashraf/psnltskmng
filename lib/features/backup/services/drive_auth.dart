@@ -165,15 +165,29 @@ final class GoogleDeviceAuth implements DriveAuth {
       if (cancelled != null && cancelled()) {
         throw const DriveAuthException('The sign-in was cancelled.');
       }
-      final response = await _client.post(
-        Uri.parse(_tokenUrl),
-        body: {
-          'client_id': _config.clientId,
-          'client_secret': _config.clientSecret,
-          'device_code': code.deviceCode,
-          'grant_type': _deviceGrant,
-        },
-      );
+
+      // The user leaves the app to approve the code in a browser. Android may
+      // background the app and kill the HTTP socket. When the app resumes, the
+      // pending POST throws a ClientException ("connection abort"). Treat every
+      // transient network error as "not yet approved, try again".
+      final http.Response response;
+      try {
+        response = await _client.post(
+          Uri.parse(_tokenUrl),
+          body: {
+            'client_id': _config.clientId,
+            'client_secret': _config.clientSecret,
+            'device_code': code.deviceCode,
+            'grant_type': _deviceGrant,
+          },
+        );
+      } on Exception catch (_) {
+        // SocketException, ClientException, TlsException, etc. — the network
+        // was not available (app was backgrounded, Wi-Fi toggled, …). Just wait
+        // and try again on the next interval.
+        continue;
+      }
+
       final body = _json(response);
       if (response.statusCode == 200) {
         return _signedIn(body);

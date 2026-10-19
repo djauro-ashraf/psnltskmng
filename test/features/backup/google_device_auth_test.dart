@@ -257,6 +257,43 @@ void main() {
       expect(await vault.read(GoogleDeviceAuth.refreshTokenKey), isNull);
       expect(await vault.read(GoogleDeviceAuth.emailKey), isNull);
     });
+
+    test('a network error during polling is retried silently', () async {
+      // Simulates the app being backgrounded: the HTTP client throws a
+      // ClientException when Android kills the socket, then succeeds on retry.
+      var pollCount = 0;
+      final retryAuth = GoogleDeviceAuth(
+        config: config,
+        client: MockClient((request) async {
+          requests.add(request);
+          final url = request.url.toString();
+          if (url.startsWith(_deviceUrl)) return deviceAnswer;
+          if (url.startsWith(_tokenUrl)) {
+            pollCount++;
+            if (pollCount <= 2) {
+              throw http.ClientException('Software caused connection abort');
+            }
+            return _json(200, grant());
+          }
+          if (url.startsWith(_userInfoUrl)) return userInfoAnswer;
+          fail('unexpected request to $url');
+        }),
+        vault: vault,
+        clock: () => now,
+        delay: (duration) async {
+          delays.add(duration);
+          now = now.add(duration);
+        },
+      );
+
+      final code = await retryAuth.start();
+      final account = await retryAuth.complete(code);
+
+      // It got through despite two network failures.
+      expect(account.email, 'me@example.com');
+      expect(pollCount, 3); // 2 failures + 1 success
+      expect(await vault.read(GoogleDeviceAuth.refreshTokenKey), 'refresh-1');
+    });
   });
 
   group('accessToken', () {

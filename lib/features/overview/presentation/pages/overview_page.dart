@@ -20,6 +20,7 @@ import 'package:personaltskmng/planning/controller/planning_controller.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 import 'package:personaltskmng/shared/widgets/empty_state.dart';
 import 'package:personaltskmng/shared/widgets/page_state_widgets.dart';
+import 'package:personaltskmng/shared/widgets/text_flow.dart';
 
 /// The Q overview: counts, the next M starts and the 71 ch with a colored cell
 /// per page. Read-only: nothing here changes the Q.
@@ -128,6 +129,15 @@ class _SummaryCard extends StatelessWidget {
     final counts = q.stateCounts;
     final main = q.mainD;
     final byCh = q.totalPages == ChTable.totalPages;
+    // Forward is toward higher pages, the way the text runs: to the left when
+    // it runs right to left.
+    final rtl = context.textRunsRightToLeft;
+    final forwardIcon = rtl
+        ? Icons.arrow_back_rounded
+        : Icons.arrow_forward_rounded;
+    final backwardIcon = rtl
+        ? Icons.arrow_forward_rounded
+        : Icons.arrow_back_rounded;
 
     final lines = <(IconData, String)>[];
     if (main != null && byCh) {
@@ -138,14 +148,14 @@ class _SummaryCard extends StatelessWidget {
       // Forward: the page after the main range, when it is a free ND page.
       final after = main.range.end + 1;
       if (after <= q.totalPages && q.page(after).state == PageState.nd) {
-        lines.add((Icons.arrow_forward_rounded, l10n.overviewNextForward(after)));
+        lines.add((forwardIcon, l10n.overviewNextForward(after)));
       }
       // Backward: the first page of the first backward candidate.
       final back = STable.backwardCandidates(q, main.range.start, 1);
       if (back.isNotEmpty) {
         final block = STable.backwardBlock(main.range.start)!;
         lines.add((
-          Icons.arrow_back_rounded,
+          backwardIcon,
           l10n.overviewNextBackward(
             back.first,
             block.s,
@@ -378,6 +388,9 @@ class _ChRow extends StatelessWidget {
                 ),
                 Expanded(
                   child: Wrap(
+                    // The cells run in text order: page 1 first, from the
+                    // right edge when the text runs right to left.
+                    textDirection: context.textFlow,
                     spacing: 3,
                     runSpacing: 3,
                     children: [

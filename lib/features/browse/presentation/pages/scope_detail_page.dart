@@ -8,13 +8,15 @@ import 'package:personaltskmng/features/browse/presentation/providers/browse_pro
 import 'package:personaltskmng/features/browse/presentation/widgets/unit_info.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/unit_screen.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
+import 'package:personaltskmng/shared/widgets/text_flow.dart';
 
 /// The screen of one s, one ch, or one part (an s inside a ch). It shows the
 /// unit's info (complete, worst state, all pages at least D3; a merged ch also
 /// its shared state) and its navigation together, then its notes.
 ///
-/// Supports seamless swipe navigation between sibling items (swiping right on
-/// ch 1 goes to ch 2, swiping left goes backward, etc.).
+/// Supports seamless swipe navigation between sibling items, in the reading
+/// direction (with the text running right to left, swiping right on ch 1 goes
+/// to ch 2, swiping left goes backward, etc.).
 class ScopeDetailPage extends ConsumerStatefulWidget {
   const ScopeDetailPage({
     super.key,
@@ -155,7 +157,7 @@ class _ScopeDetailPageState extends ConsumerState<ScopeDetailPage> {
     final l10n = context.l10n;
 
     return PageView.builder(
-      reverse: true,
+      reverse: context.textRunsRightToLeft,
       controller: _controller,
       itemCount: _itemCount,
       physics: const BouncingScrollPhysics(

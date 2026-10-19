@@ -4,6 +4,7 @@ import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/core/theme/app_theme.dart';
 import 'package:personaltskmng/features/browse/domain/note_unit.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/notes_slivers.dart';
+import 'package:personaltskmng/shared/widgets/text_flow.dart';
 
 /// The layout of every unit screen (a p, an s, a ch, a part): the unit's info
 /// and its navigation ("More details") together at the top, then the notes
@@ -48,6 +49,10 @@ class UnitScreen extends StatelessWidget {
     final positionLabel = this.positionLabel;
     final onPrevious = this.onPrevious;
     final onNext = this.onNext;
+    // Previous / next sit and point the way the text runs: with it running
+    // right to left, the previous page is on the right (arrow pointing right)
+    // and the next page on the left (arrow pointing left).
+    final rtl = context.textRunsRightToLeft;
 
     return Scaffold(
       appBar: AppBar(
@@ -63,6 +68,9 @@ class UnitScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(right: 4),
               child: Row(
+                // Only the order of the three: the label keeps its own
+                // direction, so "12 / 604" still reads as written.
+                textDirection: context.textFlow,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (onPrevious != null)
@@ -71,8 +79,10 @@ class UnitScreen extends StatelessWidget {
                       height: 32,
                       child: IconButton(
                         padding: EdgeInsets.zero,
-                        icon: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
+                        icon: Icon(
+                          rtl
+                              ? Icons.arrow_forward_ios_rounded
+                              : Icons.arrow_back_ios_new_rounded,
                           size: 14,
                         ),
                         tooltip: 'Previous',
@@ -114,8 +124,10 @@ class UnitScreen extends StatelessWidget {
                       height: 32,
                       child: IconButton(
                         padding: EdgeInsets.zero,
-                        icon: const Icon(
-                          Icons.arrow_forward_ios_rounded,
+                        icon: Icon(
+                          rtl
+                              ? Icons.arrow_back_ios_new_rounded
+                              : Icons.arrow_forward_ios_rounded,
                           size: 14,
                         ),
                         tooltip: 'Next',

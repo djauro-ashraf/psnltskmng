@@ -19,6 +19,11 @@ class SettingsViewModel extends Notifier<AppSettings> {
     return _save(state.copyWith(localeCode: localeCode));
   }
 
+  /// The one setting every text-order widget follows (see `TextFlow`).
+  Future<Failure?> setReadingDirection(ReadingDirection direction) {
+    return _save(state.copyWith(readingDirection: direction));
+  }
+
   Future<Failure?> setAiEnabled(bool enabled) =>
       _save(state.copyWith(aiEnabled: enabled));
 

@@ -298,7 +298,9 @@ class _SummaryCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: AppSpacing.xl),
-            // The whole text as a strip; tapping it opens the Overview.
+            // The whole text as a strip, in the reading direction (page 1 at
+            // the right by default, as in Browse); tapping it opens the
+            // Overview.
             Tooltip(
               message: l10n.overviewTitle,
               child: InkWell(
@@ -419,6 +421,21 @@ class _Actions extends StatelessWidget {
             FilledButton.icon(
               onPressed: busy
                   ? null
+                  : () => showLogDialog(
+                      context,
+                      submitFor: (operation, successful) =>
+                          (range) => vm.logCustom(
+                            operation,
+                            range,
+                            successful: successful,
+                          ),
+                    ),
+              icon: const Icon(Icons.edit_note_rounded),
+              label: Text(l10n.logSomethingElse),
+            ),
+            FilledButton.tonalIcon(
+              onPressed: busy
+                  ? null
                   : () async {
                       final result = await vm.makePlan();
                       if (context.mounted) _report(context, result);
@@ -450,21 +467,6 @@ class _Actions extends StatelessWidget {
                 icon: const Icon(Icons.more_time_rounded),
                 label: Text(l10n.planAddTime),
               ),
-            ),
-            TextButton.icon(
-              onPressed: busy
-                  ? null
-                  : () => showLogDialog(
-                      context,
-                      submitFor: (operation, successful) =>
-                          (range) => vm.logCustom(
-                            operation,
-                            range,
-                            successful: successful,
-                          ),
-                    ),
-              icon: const Icon(Icons.edit_note_rounded),
-              label: Text(l10n.logSomethingElse),
             ),
           ],
         ),

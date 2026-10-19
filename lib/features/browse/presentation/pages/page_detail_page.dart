@@ -5,10 +5,12 @@ import 'package:personaltskmng/features/browse/domain/note_unit.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/unit_info.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/unit_screen.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
+import 'package:personaltskmng/shared/widgets/text_flow.dart';
 
 /// The screen of one page: its info (state label, progress, prime, last R, L
 /// active, next step down) and its notes. Supports smooth swipe navigation
-/// between sibling pages (1..604).
+/// between sibling pages (1..604), in the reading direction: with the text
+/// running right to left, page 1 is on the right.
 class PageDetailPage extends StatefulWidget {
   const PageDetailPage({
     super.key,
@@ -84,7 +86,7 @@ class _PageDetailPageState extends State<PageDetailPage> {
   Widget build(BuildContext context) {
     final total = BrowseIndex.pageCount;
     return PageView.builder(
-      reverse: true,
+      reverse: context.textRunsRightToLeft,
       controller: _controller,
       itemCount: total,
       physics: const BouncingScrollPhysics(

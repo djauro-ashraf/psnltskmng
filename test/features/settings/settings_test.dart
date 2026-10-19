@@ -28,6 +28,23 @@ void main() {
         const AppSettings(themeMode: AppThemeMode.light, localeCode: 'en'),
       );
     });
+
+    test('the text runs right to left unless set otherwise', () {
+      expect(
+        const AppSettings().readingDirection,
+        ReadingDirection.rightToLeft,
+      );
+    });
+
+    test('copyWith changes only the reading direction', () {
+      const settings = AppSettings(localeCode: 'fr');
+      final next = settings.copyWith(
+        readingDirection: ReadingDirection.leftToRight,
+      );
+      expect(next.readingDirection, ReadingDirection.leftToRight);
+      expect(next.localeCode, 'fr');
+      expect(next, isNot(settings));
+    });
   });
 
   group('SettingsModel', () {
@@ -47,6 +64,23 @@ void main() {
 
     test('missing fields fall back to defaults', () {
       expect(SettingsModel.fromJson({}).toEntity(), const AppSettings());
+    });
+
+    test('the reading direction round-trips through json', () {
+      const original = AppSettings(
+        readingDirection: ReadingDirection.leftToRight,
+      );
+      final json = SettingsModel.fromEntity(original).toJson();
+      expect(json['readingDirection'], 'leftToRight');
+      expect(SettingsModel.fromJson(json).toEntity(), original);
+    });
+
+    test('an unknown or missing reading direction reads right to left', () {
+      final unknown = SettingsModel.fromJson({'readingDirection': 'sideways'});
+      expect(unknown.toEntity().readingDirection, ReadingDirection.rightToLeft);
+      // Settings stored (or backed up) before the setting existed.
+      final old = SettingsModel.fromJson({'themeMode': 'dark'});
+      expect(old.toEntity().readingDirection, ReadingDirection.rightToLeft);
     });
   });
 
@@ -82,6 +116,22 @@ void main() {
       expect(failure, isNull);
       expect(container.read(settingsViewModelProvider).localeCode, 'fr');
       expect(repository.stored.localeCode, 'fr');
+    });
+
+    test('applies a reading direction and persists it', () async {
+      final repository = FakeSettingsRepository();
+      final container = containerWith(repository);
+
+      final failure = await container
+          .read(settingsViewModelProvider.notifier)
+          .setReadingDirection(ReadingDirection.leftToRight);
+
+      expect(failure, isNull);
+      expect(
+        container.read(settingsViewModelProvider).readingDirection,
+        ReadingDirection.leftToRight,
+      );
+      expect(repository.stored.readingDirection, ReadingDirection.leftToRight);
     });
 
     test('rolls back and reports a failure when saving fails', () async {

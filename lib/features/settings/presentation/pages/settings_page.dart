@@ -617,7 +617,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 }
 
-/// Theme and language (unchanged from before).
+/// Theme, language and reading direction.
 class _AppearanceSection extends ConsumerWidget {
   const _AppearanceSection();
 
@@ -633,6 +633,13 @@ class _AppearanceSection extends ConsumerWidget {
       AppThemeMode.system => l10n.settingsThemeSystem,
       AppThemeMode.light => l10n.settingsThemeLight,
       AppThemeMode.dark => l10n.settingsThemeDark,
+    };
+  }
+
+  String _directionLabel(AppLocalizations l10n, ReadingDirection direction) {
+    return switch (direction) {
+      ReadingDirection.rightToLeft => l10n.settingsReadingRightToLeft,
+      ReadingDirection.leftToRight => l10n.settingsReadingLeftToRight,
     };
   }
 
@@ -693,6 +700,35 @@ class _AppearanceSection extends ConsumerWidget {
                 ),
               ),
           ],
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        // One setting for everything drawn in text order (see TextFlow).
+        Text(
+          l10n.settingsReadingDirectionSection,
+          style: theme.textTheme.titleMedium,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          l10n.settingsReadingDirectionHint,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        SegmentedButton<ReadingDirection>(
+          showSelectedIcon: false,
+          segments: [
+            for (final direction in ReadingDirection.values)
+              ButtonSegment<ReadingDirection>(
+                value: direction,
+                label: Text(_directionLabel(l10n, direction)),
+              ),
+          ],
+          selected: {settings.readingDirection},
+          onSelectionChanged: (selection) => _apply(
+            context,
+            viewModel.setReadingDirection(selection.first),
+          ),
         ),
       ],
     );

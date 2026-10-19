@@ -59,7 +59,7 @@ lib/
                         and planning (merged_spans). ch and s are used exactly as written
   features/
     daily_plan/        home screen ("What should I do today?")
-    settings/          theme + language
+    settings/          theme + language + reading direction
       domain/ data/ presentation/ settings.dart (public barrel)
 ```
 
@@ -80,8 +80,8 @@ Planned (added stage by stage, not created empty):
 
 Q's persistence is now JSON files (see Storage below). If the history grows too
 large for one file per write, SQLite (Drift) is the next step: `Q.pages`,
-`.transitions` and `.operations` are relational history. Theme and language stay
-on key-value storage (`AppSettings`, already built).
+`.transitions` and `.operations` are relational history. Theme, language and reading
+direction stay on key-value storage (`AppSettings`, already built).
 
 ## The domain layer (Stage 1-2)
 
@@ -322,7 +322,15 @@ surface gets a bigger radius (cell 3, chip 10, control 12, panel 20, hero 28).
   its order. A state must never rely on color alone: pair it with its letters (`StateBadge`) or a
   shape (F cells in the Overview carry a dot).
 - **Shared state widgets** (`shared/widgets/page_state_widgets.dart`): `StateBadge`, `PageSpine`
-  (every page of the Q as one strip) and `StateDistributionBar`.
+  (every page of the Q as one strip, in the reading direction) and `StateDistributionBar`.
+- **Reading direction** (`shared/widgets/text_flow.dart`): `TextFlow` is an `InheritedWidget` that
+  `app/app.dart` puts above the navigator from `AppSettings.readingDirection` (right to left by
+  default; also the fallback when no `TextFlow` is above, as in a widget test). Widgets that draw
+  things in text order read `context.textFlow` / `context.textRunsRightToLeft`: `PageSpine`, the
+  Overview's page cells and forward / backward arrows, and Browse's `PageView.reverse` and
+  previous / next buttons. A widget never gets its own direction switch, and `Directionality` is
+  left alone (the interface language is not the text's direction). Minutes and the other bars do
+  not use it.
 - The primary (mulberry) is far from every state hue on purpose: the only saturated things on
   screen are the page states. Amber (`tertiaryContainer`) is reserved for cautions.
 
@@ -354,6 +362,7 @@ Rules: `RULES.md`, "Page labels", "Overview", "Settings screen", "AI planner set
 - `features/settings/presentation/`: `pages/settings_page.dart` (appearance, then the planning sections, then the AI section); `widgets/planning_draft.dart` (`PlanningDraft`, the JSON-form draft with `settingsJsonProblems` messages by field path), `planning_fields.dart` (number / switch / choice fields), `planning_priority_and_shared.dart` (priority list, shared-pages screen), `ai_planner_section.dart`. Saving goes through `PlanningViewModel.updateSettings`, which bumps `settingsRevisionProvider`.
 - AI: `lib/ai/ai_runtime.dart` has `AiRuntime` (switch, provider, models, which providers have a key; never a key), `aiProviderInfos` and `aiAwarePlannerFactory`. `AiSetupViewModel` saves the switch, provider and model in `AppSettings`, the key in `ApiKeyStore`, updates the `AiRuntime` and calls `PlanningController.plannerChanged`. `app/dependencies.dart` builds `SecureApiKeyStore`, the `AiRuntime` (with which providers already have a key) and the controller with the AI-aware factory; `apiKeyStoreProvider` and `aiRuntimeProvider` are overridden there.
 - `AppSettings` gained `aiEnabled`, `aiProvider` and `aiModels` (old stored records read with the defaults).
+- `AppSettings` gained `readingDirection` (`rightToLeft` by default; a missing or unknown stored value, and backups made before it, read as right to left).
 
 ## Browse (ps, ss, ch)
 

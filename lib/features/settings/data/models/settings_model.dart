@@ -5,6 +5,7 @@ class SettingsModel {
   const SettingsModel({
     required this.themeMode,
     this.localeCode,
+    this.readingDirection = 'rightToLeft',
     this.aiEnabled = false,
     this.aiProvider = 'gemini',
     this.aiModels = const {},
@@ -16,6 +17,7 @@ class SettingsModel {
 
   final String themeMode;
   final String? localeCode;
+  final String readingDirection;
   final bool aiEnabled;
   final String aiProvider;
   final Map<String, String> aiModels;
@@ -27,6 +29,9 @@ class SettingsModel {
   factory SettingsModel.fromJson(Map<String, dynamic> json) => SettingsModel(
     themeMode: json['themeMode'] as String? ?? AppThemeMode.system.name,
     localeCode: json['localeCode'] as String?,
+    readingDirection:
+        json['readingDirection'] as String? ??
+        ReadingDirection.rightToLeft.name,
     aiEnabled: json['aiEnabled'] as bool? ?? false,
     aiProvider: json['aiProvider'] as String? ?? 'gemini',
     aiModels: {
@@ -42,6 +47,7 @@ class SettingsModel {
   factory SettingsModel.fromEntity(AppSettings settings) => SettingsModel(
     themeMode: settings.themeMode.name,
     localeCode: settings.localeCode,
+    readingDirection: settings.readingDirection.name,
     aiEnabled: settings.aiEnabled,
     aiProvider: settings.aiProvider,
     aiModels: settings.aiModels,
@@ -54,6 +60,7 @@ class SettingsModel {
   Map<String, dynamic> toJson() => {
     'themeMode': themeMode,
     'localeCode': localeCode,
+    'readingDirection': readingDirection,
     'aiEnabled': aiEnabled,
     'aiProvider': aiProvider,
     'aiModels': aiModels,
@@ -67,6 +74,10 @@ class SettingsModel {
     themeMode:
         AppThemeMode.values.asNameMap()[themeMode] ?? AppThemeMode.system,
     localeCode: localeCode,
+    // Unknown or missing: right to left, the way the book is read.
+    readingDirection:
+        ReadingDirection.values.asNameMap()[readingDirection] ??
+        ReadingDirection.rightToLeft,
     aiEnabled: aiEnabled,
     aiProvider: aiProvider,
     aiModels: aiModels,

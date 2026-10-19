@@ -53,6 +53,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsLanguageSystem => 'System default';
 
   @override
+  String get settingsReadingDirectionSection => 'Reading direction';
+
+  @override
+  String get settingsReadingDirectionHint =>
+      'How the text runs on screen. Right to left puts page 1 on the right, like the book. It applies to the page strips, the Overview cells and the paging in Browse; minutes and other bars are not affected.';
+
+  @override
+  String get settingsReadingRightToLeft => 'Right to left';
+
+  @override
+  String get settingsReadingLeftToRight => 'Left to right';
+
+  @override
   String get failureStorage =>
       'Something went wrong while saving or loading your data. Please try again.';
 
@@ -120,7 +133,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get todayNothingToPlan =>
-      'Nothing to plan yet. Log what you learned with Log something else.';
+      'Nothing to plan yet. Tap Log session to record what you studied.';
 
   @override
   String get summaryBudget => 'Budget';
@@ -227,7 +240,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get partialConfirm => 'Log';
 
   @override
-  String get logSomethingElse => 'Log something else';
+  String get logSomethingElse => 'Log session';
 
   @override
   String get logOperation => 'Operation';
@@ -258,7 +271,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loggedKindPartial => 'partial';
 
   @override
-  String get loggedKindCustom => 'custom';
+  String get loggedKindCustom => 'manual';
 
   @override
   String get loggedNotSuccessful => 'not successful';

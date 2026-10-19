@@ -55,7 +55,7 @@ Future<bool> showPartialDialog(
   return result ?? false;
 }
 
-/// "Log something else". Returns true when something was logged.
+/// Log session dialog. Returns true when something was logged.
 Future<bool> showLogDialog(
   BuildContext context, {
   required RangeSubmit Function(Operation operation, bool successful)

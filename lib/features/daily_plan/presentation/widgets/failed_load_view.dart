@@ -32,9 +32,9 @@ class FailedLoadView extends ConsumerWidget {
             },
             child: Text(l10n.failedStartFresh),
           ),
+          FilledButton.tonal(onPressed: null, child: Text(l10n.logSomethingElse)),
           FilledButton.tonal(onPressed: null, child: Text(l10n.planMake)),
           OutlinedButton(onPressed: null, child: Text(l10n.planAddTime)),
-          TextButton(onPressed: null, child: Text(l10n.logSomethingElse)),
         ],
       ),
     );

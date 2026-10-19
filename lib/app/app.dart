@@ -4,6 +4,7 @@ import 'package:personaltskmng/app/router.dart';
 import 'package:personaltskmng/core/theme/app_theme.dart';
 import 'package:personaltskmng/features/settings/settings.dart';
 import 'package:personaltskmng/l10n/app_localizations.dart';
+import 'package:personaltskmng/shared/widgets/text_flow.dart';
 
 class PersonalTskMngApp extends ConsumerWidget {
   const PersonalTskMngApp({super.key});
@@ -13,6 +14,13 @@ class PersonalTskMngApp extends ConsumerWidget {
       AppThemeMode.system => ThemeMode.system,
       AppThemeMode.light => ThemeMode.light,
       AppThemeMode.dark => ThemeMode.dark,
+    };
+  }
+
+  TextDirection _toTextDirection(ReadingDirection direction) {
+    return switch (direction) {
+      ReadingDirection.rightToLeft => TextDirection.rtl,
+      ReadingDirection.leftToRight => TextDirection.ltr,
     };
   }
 
@@ -34,12 +42,16 @@ class PersonalTskMngApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // select(): the app root rebuilds only when theme or language change.
+    // select(): the app root rebuilds only when theme, language or reading
+    // direction change.
     final themeMode = ref.watch(
       settingsViewModelProvider.select((s) => s.themeMode),
     );
     final localeCode = ref.watch(
       settingsViewModelProvider.select((s) => s.localeCode),
+    );
+    final readingDirection = ref.watch(
+      settingsViewModelProvider.select((s) => s.readingDirection),
     );
     final router = ref.watch(routerProvider);
 
@@ -53,6 +65,11 @@ class PersonalTskMngApp extends ConsumerWidget {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       localeResolutionCallback: _resolveLocale,
+      // Above the navigator, so pages, dialogs and sheets all see it.
+      builder: (context, child) => TextFlow(
+        direction: _toTextDirection(readingDirection),
+        child: child ?? const SizedBox.shrink(),
+      ),
       routerConfig: router,
     );
   }

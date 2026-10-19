@@ -53,6 +53,19 @@ class AppLocalizationsFr extends AppLocalizations {
   String get settingsLanguageSystem => 'Langue du système';
 
   @override
+  String get settingsReadingDirectionSection => 'Sens de lecture';
+
+  @override
+  String get settingsReadingDirectionHint =>
+      'La façon dont le texte se déroule à l’écran. De droite à gauche place la page 1 à droite, comme dans le livre. Cela s’applique aux bandes de pages, aux cases de l’aperçu et au défilement dans Parcourir ; les minutes et les autres barres ne changent pas.';
+
+  @override
+  String get settingsReadingRightToLeft => 'De droite à gauche';
+
+  @override
+  String get settingsReadingLeftToRight => 'De gauche à droite';
+
+  @override
   String get failureStorage =>
       'Une erreur s’est produite lors de l’enregistrement ou du chargement de vos données. Veuillez réessayer.';
 
@@ -121,7 +134,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get todayNothingToPlan =>
-      'Rien à planifier pour l’instant. Enregistrez ce que vous avez appris avec « Enregistrer autre chose ».';
+      'Rien à planifier pour l’instant. Appuyez sur « Enregistrer une séance » pour noter ce que vous avez étudié.';
 
   @override
   String get summaryBudget => 'Budget';
@@ -228,7 +241,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get partialConfirm => 'Enregistrer';
 
   @override
-  String get logSomethingElse => 'Enregistrer autre chose';
+  String get logSomethingElse => 'Enregistrer une séance';
 
   @override
   String get logOperation => 'Opération';
@@ -259,7 +272,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get loggedKindPartial => 'partiel';
 
   @override
-  String get loggedKindCustom => 'autre';
+  String get loggedKindCustom => 'manuel';
 
   @override
   String get loggedNotSuccessful => 'sans succès';

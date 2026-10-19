@@ -182,6 +182,30 @@ abstract class AppLocalizations {
   /// **'System default'**
   String get settingsLanguageSystem;
 
+  /// No description provided for @settingsReadingDirectionSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading direction'**
+  String get settingsReadingDirectionSection;
+
+  /// No description provided for @settingsReadingDirectionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'How the text runs on screen. Right to left puts page 1 on the right, like the book. It applies to the page strips, the Overview cells and the paging in Browse; minutes and other bars are not affected.'**
+  String get settingsReadingDirectionHint;
+
+  /// No description provided for @settingsReadingRightToLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Right to left'**
+  String get settingsReadingRightToLeft;
+
+  /// No description provided for @settingsReadingLeftToRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Left to right'**
+  String get settingsReadingLeftToRight;
+
   /// No description provided for @failureStorage.
   ///
   /// In en, this message translates to:
@@ -281,7 +305,7 @@ abstract class AppLocalizations {
   /// No description provided for @todayNothingToPlan.
   ///
   /// In en, this message translates to:
-  /// **'Nothing to plan yet. Log what you learned with Log something else.'**
+  /// **'Nothing to plan yet. Tap Log session to record what you studied.'**
   String get todayNothingToPlan;
 
   /// No description provided for @summaryBudget.
@@ -461,7 +485,7 @@ abstract class AppLocalizations {
   /// No description provided for @logSomethingElse.
   ///
   /// In en, this message translates to:
-  /// **'Log something else'**
+  /// **'Log session'**
   String get logSomethingElse;
 
   /// No description provided for @logOperation.
@@ -521,7 +545,7 @@ abstract class AppLocalizations {
   /// No description provided for @loggedKindCustom.
   ///
   /// In en, this message translates to:
-  /// **'custom'**
+  /// **'manual'**
   String get loggedKindCustom;
 
   /// No description provided for @loggedNotSuccessful.

@@ -139,7 +139,7 @@ class TodayViewModel extends Notifier<TodayState> {
     );
   }
 
-  /// "Log something else".
+  /// Log session (manual logging).
   Future<TodayActionResult> logCustom(
     Operation operation,
     PageRange range, {

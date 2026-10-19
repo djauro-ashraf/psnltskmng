@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/core/theme/page_state_colors.dart';
 import 'package:personaltskmng/domain/models/page_state.dart';
+import 'package:personaltskmng/shared/widgets/text_flow.dart';
 
 /// The state's letters (ND, D2, F3 ...) on the state's color. Letters are
 /// domain terms and are never translated.
@@ -40,6 +41,10 @@ class StateBadge extends StatelessWidget {
 /// text at a glance, like the edge of a closed book. Runs of the same state
 /// are drawn as one block, and a run is never thinner than one pixel, so a
 /// single lapsed page stays visible.
+///
+/// The strip runs the way the text runs (`context.textFlow`, from the
+/// "Reading direction" setting): right to left puts page 1 at the right edge
+/// and the last page at the left edge, like an Arabic book and like Browse.
 class PageSpine extends StatelessWidget {
   const PageSpine({super.key, required this.states, this.height = 14});
 
@@ -55,22 +60,35 @@ class PageSpine extends StatelessWidget {
       child: SizedBox(
         height: height,
         width: double.infinity,
-        child: CustomPaint(painter: _SpinePainter(states, colors)),
+        child: CustomPaint(
+          painter: _SpinePainter(
+            states,
+            colors,
+            rightToLeft: context.textRunsRightToLeft,
+          ),
+        ),
       ),
     );
   }
 }
 
 class _SpinePainter extends CustomPainter {
-  _SpinePainter(this.states, this.colors);
+  _SpinePainter(this.states, this.colors, {required this.rightToLeft});
 
   final List<PageState> states;
   final PageStateColors colors;
+  final bool rightToLeft;
 
   @override
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(Offset.zero & size, Paint()..color = colors.nd);
     if (states.isEmpty) return;
+    // Everything below is laid out left to right; mirroring the canvas makes
+    // page 1 land on the right edge.
+    if (rightToLeft) {
+      canvas.translate(size.width, 0);
+      canvas.scale(-1, 1);
+    }
     final unit = size.width / states.length;
     final paint = Paint()..isAntiAlias = false;
     var runStart = 0;
@@ -91,7 +109,11 @@ class _SpinePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SpinePainter old) {
-    if (old.colors != colors || old.states.length != states.length) return true;
+    if (old.colors != colors ||
+        old.rightToLeft != rightToLeft ||
+        old.states.length != states.length) {
+      return true;
+    }
     for (var i = 0; i < states.length; i++) {
       if (old.states[i] != states[i]) return true;
     }

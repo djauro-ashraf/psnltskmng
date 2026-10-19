@@ -1,10 +1,18 @@
 enum AppThemeMode { system, light, dark }
 
+/// The way the text (the pages of the book) runs on screen. The book is read
+/// right to left, with page 1 on the right, so that is the default. Only
+/// things drawn in text order follow it (the page strips, the page cells,
+/// paging and the arrows that go with them); minutes, budgets and the rest of
+/// the interface do not.
+enum ReadingDirection { rightToLeft, leftToRight }
+
 /// User preferences. Immutable value object; pure Dart.
 final class AppSettings {
   const AppSettings({
     this.themeMode = AppThemeMode.system,
     this.localeCode,
+    this.readingDirection = ReadingDirection.rightToLeft,
     this.aiEnabled = false,
     this.aiProvider = 'gemini',
     this.aiModels = const {},
@@ -18,6 +26,10 @@ final class AppSettings {
 
   /// Language code such as `en` or `fr`; null follows the system language.
   final String? localeCode;
+
+  /// How the text runs on screen; one setting for everything drawn in text
+  /// order.
+  final ReadingDirection readingDirection;
 
   /// The AI planner switch (off by default).
   final bool aiEnabled;
@@ -45,6 +57,7 @@ final class AppSettings {
   AppSettings copyWith({
     AppThemeMode? themeMode,
     Object? localeCode = _unchanged,
+    ReadingDirection? readingDirection,
     bool? aiEnabled,
     String? aiProvider,
     Map<String, String>? aiModels,
@@ -58,6 +71,7 @@ final class AppSettings {
       localeCode: identical(localeCode, _unchanged)
           ? this.localeCode
           : localeCode as String?,
+      readingDirection: readingDirection ?? this.readingDirection,
       aiEnabled: aiEnabled ?? this.aiEnabled,
       aiProvider: aiProvider ?? this.aiProvider,
       aiModels: aiModels ?? this.aiModels,
@@ -79,6 +93,7 @@ final class AppSettings {
       other is AppSettings &&
           other.themeMode == themeMode &&
           other.localeCode == localeCode &&
+          other.readingDirection == readingDirection &&
           other.aiEnabled == aiEnabled &&
           other.aiProvider == aiProvider &&
           other.backupFrequency == backupFrequency &&
@@ -91,6 +106,7 @@ final class AppSettings {
   int get hashCode => Object.hash(
     themeMode,
     localeCode,
+    readingDirection,
     aiEnabled,
     aiProvider,
     backupFrequency,

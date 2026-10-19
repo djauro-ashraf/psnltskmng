@@ -76,6 +76,15 @@ final class PlanValidator {
 
   static const double _eps = 1e-9;
 
+  /// The first page of [range] that already had a successful R on [day] in
+  /// [q], or null.
+  static int? _firstPageRToday(Q q, Day day, PageRange range) {
+    for (final n in range.pages) {
+      if (q.page(n).lastR == day) return n;
+    }
+    return null;
+  }
+
   ValidationResult validate({
     required Q q,
     required Day day,
@@ -149,8 +158,32 @@ final class PlanValidator {
       ExpansionDirection? expansionDirection;
 
       if (op.operation == Operation.r) {
-        // R rules (eligibility, one successful R per page per day) live in the
-        // engine; the dry run below reports them.
+        // Eligibility lives in the engine; the dry run below reports it. The
+        // one-R-per-page-per-day rule is stricter here than in the engine: the
+        // engine lets a LOGGED R go over a shared page (two ch or two s that
+        // meet on it) a second time, because the user really did go through
+        // both. A PROPOSAL never asks for it: the page already earned today's
+        // R, so a second pass would only cost minutes. The planners never
+        // include such a page (it is not due); an AI plan that does is refused.
+        final repeat = _firstPageRToday(running, day, range);
+        if (repeat != null) {
+          final violation = RuleViolation(
+            RuleViolationReason.pageAlreadyRToday,
+            page: repeat,
+            pageState: running.page(repeat).state,
+            detail: 'max one successful R per page per day',
+          );
+          violations.add(
+            PlanViolation(
+              kind: ViolationKind.alreadyRToday,
+              message: violation.toString(),
+              opIndex: i,
+              op: op,
+              engine: violation,
+            ),
+          );
+          continue;
+        }
       } else {
         final states = {for (final n in range.pages) running.page(n).state};
         if (states.contains(PageState.nd) && states.length > 1) {

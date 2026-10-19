@@ -90,6 +90,42 @@ void main() {
     expect((again as LogRejected).violation.kind, ViolationKind.alreadyRToday);
   });
 
+  test('two ch that meet on a page: both are logged, the shared page earns one unit', () async {
+    // ch 30 is p 282-293, ch 31 is p 293-304; p 293 is in both (and in s 17 and s 18).
+    final s1 = start(budget: 1200);
+    final first = accepted(
+      await service.log(s1, operation: Operation.r, range: const PageRange(282, 293)),
+    );
+    final second = accepted(
+      await service.log(first.session, operation: Operation.r, range: const PageRange(293, 304)),
+    );
+    final q = second.session.currentQ;
+    expect(second.session.logged, hasLength(2));
+    expect(q.page(293).progressUnits, 1, reason: 'one day, one unit');
+    expect(q.page(293).rCount, 1);
+    expect(q.page(294).progressUnits, 1);
+    expect(q.page(304).progressUnits, 1);
+    // What was really spent is kept: the shared page is priced half in each ch.
+    expect(second.entry.minutes, greaterThan(0));
+    expect(
+      second.session.spentMinutes,
+      closeTo(first.entry.minutes + second.entry.minutes, 1e-9),
+    );
+  });
+
+  test('the re-plan after ch 30 leaves the shared page out of ch 31', () async {
+    final s1 = start(budget: 1200);
+    final s2 = accepted(
+      await service.log(s1, operation: Operation.r, range: const PageRange(282, 293)),
+    ).session;
+    final s3 = await service.requestPlan(s2);
+    final rOps = s3.proposals.last.ops.where((o) => o.operation == Operation.r).toList();
+    expect(rOps, isNotEmpty);
+    for (final op in rOps) {
+      expect(op.range.contains(293), isFalse, reason: '${op.label} already has p 293 today');
+    }
+  });
+
   test('more work: the re-plan sees today\'s log, no double R, expansion budget honoured', () async {
     final s1 = await service.requestPlan(start(budget: 1200));
     final s2 = accepted(await service.logPlanned(s1, proposalIndex: 0, opIndex: 1)).session;

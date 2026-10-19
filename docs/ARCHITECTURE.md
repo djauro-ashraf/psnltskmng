@@ -44,6 +44,9 @@ lib/
                         ch_segments.dart: ChSegments, describes one page range
                         (an R or L) by ch and builds its text for the user.
                         (Its structure is also read by TimeModel.rRangePrice.)
+                        s_table.dart: STable, the exact pages of each s
+                        (also `sOfPage`). shared_pages.dart: SharedPages,
+                        which pages are in two ch or two s.
                         ch_status.dart: ChStatus and SStatus, the read-only
                         status of each ch and s derived from a Q (levels,
                         lagging and warning pages, mergeReady), computed on
@@ -170,6 +173,18 @@ AI (Stage 6+) proposing plans that this layer validates, never the reverse.
   not duplicated; `Q.checkInvariants` checks that a merged ch stays identical. The
   time model is unchanged. Planning is told about merged ch (see the next entry). See
   `RULES.md`.
+- **Shared pages and one R per day.** `domain/reference/shared_pages.dart` (`SharedPages`, pure
+  Dart) says which pages are in two or more ch (`ChTable.chOfPage`) or two or more s
+  (`STable.sOfPage`): 51 pages, only for the 604-page Q. `RulesEngine.applyR` still allows one
+  successful R per page per day, except that a shared page that already earned today's R is
+  skipped instead of rejecting the range (a user who goes through ch 12 then ch 13, or s 4 then
+  s 5, logs page 106 twice): the page keeps its single unit, no error, and the op is recorded
+  as logged. `MergeRules.partialViolation(..., ignoring:)` leaves those untouched pages out of
+  the all-or-nothing check. A page that is not shared is still rejected with
+  `pageAlreadyRToday`. `PlanValidator` keeps the strict rule for proposals (it checks
+  `lastR == day` itself and answers `ViolationKind.alreadyRToday`), so only a logged R can
+  repeat a shared page; planners never include such a page. L is unchanged (it already
+  accepted an already-R'd page). See `RULES.md`, "Shared pages and one R per day".
 - **Planning and merged ch.** `domain/reference/merged_spans.dart` (`MergedSpans`) is the one
   read-only place that turns `Q.mergedCh` and the ch table into merged ch with their OWNED page
   spans, runs of consecutive merged ch, and the units a ranked page list is grouped into.

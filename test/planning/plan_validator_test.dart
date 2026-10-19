@@ -44,6 +44,21 @@ void main() {
     expect(v.violations.single.toPromptLine(), contains('op 2 (R 285-295)'));
   });
 
+  test('a proposal never goes over a shared page that already earned today\'s R', () {
+    // The engine lets a LOGGED R repeat a shared page (ch 30 and ch 31 meet on
+    // p 293): the user really went through both. A proposal is stricter.
+    final v = run([r(282, 293), r(293, 304)], budget: 1200);
+    expect(v.accepted.map((o) => o.label), ['R 282-293']);
+    expect(v.violations.single.kind, ViolationKind.alreadyRToday);
+    expect(v.violations.single.engine?.reason, RuleViolationReason.pageAlreadyRToday);
+    expect(v.violations.single.engine?.page, 293);
+  });
+
+  test('the same two ch planned without the shared page twice pass', () {
+    final v = run([r(282, 293), r(294, 304)], budget: 1200);
+    expect(v.isClean, isTrue);
+  });
+
   test('M on ND pages that do not touch the main range is refused', () {
     final v = run([m(500, 505)]);
     expect(v.violations.single.kind, ViolationKind.notAdjacentToMain);

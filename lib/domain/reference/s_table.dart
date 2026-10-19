@@ -56,6 +56,35 @@ abstract final class STable {
     return _rows[s - 1].last;
   }
 
+  /// Every s that contains [page], in ascending s order, by the exact pages of
+  /// the table: one s for most pages, two where an s ends on the page the next
+  /// one starts (page 106 is in s 4 and s 5), three on the last pages (page 604
+  /// is in s 112, 113 and 114). Throws a [RangeError] for a page outside 1 to
+  /// [ChTable.totalPages].
+  static List<int> sOfPage(int page) {
+    RangeError.checkValueInInterval(page, 1, ChTable.totalPages, 'page');
+    return _sOfPage[page];
+  }
+
+  /// Every page that belongs to two or more s, ascending (51 pages).
+  static List<int> get sharedPages => _sharedPages;
+
+  static final List<List<int>> _sOfPage = _indexByPage();
+  static final List<int> _sharedPages = List<int>.unmodifiable([
+    for (var page = 1; page <= ChTable.totalPages; page++)
+      if (_sOfPage[page].length > 1) page,
+  ]);
+
+  static List<List<int>> _indexByPage() {
+    final index = List<List<int>>.generate(ChTable.totalPages + 1, (_) => <int>[]);
+    for (var s = 1; s <= count; s++) {
+      for (var page = _rows[s - 1].first; page <= _rows[s - 1].last; page++) {
+        index[page].add(s);
+      }
+    }
+    return [for (final list in index) List<int>.unmodifiable(list)];
+  }
+
   /// The highest s whose first page is below [page]; null when there is none
   /// (page 1).
   static int? highestStartingBefore(int page) {

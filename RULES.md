@@ -28,7 +28,9 @@ code disagree, the code is wrong or this file is stale: fix one of them.
 - A range is rejected as a whole if any page in it is not eligible.
 - **At most one successful R per page per day.** An unsuccessful R (and L) on an R-eligible
   page is accepted and recorded, and changes nothing. On an ND or F3 page it is rejected like
-  any R.
+  any R. **Exception: a shared page** (a page in two ch or two s, see Shared pages and one R
+  per day). A user who goes through two ch, or two s, that meet on a page logs that page twice;
+  the second log is accepted and the page earns nothing more.
 - `applyM` / `applyR` / `applyL` first **settle through yesterday** (`catchUp`): degradation is judged for
   every day before today and never for today, so an R today counts as progression.
   `advanceToDay(today)` judges today as complete (end-of-day).
@@ -46,7 +48,7 @@ the user to interpret. No rule, planner, cost or capacity gate reads it.
 - **One R per page per day.** If a page already had a successful R today, an L on it is still
   accepted and sets the marker, but its R part adds nothing (no second unit, no error). An R
   after an L the same day is rejected by the one-per-day rule, because the L counted as that
-  day's R.
+  day's R (on a shared page it is a repeat and is accepted, see Shared pages and one R per day).
 - **Marker.** Each page remembers the day of its last L (or nothing). A page is **L-active**
   on a day when it has a last-L day and fewer than `lMonthDays` days have passed since (the L
   day is day 0; before that day it is not active). `lMonthDays` is a setting
@@ -679,6 +681,50 @@ recover F3 first and give R to the working set). Code: `CatchUpGroups`
   ranges. A hint, not a rule: the usual priorities, the time ceiling and the capacity gate stay
   as they are.
 
+### Shared pages and one R per day
+
+The page is the unit of state, but the user works through ch and s, and neighbouring ch (or s)
+meet on a page: page 106 is the last page of ch 12 and the first of ch 13, and in s 4 and s 5.
+Going through ch 12 and then ch 13 puts the same page under the user's eyes twice. The rule "at
+most one successful R per page per day" must not turn that into an error. Decision:
+
+- **Which pages.** A page is SHARED when it is in two or more ch (`ChTable.chOfPage`, 26 pages)
+  or in two or more s (`STable.sOfPage`, the exact s pages, 51 pages; page 604 is in s 112, 113
+  and 114). Every ch-shared page is also s-shared, so the shared pages are the 51 s-shared ones.
+  `SharedPages.isShared` is the one place that says it. Only the 604-page Q of the tables has
+  shared pages (as for merging).
+- **Progress.** A page earns at most ONE unit per day, whatever number of ch or s it was logged
+  through. The first successful R or L that covers the page does everything (the unit, or the
+  restore from F1/F2, the last R, the clock). A later successful R the same day that covers the
+  page again is accepted and leaves the page exactly as it is: no second unit, no error, no
+  second rCount. This is the same behaviour as the R part of an L on a page that already had its
+  R today.
+- **State of a page logged once.** It is complete, not half done. The shared page is one page
+  with one record: it earned its unit on the first log and stays as it is; it is not kept
+  "incomplete" until a second log comes, and nothing waits for it. Degradation, progression and
+  the planner read the page, so a page logged through ch 12 only is done today for ch 13 too
+  (the planner does not propose it again today, see below). The ch that was not logged is not
+  marked: only the pages it was logged on changed.
+- **Only shared pages.** A page that is in one ch and one s still gets at most one successful R
+  per day; a second one is rejected with `pageAlreadyRToday`, naming the first such page of the
+  range. So R 290-300 after R 282-293 is rejected (p 290), while R 293-304 after R 282-293 is
+  accepted (p 293 is a repeat, p 294-304 are new). A range is rejected as a whole as before, and
+  an accepted one changes nothing outside the pages that are not repeats.
+- **Merged ch.** A repeated shared page is not touched by the op, so it does not make the op a
+  partial one: with ch 30 merged and done whole today, R 293-304 for ch 31 is accepted (p 293 is
+  ch 30's owned page, but unchanged). Without ch 30 done today, R 293-304 touches p 293 and is
+  rejected with `mergedChPartial` as before.
+- **Price.** The minutes of the second log are the normal op price, so the shared page is paid
+  half in each ch (see Shared pages: half time) and the two logs together cost what one pass of
+  the page costs. For an s-only shared page (no ch shares it) the op price has no weight; the
+  time spent is what was logged.
+- **Planning is stricter than logging.** A proposal (rule-based or AI) never goes over a page that
+  already has today's R, shared or not: the validator refuses it with `alreadyRToday`. The
+  planners never include such a page (it is not due), so after ch 12 is logged the plan for ch 13
+  starts at page 107. Only what the user really did is allowed to repeat a shared page.
+- **Notes.** Unchanged: `NoteCoverage.covers` decides by page and by whole-ch, so a note on
+  page 106 filed under ch 13 is covered by R 106-115 (and by R 107-115 as the ch done whole).
+
 ## Merged ch
 
 A ch that is `mergeReady` (`ChStatus.mergeReady`: every OWNED page in D2, D3 or C) becomes ONE
@@ -789,7 +835,7 @@ The Today tab shows, by the load result: the reason and "Start fresh" (failed; t
 - **Proposal rows**: kind (M or R), the ch text, the pages, the minutes (each op priced on the Q before it, as the validator did). The ch text is built from the `ChSegments` structure (whole ch / from its beginning / middle) with localized strings. At-risk pages are shown as a warning and dropped ops in a collapsed "Not included" section with the reason.
 - **Done** calls `logPlanned` (successful); a row can be done once. **Not successful** (R only) calls `logPlanned` with `successful: false`; the engine accepts it and it costs the same minutes. **Done partly** (R only) calls `logPlanned` with a sub-range, and the service classifies it as partial.
 - **Partial and ownership of shared pages**: the dialog has from / to (prefilled with the whole op) and one chip per ch segment. A chip fills from / to with the pages that ch OWNS inside the op: the earlier ch owns a shared page, so for R 97-115 the chip "ch 12 (p 97 - 106)" fills 97-106 and the chip "ch 13 (p 106 - 115)" fills 107-115, with a note that p 106 belongs to ch 12. If any ch of the op is merged, partial is disabled (a successful R on a merged ch is all or nothing); Done logs the whole op.
-- **Log session** (manual logging) calls `log` with M, R or L, the pages and (R, L) a successful toggle. If the engine rejects it, the dialog stays open with the violation text and the Q is unchanged. An M on ND pages is accepted when there is no D range, which is how a user with nothing learned starts.
+- **Log session** (manual logging) calls `log` with M, R or L, the pages and (R, L) a successful toggle. If the engine rejects it, the dialog stays open with the violation text and the Q is unchanged. The pages are typed as the user sees them, so ch 12 then ch 13 can be logged as 97-106 and 106-115: the second log repeats the shared page 106, which is accepted and changes nothing for that page (see Shared pages and one R per day). An M on ND pages is accepted when there is no D range, which is how a user with nothing learned starts.
 - **Nothing to plan & empty proposals**: with no D range, no F3 page and no forgotten page (ND with M history) the plan is empty, and the screen says so instead of showing an error. When a plan is requested but produces no operations (e.g. if the user indicated all pages were already reviewed today and capacity gate prevents new M), the screen clearly explains why (reviews completed today, next session ready tomorrow) rather than presenting an ambiguous empty state.
 - **Logged today**: operation, pages with the ch text (R and L), minutes and the kind (planned / partial / manual).
 - **Notes for what you reviewed.** Once an R or an L is logged (successful or not), Today shows the open notes of that part under "Notes for what you reviewed", above the logged list, with the same "I remembered" tap (see Notes). Which notes belong to a logged range is `NoteCoverage.covers`. An M shows none. Reading the notes changes nothing in the session, the Q or the plan.

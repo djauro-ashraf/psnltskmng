@@ -11,6 +11,7 @@ import 'package:personaltskmng/domain/models/page_state.dart';
 import 'package:personaltskmng/domain/models/planner_constraints.dart';
 import 'package:personaltskmng/domain/models/q.dart';
 import 'package:personaltskmng/domain/models/state_transition.dart';
+import 'package:personaltskmng/domain/reference/shared_pages.dart';
 import 'package:personaltskmng/domain/rules/d_range_rules.dart';
 import 'package:personaltskmng/domain/rules/degradation_rules.dart';
 import 'package:personaltskmng/domain/rules/expansion_rules.dart';
@@ -216,7 +217,11 @@ final class RulesEngine {
   /// attempt on R-eligible pages is accepted (it is real, loggable history)
   /// but has no effect on any page's state; on an ND or F3 page it is rejected
   /// like any R. A page earns at most one unit per day: a successful R on a
-  /// page that already had one today is rejected.
+  /// page that already had one today is rejected, EXCEPT on a shared page
+  /// (see [SharedPages]: a page in two ch or two s). Going through two ch, or
+  /// two s, that meet on a page logs that page twice; the second log is
+  /// accepted and the page is left as it is (no second unit, no error), like
+  /// the R part of an L on a page that already had its R.
   EngineResult<Q> applyR({
     required Q q,
     required PageRange range,
@@ -264,13 +269,26 @@ final class RulesEngine {
         );
       }
     }
+    // Shared pages (two ch or two s) that already earned today's R. A second
+    // successful R may go over them: the page keeps what it earned and is not
+    // touched again. They are not part of what this R changes, so the merged
+    // ch check below leaves them out too. Only a successful R is concerned: an
+    // L never rejects on this and handles the page itself ([LRules.apply]).
+    final repeated = <int>{};
+    if (successful && operation == Operation.r) {
+      for (final n in range.pages) {
+        if (q.page(n).lastR == today && SharedPages.isSharedIn(q, n)) {
+          repeated.add(n);
+        }
+      }
+    }
     if (successful) {
-      final partial = MergeRules.partialViolation(q, range);
+      final partial = MergeRules.partialViolation(q, range, ignoring: repeated);
       if (partial != null) return EngineRejected(partial);
     }
     if (successful && operation == Operation.r) {
       for (final n in range.pages) {
-        if (q.page(n).lastR == today) {
+        if (q.page(n).lastR == today && !repeated.contains(n)) {
           return EngineRejected(
             RuleViolation(
               RuleViolationReason.pageAlreadyRToday,
@@ -285,6 +303,7 @@ final class RulesEngine {
 
     final pages = List<PageRecord>.of(q.pages);
     for (final n in range.pages) {
+      if (repeated.contains(n)) continue;
       pages[n - 1] = operation == Operation.l
           ? LRules.apply(
               pages[n - 1],

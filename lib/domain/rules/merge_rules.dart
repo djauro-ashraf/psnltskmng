@@ -163,11 +163,23 @@ final class MergeRules {
   /// pages. Judged by owned pages, the same way `ChSegments` does (range
   /// 107-115 covers ch 13 even though ch 13 is displayed as 106-115). Null
   /// when the range is fine. [range] must lie inside the Q.
-  static RuleViolation? partialViolation(Q q, PageRange range) {
+  ///
+  /// [ignoring] are pages of [range] the op does not touch: a shared page that
+  /// already had its R today, which a second R goes over without changing it
+  /// (see `SharedPages`). They are not counted as touching their ch. They still
+  /// count as covered, being inside [range].
+  static RuleViolation? partialViolation(
+    Q q,
+    PageRange range, {
+    Set<int> ignoring = const {},
+  }) {
     if (q.mergedCh.isEmpty || !ChStatus.covers(q)) return null;
     final table = ChTable.instance;
     final seen = <int>{};
     for (final n in range.pages) {
+      // A page the op leaves untouched (a shared page that already had its R
+      // today, see `SharedPages`) does not make the op a partial one.
+      if (ignoring.contains(n)) continue;
       final ch = table.ownerOfPage(n).number;
       if (!q.mergedCh.contains(ch) || !seen.add(ch)) continue;
       if (table.ownedPagesOf(ch).any((p) => !range.contains(p))) {

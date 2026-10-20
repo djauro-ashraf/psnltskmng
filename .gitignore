@@ -49,3 +49,11 @@ app.*.map.json
 
 # Google Drive OAuth client for --dart-define-from-file (see docs/DRIVE_SETUP.md)
 /drive.json
+
+# Android signing keys & properties
+*.jks
+*.keystore
+**/android/key.properties
+
+# Local portable release archives
+*.zip

@@ -61,7 +61,7 @@ void main() {
     });
   });
 
-  group('ExpansionRules.isDirectionAllowed (section 7, hard constraint)', () {
+  group('ExpansionRules.isDirectionAllowed (section 7, planning rule: the engine never calls it)', () {
     const constraints = PlannerConstraints(); // max 3 consecutive, default
 
     test('first ever expansion, either direction is fine', () {
@@ -154,6 +154,57 @@ void main() {
           oppositeAvailable: true,
         ),
         isFalse,
+      );
+    });
+  });
+
+  group('ExpansionRules.isOppositeAvailable', () {
+    const engine = RulesEngine(PlannerConstraints());
+    final q = engine.createQ(
+      id: 'opposite-test',
+      totalPages: 500,
+      initialMainD: const PageRange(282, 322),
+      today: const Day(0),
+    );
+
+    test('both sides are open while the pages next to the range are ND', () {
+      for (final direction in ExpansionDirection.values) {
+        expect(
+          ExpansionRules.isOppositeAvailable(
+            q: q,
+            mainRange: const PageRange(282, 322),
+            direction: direction,
+          ),
+          isTrue,
+          reason: direction.name,
+        );
+      }
+    });
+
+    test('a range that starts at page 1 has no backward side', () {
+      final edge = engine.createQ(
+        id: 'edge-test',
+        totalPages: 500,
+        initialMainD: const PageRange(1, 40),
+        today: const Day(0),
+      );
+      expect(
+        ExpansionRules.isOppositeAvailable(
+          q: edge,
+          mainRange: const PageRange(1, 40),
+          direction: ExpansionDirection.forward,
+        ),
+        isFalse,
+        reason: 'forward expansion: its opposite is backward, which is blocked',
+      );
+      expect(
+        ExpansionRules.isOppositeAvailable(
+          q: edge,
+          mainRange: const PageRange(1, 40),
+          direction: ExpansionDirection.backward,
+        ),
+        isTrue,
+        reason: 'backward expansion: its opposite is forward, which is open',
       );
     });
   });

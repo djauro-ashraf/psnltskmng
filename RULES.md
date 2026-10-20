@@ -16,7 +16,8 @@ code disagree, the code is wrong or this file is stale: fix one of them.
 ## Operations
 
 - **M** (enter or recover): allowed ONLY on ND pages and on F3 pages. Not on D1-D3, C, F1
-  or F2.
+  or F2. **Exception: a shared page** (a page in two ch or two s) takes ONE repeat M after its
+  entry M, on any day, until it is forgotten (see Shared pages and M).
   - ND -> D1, progress 0 (also for pages that were learned once and forgotten).
   - F3 -> D1, progress 0 (the page stays prime).
   - F1/F2 are recovered by R only, never by M.
@@ -63,7 +64,9 @@ the user to interpret. No rule, planner, cost or capacity gate reads it.
   "f1"); ND and F3 stay "ND" and "F3". Planning and the AI keep the plain domain letters.
 - **Cost.** L costs the same as R: it is priced as R in the time model (its `baseOperation`).
 - **Merged ch.** On a merged ch, L is all or nothing like R (see Merged ch): one marker for the
-  whole ch. The marker stays per page (last-L day), set on every owned page at once.
+  whole ch. The marker stays per page (last-L day), set on every owned page at once. The one
+  exception is the same as for R (see Merged ch, "Shared last page"): an L that starts on a merged
+  ch's shared last page leaves that page without a marker.
 
 ## Progression (D1 -> D2 -> D3 -> C)
 
@@ -145,9 +148,11 @@ is the main range; ties go to the lower pages (configurable). Re-joining pages r
   not change while a backward block grows (the old main keeps its identity).
 - **Direction mode** (a setting, `PlannerConstraints.expansionDirectionMode`): `both`
   (default), `forwardOnly` or `backwardOnly`. It says which direction(s) planning may expand.
-- Mode `both` (default): at most **3 consecutive expansions in the same direction**; the
-  opposite direction must follow, unless it is blocked (then the same direction is allowed).
-  This is a hard rule of the engine.
+- Mode `both` (default): planning keeps at most **3 consecutive expansions in the same
+  direction**; the opposite direction must follow, unless it is blocked (then the same direction
+  is allowed). **This is a planning rule, not an engine rule**: the planners and the validator
+  keep to it, the engine only counts expansions in the tracker and never rejects a logged
+  expansion because of it.
 - Mode `forwardOnly` / `backwardOnly`: only that direction is planned. There is no opposite
   direction, so the 3-in-a-row rule does not apply. If the enabled direction is blocked (edge
   of the Q, or no ND page next to the main range) there is simply no expansion: the other
@@ -159,8 +164,10 @@ is the main range; ties go to the lower pages (configurable). Re-joining pages r
   expansion.
 - The mode constrains **planning only** (see Planning). The engine never rejects a manually
   logged expansion in a disabled direction: it is recorded as a normal expansion (and counts
-  in that direction's tracking). The 3-in-a-row rule is not applied to logs in a
-  single-direction mode.
+  in that direction's tracking). The 3-in-a-row rule is planning only too, in every mode: a
+  logged 4th expansion in a row in the same direction is accepted and counted (the tracker's
+  run becomes 4), and from then on planning must expand the other direction (unless it is
+  blocked).
 
 ## Restart
 
@@ -185,6 +192,14 @@ when dry-run through the engine, plus:
   anywhere (for example the very first M of a fresh Q); the restart range (offered only when
   no D range and no F3 page exists) is only a suggestion. An M range is all ND or all F3, never
   mixed.
+- Expansion alternation (mode `both`): a proposed expansion may not be one more in the same
+  direction after `maxConsecutiveExpansionDirection` (3) in a row while the opposite direction is
+  open (the page next to the main range on that side is ND). It is judged on the running Q, so
+  the expansions already accepted earlier in the same plan count (`expansionStreak`, the message
+  names the last direction and the direction the next one must take). When the opposite side is
+  blocked the same direction is allowed (`allowSameDirectionWhenOppositeBlocked`). The planners
+  propose within it (`ExpansionFacts.allowedByStreak`, `ReferencePolicy`); the engine does not
+  check it, so a logged expansion is never refused for it.
 - Expansion per direction stays within the target remaining for the rolling period.
 - Expansion only goes in an enabled direction (direction mode). A proposed expansion in the
   disabled direction is rejected, like any other planning target. Planners (rule-based and AI)
@@ -234,8 +249,10 @@ when dry-run through the engine, plus:
   back to just before the ch's first owned page (nothing left = no range). A block that does not
   fit the minutes left (the ceiling rule is kept) is left out whole, never split; the rule-based
   planner names it in its rationale. Expansion M is unaffected. A proposal that splits a merged
-  ch is rejected by the engine; the repair line fed back to the AI names the ch and the owned
-  pages ("R must cover all of ch 12, pages 97-106"), the user's own rejection is unchanged.
+  ch is rejected (by the engine, or by the validator for a range that starts on the merged ch's
+  shared last page, which a LOGGED R accepts, see Merged ch); the repair line fed back to the AI
+  names the ch and the owned pages ("R must cover all of ch 12, pages 97-106"). A logged partial
+  R is rejected by the engine as before, except that one case.
 
 ## Time model
 
@@ -265,7 +282,7 @@ Sanity: `rStart >= rD3Cap >= rCCap > 0`, `k > 0`, `0 < primeStartFactor <= 1`,
 is from 0 to 1.
 
 **M** per page: ND -> `mMinutesNd`, F3 -> `mMinutesF3`. Any other state cannot be M'd, so it
-costs 0.
+costs 0, and so does the repeat M of a shared page (see Shared pages and M).
 
 **R** per page, from state, progress units in the current level (units done before this R) and
 the prime flag:
@@ -568,7 +585,8 @@ and both are left out for a Q that is not the 604-page Q.
 - **Prompt.** `ch`: prefer R ranges that start and end on run boundaries; a not complete ch at
   the edge of the learned area is handled by page. `merged`: the ch of a run are one unit; an R
   that includes a page of a merged ch must include every page of it, so R ranges start and end on
-  the listed run boundaries, never inside; a partial R is rejected. `s`: a whole s in one go is good when it fits
+  the listed run boundaries, never inside; a partial R is rejected (a range that starts on a merged
+  ch's shared last page is refused for a plan too, even though a logged one is accepted). `s`: a whole s in one go is good when it fits
   the day without crowding out mandatory R or other due pages; never required, a hint, not a
   rule. The wording for catch-up groups is in the next subsection.
 
@@ -712,8 +730,10 @@ most one successful R per page per day" must not turn that into an error. Decisi
   an accepted one changes nothing outside the pages that are not repeats.
 - **Merged ch.** A repeated shared page is not touched by the op, so it does not make the op a
   partial one: with ch 30 merged and done whole today, R 293-304 for ch 31 is accepted (p 293 is
-  ch 30's owned page, but unchanged). Without ch 30 done today, R 293-304 touches p 293 and is
-  rejected with `mergedChPartial` as before.
+  ch 30's owned page, but unchanged). Without ch 30 done today, R 293-304 is accepted too: p 293
+  is ch 30's shared last page and the range starts on it, so the user is going through ch 31 and
+  p 293 is left as it is (see Merged ch, "Shared last page"); ch 31's pages earn as usual. A
+  range that starts earlier inside ch 30 (R 290-304) is still rejected with `mergedChPartial`.
 - **Price.** The minutes of the second log are the normal op price, so the shared page is paid
   half in each ch (see Shared pages: half time) and the two logs together cost what one pass of
   the page costs. For an s-only shared page (no ch shares it) the op price has no weight; the
@@ -724,6 +744,46 @@ most one successful R per page per day" must not turn that into an error. Decisi
   starts at page 107. Only what the user really did is allowed to repeat a shared page.
 - **Notes.** Unchanged: `NoteCoverage.covers` decides by page and by whole-ch, so a note on
   page 106 filed under ch 13 is covered by R 106-115 (and by R 107-115 as the ch done whole).
+
+### Shared pages and M
+
+A shared page (same pages as above: `SharedPages.isShared`, the 51 s-shared ones) is learned
+through two units, ch or s, that meet on it. Learning ch 12 and then ch 13 is two M on page 106.
+M is allowed only on ND and F3, so without an exception the second one would be an error.
+Decision:
+
+- **Two M per entry.** A shared page can have its entry M (ND or F3 -> D1) and then ONE repeat
+  M. The repeat is accepted on ANY later day (or the same day) and in any state the page has
+  reached since: D1-D3, C, F1, F2. It is not tied to the day of the entry. A third M is
+  rejected with `pageNotEligibleForM`, like any M on a page that is not ND or F3.
+- **Until it is forgotten.** The window closes when the page falls back to ND or F3 (forgotten).
+  Then the page is M-eligible again: its next entry M opens a new pair (entry + one repeat).
+  The marker `PageRecord.mRepeated` says whether the repeat of the current entry is used. The
+  repeat sets it; the entry M (`MRules.apply`, from ND or F3) clears it. On an ND or F3 page it
+  can still hold an old true; it is only read on a page that is not ND or F3, and the entry M
+  clears it. It is kept by the ch merge and saved in the Q JSON (`mRepeated`; a file without
+  the key means "not used"). A page set up by `createQ` counts its set-up M as the entry, so it
+  has its repeat.
+- **The repeat changes nothing but the marker.** State, progress, `lastM`, `mCount`,
+  `dEntries`, the days-without-R clock and the L marker stay as they are. It is not a second
+  entry and does not count as a touch of the page. The operation is still logged with its whole
+  range, as for the repeated R on a shared page.
+- **Ranges.** In an M range, each shared page that is past its entry and has its repeat unused is
+  a repeat; every other page must be ND or F3 as before. The range is rejected as a whole if any
+  other page is not eligible, and the page named is the first such page (so M 105-106 after M
+  77-106 is rejected on p 105, which is not shared). A range of repeats only is accepted and
+  changes nothing but the markers.
+- **Expansion.** The expansion detection (direction, and with it the tracker's count that the
+  3-in-a-row planning rule reads) looks at the pages the M really
+  ENTERS, from the first to the last of them, never at the repeat pages. So M 106-127 after M
+  77-106 is a forward expansion of p 107-127 (`ExpansionEvent.range` is 107-127), and a range of
+  repeats only is not an expansion.
+- **Price.** The repeat costs 0 minutes: M is priced by state (ND, F3) and the repeat page is
+  neither, and M prices are never weighted for shared pages.
+- **Planning is stricter than logging.** A proposal (rule-based or AI) never contains a page that
+  is not ND or F3 in an M: `PlanValidator` refuses it with the engine's own
+  `pageNotEligibleForM` (kind `engine`), as before. Only what the user really did may repeat a
+  shared page. The planners never include such a page (it is not ND or F3).
 
 ## Merged ch
 
@@ -767,6 +827,21 @@ hint)).
   judged by owned pages like `ChSegments`: 107-115 covers ch 13 although ch 13 is shown as
   106-115, and 97-115 covers ch 12 and 13, merged or not. An UNSUCCESSFUL R or L is accepted as
   before. M needs no rule: the pages of a merged ch are in D, C, F1 or F2, so M is not allowed.
+- **Shared last page.** One exception to all or nothing, for a LOGGED R or L (`MergeRules.sharedEdgePages`).
+  The last page of a merged ch can be the first page, as displayed, of the next ch (page 106 is the
+  last page of ch 12 and the first of ch 13; ch 12 owns it). A range that STARTS on that page
+  (R 106-115, or R 106-106 alone) with the ch merged is not a partial R of it: the user may be going
+  through the next ch. The log is accepted, recorded, and that page is left exactly as it is (no
+  unit, no last R, no marker for L, no rCount), because a page cannot earn alone in a merged ch (the
+  owned pages keep identical records, checked when a Q is loaded). The rest of the range is applied
+  as usual (ch 13's own pages 107-115 earn). The merged ch itself earns only from an op on ALL its
+  owned pages, so the page earns later the same day if ch 12 is logged whole (it has no R today yet).
+  It works for R and for L, and in either order with the whole-ch log. A range that also covers an
+  earlier owned page of the merged ch (R 100-106) is still a partial R, rejected. A ch that owns
+  one page is not concerned. Only the ch table's shared pages: a merged ch whose last page is not
+  shared never has this. A PROPOSAL never relies on it: the validator refuses a range that starts
+  there with the usual `mergedChPartial` line (planning is stricter than logging); the planners
+  never produce one.
 - **Same page rules.** All owned pages of a merged ch have identical records and only whole-ch
   operations happen, so they stay identical and the page rules (progression, degradation,
   restore from F1/F2) apply unchanged. They are not duplicated for units. `Q.checkInvariants`
@@ -850,7 +925,7 @@ The third tab, read-only (it never changes the Q). The top card has the number o
 
 ## Browse
 
-The fourth tab. Three screens switched at the top: **ps** (every page, 604 by default), **ss** (the 114 s), **ch** (the 71 ch). A row opens its detail screen. Browse never changes the Q; it reads the Q (for states) and the notes (for counts and cards).
+The second tab (the bottom bar is Today, Browse, Overview, Settings). Three screens switched at the top: **ps** (every page, 604 by default), **ss** (the 114 s), **ch** (the 71 ch). A row opens its detail screen. Browse never changes the Q; it reads the Q (for states) and the notes (for counts and cards).
 
 - **Where the data comes from.** `browseDataProvider` builds a `BrowseData` (pure Dart, `features/browse/domain/browse_data.dart`) from the latest Q (the Today session's `currentQ`, else the stored Q) and the open-note counts. While the stored data could not be loaded, or the Q is not the 604-page Q, every page reads as ND and no s or ch has a status; the lists and the notes still work.
 - **Unit screens (p, s, ch and a part like "s 4 · ch 13").** Every one shows, together: the **info**, the **navigation** and the **notes**.
@@ -889,7 +964,7 @@ Short text cards about a page, to remember something. Code: the rules and storag
 
 Code: `lib/features/backup/` (`data/backup_data.dart`, `services/`, the dialogs in `presentation/widgets/backup_dialogs.dart`). The tests are in `test/features/backup` and `test/features/daily_plan/auto_backup_test.dart`. Setup of the Google side: `docs/DRIVE_SETUP.md`.
 
-**What a backup holds** (`BackupData`, JSON, `version` 2): the planning state (`state.json` text), the planning settings, the app settings, every day record, and the **notes** (`notes.json` text, open and archived, pending taps included). The API keys and the Google sign-in are NOT in it. The same JSON is what "Export Backup" copies and what Google Drive stores.
+**What a backup holds** (`BackupData`, JSON, `version` 2): the planning state (`state.json` text), the planning settings, the app settings, every day record, and the **notes** (`notes.json` text, open and archived, pending taps included). The API keys (the ones in use and the ones saved under a name) and the Google sign-in are NOT in it. The same JSON is what "Export Backup" copies and what Google Drive stores.
 
 - **Versions.** Version 1 (before the notes) still restores; it has no `notes`, so a restore of it **leaves the notes of this device as they are**. A backup with a `version` newer than the app's is refused.
 - **Read it all first.** `restoreFromJson` reads and checks the whole text (state, settings, notes) before it writes anything: a backup that cannot be read, notes included, changes nothing.
@@ -916,6 +991,8 @@ The Settings tab shows theme, language and reading direction, then every plannin
 ## AI planner setup
 
 - **What is stored where.** The switch (off by default), the provider (`gemini` or `groq`) and the model per provider are in the app's own settings (`AppSettings`, shared_preferences), not in the planning settings, because they are not planning rules. The API key is in the secure key store only (`SecureApiKeyStore`, one entry per provider): it is not shown again after saving, never put in `AppSettings`, and never logged. "Remove key" deletes it. An empty model means the provider's default.
+- **Model list.** The model field takes any text. Next to it a list (`lib/ai/ai_models.dart`, `AiProviderInfo.models`) offers the models a free account can use, each with a few words about it. The clear first choice of a provider is marked "Recommended" (exactly one per provider, listed first). Picking one writes it into the field and saves it like typing does. The list is a shortcut, not a gate: any other model name can still be typed. It is checked against the providers' own pricing and rate-limit pages (the date and pages are in the file) and must be updated when they change. The default model (empty field) is a separate setting of the provider classes; the list does not change it.
+- **Saved keys.** The key field has a list of keys saved under a name for the chosen provider (`SavedKeyStore`, `SavedKeysViewModel`, `saved_keys_sheet.dart`). A name is unique per provider, ignoring case and surrounding spaces; adding a name that exists replaces its key. Picking a name fills the key field AND makes that key the key in use (the same step as "Save key"), so it applies from the next plan. Deleting a saved key does not change the key in use. They are kept in the secure key store as ONE entry (`saved_ai_keys_v1`), next to the keys in use: on this device only, never in `AppSettings`, so never in the backup or on Google Drive, and a restore leaves them alone. The screen's state holds names only; a key is read at the moment it is used and is never logged.
 - **Planner choice.** `aiAwarePlannerFactory` (`lib/ai/ai_runtime.dart`) builds the planner: when the switch is on and a key is saved for the chosen provider, the planner is `AiPlanner` with the rule-based planner as its offline fallback; otherwise it is the rule-based planner. Changing any of these calls `PlanningController.plannerChanged`, so it applies from the next plan. A plan in progress is not affected.
 - **Sources.** The Today screen labels a plan "AI planner (Gemini)" (the provider answered and the plan passed the rules), "Offline fallback (the AI planner did not answer)" (the AI was asked and failed, so the rule-based planner answered) or "Offline planner (rules)" (the AI was not asked). The AI never sees or changes the Q; every op it proposes passes the same validator as an offline plan, except that the AI plan's minutes are judged against the silent band (see "Minutes band for AI plans"); an offline plan is always judged strictly.
 - **Privacy.** A plan request sends a summary of the Q (page states, no personal text) to the provider. The screen says so.

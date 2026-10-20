@@ -101,17 +101,29 @@ final class RulesEngine {
   /// Settles degradation through yesterday (see [catchUp]), then applies M to
   /// every page in [range]. Rejects the whole range (no partial application)
   /// if any page is not M-eligible (only ND and F3 pages are; D1-D3, C, F1
-  /// and F2 are not), or if the range would expand the main D range in a
-  /// direction the bidirectional rule (section 7) currently forbids. Recovery
-  /// M's on F3 pages and M's that create or extend a *non-main* D range are
-  /// not subject to the directional rule - that rule is specifically about
-  /// the main range's outward growth. A D page left unreviewed long enough
-  /// has fallen back to ND and is M-eligible again.
+  /// and F2 are not). A D page left unreviewed long enough has fallen back to
+  /// ND and is M-eligible again.
+  ///
+  /// An M that extends the main D range is counted as an expansion in
+  /// [Q.expansion] (its direction and pages are recorded), and that is all the
+  /// engine does about expansion. The bidirectional rule (section 7, at most
+  /// [PlannerConstraints.maxConsecutiveExpansionDirection] in a row) is a
+  /// planning rule: the engine never rejects an expansion for it, so a 4th
+  /// forward expansion in a row that the user really did is logged and counted.
+  /// Planners and `PlanValidator` enforce it for proposals.
+  ///
+  /// EXCEPT a shared page (see [SharedPages]: a page in two ch or two s): the
+  /// user learns through both units, so after its entry M it takes ONE repeat
+  /// M, on any later day and in any state but ND and F3, until it is forgotten
+  /// ([MRules.canRepeat]). The repeat is accepted and leaves the page exactly as
+  /// it is (only its repeat marker is set), is not part of what the M enters
+  /// (the expansion rules look at the entered pages only) and costs nothing. A
+  /// third M is rejected like any M on a page that is not ND or F3, until the
+  /// page is forgotten and M'd again.
   ///
   /// [PlannerConstraints.expansionDirectionMode] is a planning constraint, not
-  /// an engine rule: in a single-direction mode the alternation rule does not
-  /// apply, and an expansion in the disabled direction is NOT rejected. The
-  /// user's log is the truth; it is recorded as a normal expansion.
+  /// an engine rule: an expansion in the disabled direction is NOT rejected.
+  /// The user's log is the truth; it is recorded as a normal expansion.
   EngineResult<Q> applyM({required Q q, required PageRange range, required Day today}) =>
       _applyM(catchUp(q: q, today: today), range, today);
 
@@ -119,16 +131,38 @@ final class RulesEngine {
     final bounds = _boundsViolation(q, range);
     if (bounds != null) return EngineRejected(bounds);
 
+    // Shared pages that already had their entry M and not yet their repeat: a
+    // second M may go over them. They are not entered again, so the checks
+    // below (expansion) look at the other pages only.
+    final repeated = <int>{};
     for (final n in range.pages) {
-      final violation = MRules.eligibility(q.page(n));
-      if (violation != null) {
-        return EngineRejected(
-          RuleViolation(violation, page: n, pageState: q.page(n).state),
-        );
+      final page = q.page(n);
+      final violation = MRules.eligibility(page);
+      if (violation == null) continue;
+      if (MRules.canRepeat(page, shared: SharedPages.isSharedIn(q, n))) {
+        repeated.add(n);
+        continue;
       }
+      return EngineRejected(
+        RuleViolation(violation, page: n, pageState: page.state),
+      );
     }
+    final entered = [
+      for (final n in range.pages)
+        if (!repeated.contains(n)) n,
+    ];
+    // From the first to the last page the M really enters (the whole range when
+    // nothing repeats; none when every page is a repeat).
+    final entryRange = entered.isEmpty
+        ? null
+        : PageRange(entered.first, entered.last);
 
-    final allFreshEntry = range.pages.every((n) => q.page(n).state == PageState.nd);
+    // An M that enters only ND pages next to the main range is an expansion:
+    // its direction is recorded so the tracker (and the planners reading it)
+    // stay right. Nothing is rejected here: the alternation rule is a planning
+    // rule (see [ExpansionRules]), and the log is the truth.
+    final allFreshEntry =
+        entered.isNotEmpty && entered.every((n) => q.page(n).state == PageState.nd);
     final mainRange = q.mainD?.range;
     ExpansionDirection? direction;
     if (allFreshEntry && mainRange != null) {
@@ -136,38 +170,15 @@ final class RulesEngine {
       direction = ExpansionRules.directionOf(
         q: q,
         mainRange: mainRange,
-        candidate: range,
+        candidate: entryRange!,
       );
-      if (direction != null) {
-        final forwardAvailable =
-            mainRange.end < q.totalPages && q.page(mainRange.end + 1).state == PageState.nd;
-        final backwardAvailable =
-            mainRange.start > 1 && q.page(mainRange.start - 1).state == PageState.nd;
-        final oppositeAvailable =
-            direction == ExpansionDirection.forward ? backwardAvailable : forwardAvailable;
-        final allowed = ExpansionRules.isDirectionAllowed(
-          direction: direction,
-          tracker: q.expansion,
-          constraints: constraints,
-          oppositeAvailable: oppositeAvailable,
-        );
-        if (!allowed) {
-          return EngineRejected(
-            RuleViolation(
-              RuleViolationReason.expansionDirectionViolated,
-              range: range,
-              detail:
-                  'last ${q.expansion.consecutive}x ${q.expansion.lastDirection?.name}; '
-                  'next must be ${q.expansion.lastDirection!.opposite.name}',
-            ),
-          );
-        }
-      }
     }
 
     final pages = List<PageRecord>.of(q.pages);
     for (final n in range.pages) {
-      pages[n - 1] = MRules.apply(pages[n - 1], today);
+      pages[n - 1] = repeated.contains(n)
+          ? MRules.applyRepeat(pages[n - 1])
+          : MRules.apply(pages[n - 1], today);
     }
 
     final rebuild = rebuildDRanges(
@@ -179,7 +190,7 @@ final class RulesEngine {
     final expansion = direction == null
         ? q.expansion
         : q.expansion.recorded(
-            ExpansionEvent(day: today, direction: direction, range: range),
+            ExpansionEvent(day: today, direction: direction, range: entryRange!),
           );
 
     return EngineOk(
@@ -222,6 +233,13 @@ final class RulesEngine {
   /// two s, that meet on a page logs that page twice; the second log is
   /// accepted and the page is left as it is (no second unit, no error), like
   /// the R part of an L on a page that already had its R.
+  ///
+  /// A successful R on a merged ch is all or nothing ([MergeRules]), EXCEPT the
+  /// ch's shared LAST page when the range starts on it (R 106-115 or R 106-106
+  /// with ch 12 merged): the user is going through the next ch, so the log is
+  /// accepted, that page is left as it is (it cannot earn alone, a merged ch
+  /// keeps identical records) and the rest of the range is applied
+  /// ([MergeRules.sharedEdgePages]). The same goes for [applyL].
   EngineResult<Q> applyR({
     required Q q,
     required PageRange range,
@@ -282,8 +300,19 @@ final class RulesEngine {
         }
       }
     }
+    // The shared LAST page of a merged ch, when the range starts on it (the user
+    // is going through the next ch, whose first page it is). That page cannot
+    // earn anything alone (a merged ch keeps identical records), so it is left
+    // as it is, for R and for L, and the rest of the range is applied. See
+    // [MergeRules.sharedEdgePages]. Only a successful op changes pages, so only
+    // then is the page set aside.
+    final edge = successful
+        ? MergeRules.sharedEdgePages(q, range)
+        : const <int>{};
+    // Pages this op goes over without changing them.
+    final untouched = {...repeated, ...edge};
     if (successful) {
-      final partial = MergeRules.partialViolation(q, range, ignoring: repeated);
+      final partial = MergeRules.partialViolation(q, range, ignoring: untouched);
       if (partial != null) return EngineRejected(partial);
     }
     if (successful && operation == Operation.r) {
@@ -303,7 +332,7 @@ final class RulesEngine {
 
     final pages = List<PageRecord>.of(q.pages);
     for (final n in range.pages) {
-      if (repeated.contains(n)) continue;
+      if (untouched.contains(n)) continue;
       pages[n - 1] = operation == Operation.l
           ? LRules.apply(
               pages[n - 1],

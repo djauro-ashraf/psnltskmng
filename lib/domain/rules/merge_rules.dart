@@ -37,7 +37,10 @@ import 'package:personaltskmng/domain/rules/rule_violation.dart';
 ///     state) keeps each page's own value; a page whose state changes gets
 ///     `stateSince` = the merge day.
 /// - **All or nothing** ([partialViolation]): a successful R or L touching an
-///   owned page of a merged ch must cover all its owned pages.
+///   owned page of a merged ch must cover all its owned pages. One exception
+///   for a LOGGED op ([sharedEdgePages]): a range that starts on the merged
+///   ch's shared last page (the first page of the next ch as displayed) leaves
+///   that page as it is instead of being rejected.
 /// - **Unmerge** ([unmerge]): a merged ch whose owned pages are ND or F3 (the
 ///   unit has fallen) stops being merged; its page records stay as they are.
 ///
@@ -154,8 +157,43 @@ final class MergeRules {
         dEntries: p.dEntries,
         cEntries: allPrime ? p.cEntries : 0,
         fEntries: p.fEntries,
+        mRepeated: p.mRepeated,
       );
     }
+  }
+
+  /// The pages of [range] that a LOGGED successful R or L leaves exactly as
+  /// they are because they are the SHARED LAST page of a merged ch and [range]
+  /// starts on that page: the user is going through the next ch, whose first
+  /// page (as displayed) it is, not through the merged one.
+  ///
+  /// Page 106 is the last page of ch 12 and the first of ch 13. Ch 12 owns it
+  /// (the lower ch owns a shared page). With ch 12 merged, R 106-115 (ch 13 as
+  /// displayed) or R 106-106 reaches the merged unit through that one page
+  /// only. The page cannot earn anything alone: a merged ch keeps identical
+  /// records (`checkMerged`, enforced when a Q is loaded), so it is left as it
+  /// is, like a shared page that already had its R today, and the rest of the
+  /// range is applied. Ch 12 earns only from an op on all its owned pages.
+  ///
+  /// Exactly one page, or none. Only a range that STARTS on the page counts: a
+  /// range that also covers an earlier owned page of the merged ch (R 100-106)
+  /// is a partial R on that ch and stays a violation ([partialViolation]). A ch
+  /// that owns a single page is not concerned (a range on it covers it whole).
+  /// Only for a Q the ch table describes, and only the ch table's shared pages:
+  /// a last page that is not shared is never left out.
+  ///
+  /// A proposal never relies on this (`PlanValidator` refuses it, planning is
+  /// stricter than logging, see `RULES.md`).
+  static Set<int> sharedEdgePages(Q q, PageRange range) {
+    if (q.mergedCh.isEmpty || !ChStatus.covers(q)) return const {};
+    final table = ChTable.instance;
+    final page = range.start;
+    final ch = table.ownerOfPage(page).number;
+    if (!q.mergedCh.contains(ch)) return const {};
+    final owned = table.ownedPagesOf(ch);
+    if (owned.length < 2 || owned.last != page) return const {};
+    if (table.chOfPage(page).length < 2) return const {};
+    return {page};
   }
 
   /// All or nothing: a violation when [range] (a SUCCESSFUL R or L) includes
@@ -164,10 +202,14 @@ final class MergeRules {
   /// 107-115 covers ch 13 even though ch 13 is displayed as 106-115). Null
   /// when the range is fine. [range] must lie inside the Q.
   ///
+  /// This is the STRICT rule, the one a proposal is held to. A logged op
+  /// passes [sharedEdgePages] (and the repeated shared pages) as [ignoring].
+  ///
   /// [ignoring] are pages of [range] the op does not touch: a shared page that
   /// already had its R today, which a second R goes over without changing it
-  /// (see `SharedPages`). They are not counted as touching their ch. They still
-  /// count as covered, being inside [range].
+  /// (see `SharedPages`), and the shared last page of a merged ch that a log
+  /// starting on it leaves as it is ([sharedEdgePages]). They are not counted
+  /// as touching their ch. They still count as covered, being inside [range].
   static RuleViolation? partialViolation(
     Q q,
     PageRange range, {

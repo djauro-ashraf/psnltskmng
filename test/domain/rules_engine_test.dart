@@ -91,55 +91,87 @@ void main() {
     );
   });
 
-  group('RulesEngine.applyM - bidirectional expansion rule (section 7)', () {
-    test('a 4th consecutive same-direction expansion is rejected; switching is not', () {
-      var q = engine.createQ(
-        id: 'q1',
-        totalPages: 604,
-        initialMainD: const PageRange(282, 322),
-        today: const Day(0),
-      );
-      var day = const Day(1);
+  group('RulesEngine.applyM - expansion counting (alternation is a planning rule)', () {
+    test(
+      'a 4th and 5th consecutive same-direction expansion are accepted and counted; switching restarts the run',
+      () {
+        // 500 pages: no s table, so a backward expansion is simply an M that
+        // ends at main.start - 1. Everything happens on day 1, so no page has
+        // degraded yet.
+        var q = engine.createQ(
+          id: 'q1',
+          totalPages: 500,
+          initialMainD: const PageRange(282, 322),
+          today: const Day(0),
+        );
+        const day = Day(1);
 
-      for (var i = 0; i < 3; i++) {
+        for (var i = 0; i < 4; i++) {
+          final end = q.mainD!.range.end;
+          final result = engine.applyM(
+            q: q,
+            range: PageRange(end + 1, end + 5),
+            today: day,
+          );
+          expect(
+            result.violationOrNull,
+            isNull,
+            reason: 'forward expansion ${i + 1} is the user\'s log: never refused',
+          );
+          q = result.valueOrNull!;
+        }
+        expect(q.expansion.consecutive, 4);
+        expect(q.expansion.lastDirection, ExpansionDirection.forward);
+        expect(q.expansion.events, hasLength(4));
+        expect(q.mainD!.range, const PageRange(282, 342));
+
         final end = q.mainD!.range.end;
-        final result = engine.applyM(
+        final fifth = engine.applyM(
           q: q,
           range: PageRange(end + 1, end + 5),
           today: day,
         );
+        expect(fifth.violationOrNull, isNull);
+        q = fifth.valueOrNull!;
+        expect(q.expansion.consecutive, 5);
+
+        final backward = engine.applyM(
+          q: q,
+          range: const PageRange(277, 281),
+          today: day,
+        );
+        expect(backward.violationOrNull, isNull);
+        q = backward.valueOrNull!;
+        expect(q.expansion.lastDirection, ExpansionDirection.backward);
+        expect(q.expansion.consecutive, 1);
+        expect(q.checkInvariants(), isEmpty);
+      },
+    );
+
+    test('a lower configured cap changes nothing for the engine either', () {
+      final strict = RulesEngine(
+        const PlannerConstraints(
+          maxConsecutiveExpansionDirection: 1,
+          allowSameDirectionWhenOppositeBlocked: false,
+        ),
+      );
+      var q = strict.createQ(
+        id: 'q1',
+        totalPages: 500,
+        initialMainD: const PageRange(282, 322),
+        today: const Day(0),
+      );
+      for (var i = 0; i < 3; i++) {
+        final end = q.mainD!.range.end;
+        final result = strict.applyM(
+          q: q,
+          range: PageRange(end + 1, end + 2),
+          today: const Day(1),
+        );
+        expect(result.violationOrNull, isNull, reason: 'forward expansion ${i + 1}');
         q = result.valueOrNull!;
-        day = day.plusDays(1);
       }
       expect(q.expansion.consecutive, 3);
-      expect(q.expansion.lastDirection, ExpansionDirection.forward);
-
-      final end = q.mainD!.range.end;
-      final blocked = engine.applyM(
-        q: q,
-        range: PageRange(end + 1, end + 5),
-        today: day,
-      );
-      expect(
-        blocked.violationOrNull?.reason,
-        RuleViolationReason.expansionDirectionViolated,
-      );
-
-      final switchedFirst = engine.applyM(
-        q: q,
-        range: const PageRange(322, 322),
-        today: day,
-      );
-      final qAfterFirstBackward = switchedFirst.valueOrNull!;
-      final switchedSecond = engine.applyM(
-        q: qAfterFirstBackward,
-        range: const PageRange(312, 315),
-        today: day,
-      );
-      final q2 = switchedSecond.valueOrNull!;
-      expect(q2.expansion.lastDirection, ExpansionDirection.backward);
-      expect(q2.expansion.consecutive, 2);
-      expect(q2.checkInvariants(), isEmpty);
     });
   });
 

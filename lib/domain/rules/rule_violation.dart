@@ -7,7 +7,6 @@ enum RuleViolationReason {
   pageNotEligibleForM,
   pageNotEligibleForR,
   pageAlreadyRToday,
-  expansionDirectionViolated,
   expansionNotAdjacentToMain,
   noMainDRange,
 

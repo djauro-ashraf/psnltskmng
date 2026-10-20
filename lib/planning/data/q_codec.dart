@@ -148,6 +148,7 @@ abstract final class QCodec {
     'dEntries': p.dEntries,
     'cEntries': p.cEntries,
     'fEntries': p.fEntries,
+    'mRepeated': p.mRepeated,
   };
 
   static PageRecord _pageFromJson(JsonObject p) => PageRecord(
@@ -166,6 +167,8 @@ abstract final class QCodec {
     dEntries: p.integer('dEntries'),
     cEntries: p.integer('cEntries'),
     fEntries: p.integer('fEntries'),
+    // Added later: a file saved before it has no key, and means "not used".
+    mRepeated: p.has('mRepeated') && p.boolean('mRepeated'),
   );
 
   static Map<String, Object?> _spanToJson(StateSpan s) => {

@@ -794,6 +794,70 @@ class AppLocalizationsFr extends AppLocalizations {
       'Une demande de plan envoie au fournisseur un résumé de votre Q (états des pages, aucun texte personnel).';
 
   @override
+  String get aiModelPickerTitle => 'Choisir un modèle';
+
+  @override
+  String get aiModelPickerHint =>
+      'Modèles du forfait gratuit. Vous pouvez aussi saisir n’importe quel nom de modèle.';
+
+  @override
+  String get aiModelRecommended => 'Recommandé';
+
+  @override
+  String get aiModelNoteNewest => 'Le plus récent et le plus capable';
+
+  @override
+  String get aiModelNoteBalanced =>
+      'Génération précédente, rapide et équilibré';
+
+  @override
+  String get aiModelNoteLight => 'Léger, pour les tâches simples';
+
+  @override
+  String get aiModelNoteLargest =>
+      'Plus grand modèle ouvert, meilleur raisonnement';
+
+  @override
+  String get aiModelNoteSmall => 'Plus petit et plus rapide';
+
+  @override
+  String get aiSavedKeysTitle => 'Clés enregistrées';
+
+  @override
+  String get aiSavedKeysDeviceOnly =>
+      'Gardées sur cet appareil uniquement. Jamais dans les sauvegardes.';
+
+  @override
+  String get aiSavedKeysEmpty => 'Aucune clé enregistrée pour l’instant.';
+
+  @override
+  String get aiSavedKeyAdd => 'Ajouter une clé';
+
+  @override
+  String get aiSavedKeyNameLabel => 'Nom';
+
+  @override
+  String get aiSavedKeyReplaces =>
+      'Remplace la clé enregistrée portant ce nom.';
+
+  @override
+  String get aiSavedKeyDelete => 'Supprimer';
+
+  @override
+  String aiSavedKeyDeleteTitle(String name) {
+    return 'Supprimer « $name » ?';
+  }
+
+  @override
+  String get aiSavedKeyDeleteBody =>
+      'Elle est supprimée de cet appareil. La clé utilisée ne change pas.';
+
+  @override
+  String aiSavedKeyUsing(String name) {
+    return 'Clé « $name » utilisée.';
+  }
+
+  @override
   String get fieldAiLowFactor => 'Plan IA : facteur bas';
 
   @override

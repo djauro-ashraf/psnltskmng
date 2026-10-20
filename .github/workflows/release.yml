@@ -42,6 +42,21 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Set up release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::Android signing secrets are missing. Refusing to build with a throwaway debug key."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/release-keystore.jks
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=release-keystore.jks\n' \
+            "$KEYSTORE_PASSWORD" "$KEY_PASSWORD" "$KEY_ALIAS" > android/key.properties
+
       - name: Configure Drive credentials
         env:
           DRIVE_CLIENT_ID: ${{ secrets.GOOGLE_DRIVE_CLIENT_ID }}
@@ -64,9 +79,9 @@ jobs:
       - name: Build Android Release APK
         run: |
           if [ -f drive.json ]; then
-            flutter build apk --release --dart-define-from-file=drive.json
+            flutter build apk --release --build-number=${{ github.run_number }} --dart-define-from-file=drive.json
           else
-            flutter build apk --release
+            flutter build apk --release --build-number=${{ github.run_number }}
           fi
 
       - name: Prepare APK for Release

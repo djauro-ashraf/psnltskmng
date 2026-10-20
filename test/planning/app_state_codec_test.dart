@@ -20,6 +20,7 @@ import 'package:personaltskmng/planning/data/app_state_codec.dart';
 import 'package:personaltskmng/planning/data/app_state_store.dart';
 import 'package:personaltskmng/planning/data/file_app_state_store.dart';
 import 'package:personaltskmng/planning/data/planning_settings.dart';
+import 'package:personaltskmng/planning/data/q_codec.dart';
 import 'package:personaltskmng/planning/data/settings_codec.dart';
 import 'package:personaltskmng/planning/data/stored_state.dart';
 import 'package:personaltskmng/planning/day/daily_planning_service.dart';
@@ -43,6 +44,7 @@ String _page(PageRecord p) => [
   p.dEntries,
   p.cEntries,
   p.fEntries,
+  p.mRepeated,
 ].join('|');
 
 /// Field by field, not through the codec, so a field the codec forgot fails.
@@ -118,6 +120,7 @@ Q bigQ() {
         lastM: const Day(40),
         lastR: const Day(44),
         lastL: n == 30 ? const Day(44) : null,
+        mRepeated: n == 31,
         mCount: prime ? 2 : 1,
         rCount: 3,
         progressUnits: 3,
@@ -353,6 +356,8 @@ void main() {
     expect(loaded.mainD!.id, 7);
     expect(loaded.mergedCh, {12});
     expect(loaded.page(30).lastL, const Day(44));
+    expect(loaded.page(31).mRepeated, isTrue);
+    expect(loaded.page(32).mRepeated, isFalse);
     expect(loaded.page(28).isPrime, isTrue);
     expect(loaded.page(22).state, PageState.f3);
     expect(loaded.page(118).state, PageState.f1);
@@ -372,6 +377,18 @@ void main() {
       testEngine.catchUp(q: loaded, today: const Day(50)),
       testEngine.catchUp(q: q, today: const Day(50)),
     );
+  });
+
+  test('B2: a Q saved before mRepeated existed loads with every repeat unused', () {
+    final json = jsonDecode(jsonEncode(QCodec.toJson(bigQ()))) as Map<String, Object?>;
+    for (final page in json['pages']! as List<Object?>) {
+      (page! as Map<String, Object?>).remove('mRepeated');
+    }
+
+    final loaded = QCodec.fromJson(json);
+
+    expect(loaded.pages.where((p) => p.mRepeated), isEmpty);
+    expect(loaded.checkInvariants(), isEmpty);
   });
 
   group('settings', () {

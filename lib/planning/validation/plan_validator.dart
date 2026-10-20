@@ -12,6 +12,8 @@ import 'package:personaltskmng/domain/reference/ch_table.dart';
 import 'package:personaltskmng/domain/reference/merged_spans.dart';
 import 'package:personaltskmng/domain/reference/s_table.dart';
 import 'package:personaltskmng/domain/rules/expansion_rules.dart';
+import 'package:personaltskmng/domain/rules/m_rules.dart';
+import 'package:personaltskmng/domain/rules/merge_rules.dart';
 import 'package:personaltskmng/domain/rules/rule_violation.dart';
 import 'package:personaltskmng/domain/rules/rules_engine.dart';
 import 'package:personaltskmng/planning/config/planning_config.dart';
@@ -52,9 +54,10 @@ final class ValidationResult {
 /// before it would leave. Invalid ops are dropped (never applied) and reported
 /// with the exact reason. On top of the engine's own rules it enforces the
 /// planning constraints: time ceiling, one R per page per day, expansion only
-/// forward next to the main range or backward along the s block list, only in an enabled direction (direction mode) and
-/// within that direction's target, and the per-page capacity gate for new M
-/// work. Every minute figure is the real per-page cost (`TimeModel`), each page
+/// forward next to the main range or backward along the s block list, only in an enabled direction (direction mode),
+/// within the alternation rule (at most N expansions in a row in one direction,
+/// judged on the running Q) and within that direction's target, and the
+/// per-page capacity gate for new M work. Every minute figure is the real per-page cost (`TimeModel`), each page
 /// priced as it is when the op is judged, the shared pages weighted for R (the
 /// op price, read on the Q before the op).
 /// The silent minutes band of an AI plan (see `RULES.md`, "Minutes band for AI
@@ -81,6 +84,41 @@ final class PlanValidator {
   static int? _firstPageRToday(Q q, Day day, PageRange range) {
     for (final n in range.pages) {
       if (q.page(n).lastR == day) return n;
+    }
+    return null;
+  }
+
+  /// The violation fed back to the AI for a partial R of a merged ch: it names
+  /// the ch and the exact owned pages that all have to be covered. The engine's
+  /// own [violation] (a [RuleViolationReason.mergedChPartial] with its ch) is
+  /// kept unchanged inside.
+  static PlanViolation _mergedPartial(
+    int index,
+    PlanOp op,
+    RuleViolation violation,
+  ) {
+    final mergedCh = violation.ch!;
+    return PlanViolation(
+      kind: ViolationKind.mergedChPartial,
+      message:
+          '${op.operation.letter} must cover all of ch $mergedCh, '
+          'pages ${MergedSpans.ownedSpan(mergedCh)} (a merged ch is '
+          'one unit; a partial R is rejected)',
+      opIndex: index,
+      op: op,
+      engine: violation,
+    );
+  }
+
+  /// The first page of [range] that an M may not enter in [q] (not ND, not F3),
+  /// as the engine's own violation, or null. The engine lets a LOGGED M repeat
+  /// a shared page; a proposal never may.
+  static RuleViolation? _firstPageNotEligibleForM(Q q, PageRange range) {
+    for (final n in range.pages) {
+      final reason = MRules.eligibility(q.page(n));
+      if (reason != null) {
+        return RuleViolation(reason, page: n, pageState: q.page(n).state);
+      }
     }
     return null;
   }
@@ -184,6 +222,20 @@ final class PlanValidator {
           );
           continue;
         }
+        // Stricter than the engine, again: the engine lets a LOGGED R that
+        // starts on the shared last page of a merged ch (R 106-115 with ch 12
+        // merged) leave that page as it is, because the user may be going
+        // through the next ch. A proposal never starts there: the page would
+        // earn nothing, so the minutes are wasted. The planners never do (a
+        // merged ch is planned whole); an AI plan that does is refused as a
+        // partial R of the merged ch, like any other partial one.
+        if (MergeRules.sharedEdgePages(running, range).isNotEmpty) {
+          final partial = MergeRules.partialViolation(running, range);
+          if (partial != null) {
+            violations.add(_mergedPartial(i, op, partial));
+            continue;
+          }
+        }
       } else {
         final states = {for (final n in range.pages) running.page(n).state};
         if (states.contains(PageState.nd) && states.length > 1) {
@@ -192,6 +244,24 @@ final class PlanValidator {
               ViolationKind.mixedMRange,
               'an M range must be all ND pages (expansion) or all F3 pages; '
               'split it',
+            ),
+          );
+          continue;
+        }
+        // Stricter than the engine: the engine lets a LOGGED M go a second time
+        // over a shared page (the user really learned it through two ch or two
+        // s). A PROPOSAL never asks for it: every page of it must be ND or F3,
+        // as before. The planners never include such a page; an AI plan that
+        // does is refused with the engine's own violation.
+        final notEligible = _firstPageNotEligibleForM(running, range);
+        if (notEligible != null) {
+          violations.add(
+            PlanViolation(
+              kind: ViolationKind.engine,
+              message: notEligible.toString(),
+              opIndex: i,
+              op: op,
+              engine: notEligible,
             ),
           );
           continue;
@@ -231,6 +301,34 @@ final class PlanValidator {
                   'expansion ${dir.name} is disabled (direction mode '
                   '${facts.expansion.mode.name}): only ${dir.opposite.name} '
                   'may be expanded',
+                ),
+              );
+              continue;
+            }
+            // Planning constraint (alternation): at most N expansions in a row
+            // in one direction, read on the running Q so the expansions already
+            // accepted in this plan count. The engine itself would accept it;
+            // a manual log of it is the user's truth.
+            final streakAllowed = ExpansionRules.isDirectionAllowed(
+              direction: dir,
+              tracker: running.expansion,
+              constraints: engine.constraints,
+              oppositeAvailable: ExpansionRules.isOppositeAvailable(
+                q: running,
+                mainRange: main,
+                direction: dir,
+              ),
+            );
+            if (!streakAllowed) {
+              final last = running.expansion.lastDirection!;
+              violations.add(
+                fail(
+                  ViolationKind.expansionStreak,
+                  'expansion ${dir.name} is not allowed now: the last '
+                  '${running.expansion.consecutive} expansions in a row went '
+                  '${last.name} (max '
+                  '${engine.constraints.maxConsecutiveExpansionDirection}); '
+                  'the next one must go ${last.opposite.name}',
                 ),
               );
               continue;
@@ -328,23 +426,9 @@ final class PlanValidator {
             );
       final violation = result.violationOrNull;
       if (violation != null) {
-        final mergedCh = violation.ch;
         if (violation.reason == RuleViolationReason.mergedChPartial &&
-            mergedCh != null) {
-          // Fed back to the AI: name the ch and the exact owned pages that
-          // all have to be covered. The engine's own violation is unchanged.
-          violations.add(
-            PlanViolation(
-              kind: ViolationKind.mergedChPartial,
-              message:
-                  '${op.operation.letter} must cover all of ch $mergedCh, '
-                  'pages ${MergedSpans.ownedSpan(mergedCh)} (a merged ch is '
-                  'one unit; a partial R is rejected)',
-              opIndex: i,
-              op: op,
-              engine: violation,
-            ),
-          );
+            violation.ch != null) {
+          violations.add(_mergedPartial(i, op, violation));
           continue;
         }
         violations.add(

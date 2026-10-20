@@ -1436,6 +1436,114 @@ abstract class AppLocalizations {
   /// **'A plan request sends a summary of your Q (page states, no personal text) to the provider.'**
   String get aiPrivacy;
 
+  /// No description provided for @aiModelPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a model'**
+  String get aiModelPickerTitle;
+
+  /// No description provided for @aiModelPickerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Free-plan models. You can also type any model name.'**
+  String get aiModelPickerHint;
+
+  /// No description provided for @aiModelRecommended.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get aiModelRecommended;
+
+  /// No description provided for @aiModelNoteNewest.
+  ///
+  /// In en, this message translates to:
+  /// **'Newest and smartest'**
+  String get aiModelNoteNewest;
+
+  /// No description provided for @aiModelNoteBalanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous generation, fast and balanced'**
+  String get aiModelNoteBalanced;
+
+  /// No description provided for @aiModelNoteLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Lightweight, for simple tasks'**
+  String get aiModelNoteLight;
+
+  /// No description provided for @aiModelNoteLargest.
+  ///
+  /// In en, this message translates to:
+  /// **'Largest open model, best reasoning'**
+  String get aiModelNoteLargest;
+
+  /// No description provided for @aiModelNoteSmall.
+  ///
+  /// In en, this message translates to:
+  /// **'Smaller and faster'**
+  String get aiModelNoteSmall;
+
+  /// No description provided for @aiSavedKeysTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved keys'**
+  String get aiSavedKeysTitle;
+
+  /// No description provided for @aiSavedKeysDeviceOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept on this device only. Never in backups.'**
+  String get aiSavedKeysDeviceOnly;
+
+  /// No description provided for @aiSavedKeysEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No saved keys yet.'**
+  String get aiSavedKeysEmpty;
+
+  /// No description provided for @aiSavedKeyAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a key'**
+  String get aiSavedKeyAdd;
+
+  /// No description provided for @aiSavedKeyNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get aiSavedKeyNameLabel;
+
+  /// No description provided for @aiSavedKeyReplaces.
+  ///
+  /// In en, this message translates to:
+  /// **'Replaces the saved key with this name.'**
+  String get aiSavedKeyReplaces;
+
+  /// No description provided for @aiSavedKeyDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get aiSavedKeyDelete;
+
+  /// No description provided for @aiSavedKeyDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete “{name}”?'**
+  String aiSavedKeyDeleteTitle(String name);
+
+  /// No description provided for @aiSavedKeyDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'It is removed from this device. The key in use does not change.'**
+  String get aiSavedKeyDeleteBody;
+
+  /// No description provided for @aiSavedKeyUsing.
+  ///
+  /// In en, this message translates to:
+  /// **'Using “{name}”.'**
+  String aiSavedKeyUsing(String name);
+
   /// No description provided for @fieldAiLowFactor.
   ///
   /// In en, this message translates to:

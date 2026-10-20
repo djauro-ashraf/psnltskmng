@@ -30,14 +30,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: AppRoutes.settings,
-                builder: (context, state) => const SettingsPage(),
-              ),
-            ],
-          ),
+          StatefulShellBranch(routes: [browseRoute()]),
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -46,7 +39,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          StatefulShellBranch(routes: [browseRoute()]),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.settings,
+                builder: (context, state) => const SettingsPage(),
+              ),
+            ],
+          ),
         ],
       ),
     ],

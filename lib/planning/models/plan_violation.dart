@@ -13,6 +13,11 @@ enum ViolationKind {
   mixedMRange,
   notAdjacentToMain,
   expansionDirectionDisabled,
+
+  /// A proposed expansion that would be a 4th (or later) one in a row in the
+  /// same direction while the other direction is open. Planning only: the
+  /// engine accepts such an expansion when the user logs it.
+  expansionStreak,
   expansionOverTarget,
   capacityExceeded,
   overTimeCeiling,

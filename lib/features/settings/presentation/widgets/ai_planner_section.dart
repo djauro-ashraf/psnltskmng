@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personaltskmng/ai/ai_runtime.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/features/settings/presentation/viewmodels/ai_setup_view_model.dart';
+import 'package:personaltskmng/features/settings/presentation/viewmodels/saved_keys_view_model.dart';
 import 'package:personaltskmng/features/settings/presentation/viewmodels/settings_view_model.dart';
+import 'package:personaltskmng/features/settings/presentation/widgets/model_picker_sheet.dart';
+import 'package:personaltskmng/features/settings/presentation/widgets/saved_keys_sheet.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 import 'package:personaltskmng/shared/widgets/app_snackbar.dart';
 
@@ -12,6 +15,10 @@ import 'package:personaltskmng/shared/widgets/app_snackbar.dart';
 /// the secure key store and is never shown again after saving. Every change
 /// applies from the next plan. These are not planning settings: they are saved
 /// at once, not with the Save button.
+///
+/// The model field takes any text and also has a list of free models (one is
+/// marked recommended). The key field has a list of keys saved under a name on
+/// this device: picking one fills the field and makes it the key in use.
 class AiPlannerSection extends ConsumerStatefulWidget {
   const AiPlannerSection({super.key});
 
@@ -22,10 +29,67 @@ class AiPlannerSection extends ConsumerStatefulWidget {
 class _AiPlannerSectionState extends ConsumerState<AiPlannerSection> {
   final TextEditingController _key = TextEditingController();
 
+  /// One model field controller per provider, so a pick from the list can
+  /// write into the field and each provider keeps its own text.
+  final Map<String, TextEditingController> _models = {};
+
+  @override
+  void initState() {
+    super.initState();
+    // Reads the saved keys now, so the list is ready when the field is tapped.
+    ref.read(savedKeysViewModelProvider);
+  }
+
   @override
   void dispose() {
     _key.dispose();
+    for (final controller in _models.values) {
+      controller.dispose();
+    }
     super.dispose();
+  }
+
+  TextEditingController _modelController(String providerId, String initial) =>
+      _models.putIfAbsent(
+        providerId,
+        () => TextEditingController(text: initial),
+      );
+
+  Future<void> _pickModel(AiProviderInfo provider) async {
+    final controller = _modelController(provider.id, '');
+    final picked = await showModelPickerSheet(
+      context,
+      provider: provider,
+      current: controller.text,
+    );
+    if (picked == null || !mounted) return;
+    controller.text = picked;
+    await ref
+        .read(aiSetupViewModelProvider.notifier)
+        .setModel(provider.id, picked);
+  }
+
+  Future<void> _pickSavedKey(AiProviderInfo provider) async {
+    final l10n = context.l10n;
+    final id = await showSavedKeysSheet(
+      context,
+      provider: provider,
+      draftKey: _key.text,
+    );
+    if (id == null || !mounted) return;
+    final vm = ref.read(savedKeysViewModelProvider.notifier);
+    final name = [
+      for (final e in ref.read(savedKeysViewModelProvider).entries)
+        if (e.id == id) e.name,
+    ].firstOrNull;
+    final key = await vm.use(id);
+    if (!mounted) return;
+    if (key != null) _key.text = key;
+    showAppSnackBar(
+      context,
+      key != null ? l10n.aiSavedKeyUsing(name ?? '') : l10n.aiKeyFailed,
+      isError: key == null,
+    );
   }
 
   Future<void> _saveKey(String providerId) async {
@@ -90,13 +154,23 @@ class _AiPlannerSectionState extends ConsumerState<AiPlannerSection> {
         TextFormField(
           // A new field per provider, so the shown model is that provider's.
           key: ValueKey('model-${provider.id}'),
-          initialValue: settings.aiModels[provider.id] ?? '',
+          controller: _modelController(
+            provider.id,
+            settings.aiModels[provider.id] ?? '',
+          ),
           autocorrect: false,
           enableSuggestions: false,
           decoration: InputDecoration(
             labelText: l10n.aiModelLabel,
             helperText: l10n.aiModelDefault(provider.defaultModel),
             helperMaxLines: 2,
+            suffixIcon: provider.models.isEmpty
+                ? null
+                : IconButton(
+                    icon: const Icon(Icons.arrow_drop_down),
+                    tooltip: l10n.aiModelPickerTitle,
+                    onPressed: () => _pickModel(provider),
+                  ),
           ),
           onChanged: (value) => vm.setModel(provider.id, value),
         ),
@@ -107,7 +181,14 @@ class _AiPlannerSectionState extends ConsumerState<AiPlannerSection> {
           autocorrect: false,
           enableSuggestions: false,
           keyboardType: TextInputType.visiblePassword,
-          decoration: InputDecoration(labelText: l10n.aiKeyLabel),
+          decoration: InputDecoration(
+            labelText: l10n.aiKeyLabel,
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.arrow_drop_down),
+              tooltip: l10n.aiSavedKeysTitle,
+              onPressed: setup.busy ? null : () => _pickSavedKey(provider),
+            ),
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(hasKey ? l10n.aiKeySaved : l10n.aiKeyNone),

@@ -21,6 +21,7 @@ final class PageRecord {
     this.dEntries = 0,
     this.cEntries = 0,
     this.fEntries = 0,
+    this.mRepeated = false,
   });
 
   final int number;
@@ -60,6 +61,16 @@ final class PageRecord {
   final int dEntries;
   final int cEntries;
   final int fEntries;
+
+  /// Whether the page already had its repeat M in its current entry. A shared
+  /// page (see `SharedPages`) may be M'd a second time once it is past its entry
+  /// M (not ND, not F3): that repeat changes nothing but this marker, and the
+  /// marker closes the window, so a page has two M per entry and no more. Set by
+  /// the repeat (`MRules.applyRepeat`), cleared by the entry M (`MRules.apply`),
+  /// so a page that was forgotten and M'd again gets its pair again. Only read
+  /// on a page that is not ND or F3; on those it may still hold a stale true,
+  /// which the entry M clears.
+  final bool mRepeated;
 
   bool get hasBeenM => mCount > 0;
   bool get everInD => dEntries > 0;
@@ -109,6 +120,7 @@ final class PageRecord {
     int? dEntries,
     int? cEntries,
     int? fEntries,
+    bool? mRepeated,
   }) {
     return PageRecord(
       number: number,
@@ -130,6 +142,7 @@ final class PageRecord {
       dEntries: dEntries ?? this.dEntries,
       cEntries: cEntries ?? this.cEntries,
       fEntries: fEntries ?? this.fEntries,
+      mRepeated: mRepeated ?? this.mRepeated,
     );
   }
 

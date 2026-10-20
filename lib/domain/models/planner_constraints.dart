@@ -6,9 +6,10 @@ enum MainTieBreak { lowerPages, higherPages }
 /// Which edge(s) of the main D range planning may expand (a user choice).
 ///
 /// - [both]: the expansion target is split evenly between forward and
-///   backward, and at most
+///   backward, and planning keeps at most
 ///   [PlannerConstraints.maxConsecutiveExpansionDirection] consecutive
-///   expansions go the same way.
+///   expansions going the same way (a planning rule: the engine only counts
+///   them).
 /// - [forwardOnly] / [backwardOnly]: the whole expansion target goes to that
 ///   one direction, the other direction gets 0, and the alternation rule does
 ///   not apply (there is no opposite direction). If the enabled direction is
@@ -16,8 +17,9 @@ enum MainTieBreak { lowerPages, higherPages }
 ///   as a fallback.
 ///
 /// The mode constrains PLANNING only (planners and the plan validator). The
-/// engine never rejects a manually logged expansion in a disabled direction:
-/// the user's log is the truth.
+/// engine never rejects a manually logged expansion in a disabled direction,
+/// and it never rejects one for breaking the alternation either: the user's log
+/// is the truth.
 enum ExpansionDirectionMode {
   both,
   forwardOnly,
@@ -39,8 +41,9 @@ enum ExpansionDirectionMode {
   }
 }
 
-/// Hard planning constraints and user-configurable planning targets.
-/// Nothing here is hard-coded in the engine.
+/// Planning constraints and user-configurable planning targets. They shape
+/// what the planners and the plan validator propose; the engine never rejects a
+/// logged operation because of them (the log is the truth).
 final class PlannerConstraints {
   const PlannerConstraints({
     this.expansionTargetPages = 10,
@@ -63,8 +66,9 @@ final class PlannerConstraints {
   /// Length of that period, in days (rolling window ending today).
   final int expansionPeriodDays;
 
-  /// After this many consecutive expansions in one direction the next one
-  /// must go the other way.
+  /// After this many consecutive expansions in one direction the next
+  /// PROPOSED one must go the other way. Planning only: the engine counts the
+  /// expansions but accepts a logged one beyond this number.
   final int maxConsecutiveExpansionDirection;
 
   /// A [DateTime] weekday constant; Monday by default.
@@ -74,7 +78,8 @@ final class PlannerConstraints {
 
   /// When the opposite side can no longer be expanded (Q boundary or no ND
   /// page next to the range) the direction rule cannot be satisfied. If true,
-  /// expanding the same way again is allowed instead of deadlocking.
+  /// proposing the same way again is allowed instead of deadlocking. Planning
+  /// only, like [maxConsecutiveExpansionDirection].
   final bool allowSameDirectionWhenOppositeBlocked;
 
   /// Which direction(s) planning may expand. [ExpansionDirectionMode.both] is

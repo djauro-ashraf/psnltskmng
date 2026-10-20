@@ -185,6 +185,12 @@ AI (Stage 6+) proposing plans that this layer validates, never the reverse.
   `lastR == day` itself and answers `ViolationKind.alreadyRToday`), so only a logged R can
   repeat a shared page; planners never include such a page. L is unchanged (it already
   accepted an already-R'd page). See `RULES.md`, "Shared pages and one R per day".
+- **Shared pages and M.** The same `SharedPages` lets a shared page that is past its entry M take
+  ONE repeat M (`MRules.canRepeat` / `applyRepeat`, called by `RulesEngine._applyM`), on any
+  later day, until the page is forgotten. The repeat changes only `PageRecord.mRepeated` (cleared
+  by the entry M, kept by the ch merge, saved by `QCodec` as `mRepeated`, a missing key meaning
+  "not used"); expansion is judged on the entered pages only; `PlanValidator` still refuses
+  proposals over a page that is not ND or F3. See `RULES.md`, "Shared pages and M".
 - **Planning and merged ch.** `domain/reference/merged_spans.dart` (`MergedSpans`) is the one
   read-only place that turns `Q.mergedCh` and the ch table into merged ch with their OWNED page
   spans, runs of consecutive merged ch, and the units a ranked page list is grouped into.
@@ -257,8 +263,10 @@ AI (Stage 6+) proposing plans that this layer validates, never the reverse.
   affected. No settings UI; the setting is saved with the planning settings (see Storage). See `RULES.md`.
 - **Expansion direction mode.** `PlannerConstraints.expansionDirectionMode`
   (`both` by default, `forwardOnly`, `backwardOnly`) sits next to the other
-  expansion settings. In `both` the target is split and the 3-in-a-row rule applies
-  (`ExpansionRules.isDirectionAllowed`). In a single-direction mode the enabled
+  expansion settings. In `both` the target is split and the 3-in-a-row rule applies to
+  planning (`ExpansionRules.isDirectionAllowed`, read by `ExpansionFacts`, `ReferencePolicy` and
+  `PlanValidator`; `RulesEngine` only counts expansions in the tracker and never rejects one for
+  the streak). In a single-direction mode the enabled
   direction gets the whole target, the alternation rule does not apply, and a
   blocked direction means no expansion (no fallback). It is a planning constraint:
   `ExpansionFacts` (and so the snapshot, both planners and `ReferencePolicy`) and
@@ -266,13 +274,13 @@ AI (Stage 6+) proposing plans that this layer validates, never the reverse.
   reject a manually logged expansion in a disabled direction.
 - **`ReferencePolicy` + `Simulator`** exist to prove the engine, not as the
   real planner: a budget-aware policy (recover F3 → R by urgency → expand
-  main, respecting the bidirectional rule; restart when nothing is left in D and no F3 page exists) that `Simulator` runs against the
+  main, respecting the bidirectional (planning) rule; restart when nothing is left in D and no F3 page exists) that `Simulator` runs against the
   real `RulesEngine` for many simulated days. `test/domain/simulation_test.dart`
   reproduces the spec's own example (604 pages, main 282-322, 10/7 expansion)
   and asserts D1→D2→D3→C lands on exactly day 28 under ideal daily care.
 - **`test/domain/`** covers section 40's checklist: every state transition,
   D-range merge/split/main-selection (including tie-breaks), the 3-in-a-row
-  expansion-direction limit, missed-R tolerance and penalties, a forgotten or F3 region splitting
+  expansion-direction limit (counted by the engine, enforced for proposals by the validator), missed-R tolerance and penalties, a forgotten or F3 region splitting
   the range and M reconnecting it, and boundary Qs (1 page, 5000 pages).
 
 ## Layer rules
@@ -375,7 +383,7 @@ Rules: `RULES.md`, "Page labels", "Overview", "Settings screen", "AI planner set
 - Label: `LRules.label` / `LRules.isActive` (`domain/rules/l_rules.dart`), the one function for page labels.
 - `features/overview/` (`OverviewPage`, third tab, route `/overview`): reads the latest Q from the Today session (or the controller's state) and the L days from the controller; watches `settingsRevisionProvider` so it reads again after a settings save. Read-only.
 - `features/settings/presentation/`: `pages/settings_page.dart` (appearance, then the planning sections, then the AI section); `widgets/planning_draft.dart` (`PlanningDraft`, the JSON-form draft with `settingsJsonProblems` messages by field path), `planning_fields.dart` (number / switch / choice fields), `planning_priority_and_shared.dart` (priority list, shared-pages screen), `ai_planner_section.dart`. Saving goes through `PlanningViewModel.updateSettings`, which bumps `settingsRevisionProvider`.
-- AI: `lib/ai/ai_runtime.dart` has `AiRuntime` (switch, provider, models, which providers have a key; never a key), `aiProviderInfos` and `aiAwarePlannerFactory`. `AiSetupViewModel` saves the switch, provider and model in `AppSettings`, the key in `ApiKeyStore`, updates the `AiRuntime` and calls `PlanningController.plannerChanged`. `app/dependencies.dart` builds `SecureApiKeyStore`, the `AiRuntime` (with which providers already have a key) and the controller with the AI-aware factory; `apiKeyStoreProvider` and `aiRuntimeProvider` are overridden there.
+- AI: `lib/ai/ai_runtime.dart` has `AiRuntime` (switch, provider, models, which providers have a key; never a key), `aiProviderInfos` and `aiAwarePlannerFactory`. `AiSetupViewModel` saves the switch, provider and model in `AppSettings`, the key in `ApiKeyStore`, updates the `AiRuntime` and calls `PlanningController.plannerChanged`. `app/dependencies.dart` builds `SecureApiKeyStore`, the `AiRuntime` (with which providers already have a key) and the controller with the AI-aware factory; `apiKeyStoreProvider` and `aiRuntimeProvider` are overridden there. Model lists live in `lib/ai/ai_models.dart` (free-plan models per provider, one marked recommended) and reach the screen through `AiProviderInfo.models`. Keys saved under a name are `SavedKeyStore` (`lib/ai/saved_key_store.dart`): one JSON entry in the same `ApiKeyStore`, so device-only and outside the backup; `savedKeyStoreProvider` is derived from `apiKeyStoreProvider` and `SavedKeysViewModel` exposes names only.
 - `AppSettings` gained `aiEnabled`, `aiProvider` and `aiModels` (old stored records read with the defaults).
 - `AppSettings` gained `readingDirection` (`rightToLeft` by default; a missing or unknown stored value, and backups made before it, read as right to left).
 

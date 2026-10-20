@@ -56,8 +56,9 @@ final class DirectionFacts {
   /// Target minus done (or [ndRoom] when beyond-target planning is allowed).
   final int targetRemaining;
 
-  /// Result of the hard "at most N consecutive expansions per direction" rule
-  /// (always true in a single-direction mode: that rule does not apply).
+  /// Result of the planning rule "at most N consecutive expansions per
+  /// direction" (always true in a single-direction mode: that rule does not
+  /// apply). Planning only: the engine accepts a logged expansion either way.
   final bool allowedByStreak;
 
   /// This direction's target per period under the direction mode: the split

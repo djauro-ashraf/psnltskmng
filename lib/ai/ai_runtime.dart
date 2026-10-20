@@ -1,4 +1,5 @@
 import 'package:http/http.dart' as http;
+import 'package:personaltskmng/ai/ai_models.dart';
 import 'package:personaltskmng/ai/ai_planner.dart';
 import 'package:personaltskmng/ai/api_key_store.dart';
 import 'package:personaltskmng/ai/gemini_provider.dart';
@@ -9,7 +10,12 @@ import 'package:personaltskmng/planning/validation/plan_validator.dart';
 
 /// One AI provider the app can use (the providers the code already has).
 final class AiProviderInfo {
-  const AiProviderInfo(this.id, this.name, this.defaultModel);
+  const AiProviderInfo(
+    this.id,
+    this.name,
+    this.defaultModel, {
+    this.models = const [],
+  });
 
   /// The provider's stable id (also the key-store name).
   final String id;
@@ -17,12 +23,26 @@ final class AiProviderInfo {
   /// The provider's own brand name, shown as written.
   final String name;
   final String defaultModel;
+
+  /// The free-plan models offered in the model list (see `ai_models.dart`).
+  /// Only a convenience: the model field still takes any text.
+  final List<AiModelInfo> models;
 }
 
 /// The providers the app offers, in the order they are shown.
 const List<AiProviderInfo> aiProviderInfos = [
-  AiProviderInfo(GeminiProvider.providerId, 'Gemini', GeminiProvider.defaultModel),
-  AiProviderInfo(GroqProvider.providerId, 'Groq', GroqProvider.defaultModel),
+  AiProviderInfo(
+    GeminiProvider.providerId,
+    'Gemini',
+    GeminiProvider.defaultModel,
+    models: geminiModels,
+  ),
+  AiProviderInfo(
+    GroqProvider.providerId,
+    'Groq',
+    GroqProvider.defaultModel,
+    models: groqModels,
+  ),
 ];
 
 AiProviderInfo aiProviderInfo(String id) => aiProviderInfos.firstWhere(

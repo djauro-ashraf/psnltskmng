@@ -1,7 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personaltskmng/domain/models/day.dart';
+import 'package:personaltskmng/domain/models/expansion_tracker.dart';
 import 'package:personaltskmng/domain/models/operation.dart';
 import 'package:personaltskmng/domain/models/page_range.dart';
+import 'package:personaltskmng/domain/models/page_record.dart';
+import 'package:personaltskmng/domain/models/page_state.dart';
+import 'package:personaltskmng/domain/models/q.dart';
 import 'package:personaltskmng/domain/rules/rule_violation.dart';
 import 'package:personaltskmng/planning/config/planning_config.dart';
 import 'package:personaltskmng/planning/models/plan_op.dart';
@@ -59,6 +63,66 @@ void main() {
     expect(v.isClean, isTrue);
   });
 
+  group('a merged ch is planned whole', () {
+    // ch 30 (owns 282-293) merged in D2, identical records; p293 is also the
+    // first page of ch 31 as displayed.
+    Q ch30MergedQ() {
+      final base = freshQ();
+      final pages = [...base.pages];
+      for (var n = 282; n <= 293; n++) {
+        final p = base.page(n);
+        pages[n - 1] = PageRecord(
+          number: n,
+          state: PageState.d2,
+          lastM: p.lastM,
+          lastR: p.lastR,
+          mCount: p.mCount,
+          rCount: p.rCount,
+          stateSince: p.stateSince,
+          clockStart: p.clockStart,
+          dEntries: p.dEntries,
+        );
+      }
+      return base.copyWith(pages: pages, mergedCh: const {30});
+    }
+
+    ValidationResult runMerged(List<PlanOp> ops) {
+      final q = ch30MergedQ();
+      return validator.validate(
+        q: q,
+        day: day1,
+        proposed: ops,
+        facts: factsFor(q, day1, budget: 1200),
+      );
+    }
+
+    test('the Q used here is consistent', () {
+      expect(ch30MergedQ().checkInvariants(), isEmpty);
+    });
+
+    test('a proposal starting on the shared last page of a merged ch is refused', () {
+      // The engine lets a LOGGED R 293-304 go through (p293 is left as it is);
+      // a proposal is stricter: p293 would earn nothing.
+      final v = runMerged([r(293, 304)]);
+      expect(v.accepted, isEmpty);
+      expect(v.violations.single.kind, ViolationKind.mergedChPartial);
+      expect(v.violations.single.engine?.reason, RuleViolationReason.mergedChPartial);
+      expect(v.violations.single.engine?.ch, 30);
+      expect(v.violations.single.message, contains('ch 30'));
+    });
+
+    test('a partial R of a merged ch is still refused', () {
+      final v = runMerged([r(285, 293)]);
+      expect(v.accepted, isEmpty);
+      expect(v.violations.single.kind, ViolationKind.mergedChPartial);
+      expect(v.violations.single.engine?.ch, 30);
+    });
+
+    test('the merged ch whole, then the next ch from its own first owned page, pass', () {
+      expect(runMerged([r(282, 293), r(294, 304)]).isClean, isTrue);
+    });
+  });
+
   test('M on ND pages that do not touch the main range is refused', () {
     final v = run([m(500, 505)]);
     expect(v.violations.single.kind, ViolationKind.notAdjacentToMain);
@@ -78,11 +142,60 @@ void main() {
     expect(v.violations.single.message, contains('at most 0'));
   });
 
+  group('expansion alternation (a planning rule, judged on the running Q)', () {
+    // The engine counts expansions but never refuses one; the validator is
+    // where a PROPOSED 4th expansion in a row in the same direction is refused.
+    Q withStreak(int consecutive) => freshQ().copyWith(
+      expansion: ExpansionTracker(
+        lastDirection: ExpansionDirection.forward,
+        consecutive: consecutive,
+      ),
+    );
+
+    ValidationResult runOn(Q q, List<PlanOp> ops) => validator.validate(
+      q: q,
+      day: day1,
+      proposed: ops,
+      facts: factsFor(q, day1, budget: 1200),
+    );
+
+    test('a 4th forward expansion in a row is refused while backward is open', () {
+      final v = runOn(withStreak(3), [m(323, 327)]);
+      expect(v.accepted, isEmpty);
+      expect(v.violations.single.kind, ViolationKind.expansionStreak);
+      expect(v.violations.single.message, contains('must go backward'));
+    });
+
+    test('below the cap a forward expansion passes', () {
+      expect(runOn(withStreak(2), [m(323, 327)]).isClean, isTrue);
+    });
+
+    test('the expansions of the same plan count: the one past the cap is refused', () {
+      final v = runOn(withStreak(2), [m(323, 325), m(326, 327)]);
+      expect(v.accepted.map((o) => o.label), ['M 323-325']);
+      expect(v.violations.single.kind, ViolationKind.expansionStreak);
+    });
+  });
+
   test('an M range that mixes ND with other states is refused', () {
     expect(
       run([m(320, 325)]).violations.single.kind,
       ViolationKind.mixedMRange,
     );
+  });
+
+  test('a proposal never repeats an M over a shared page that is already in D', () {
+    // p 293 and p 312 are shared and D1 here. The engine lets a LOGGED M go over
+    // such a page once (the user learned it through two units); a proposal never.
+    for (final page in [293, 312]) {
+      final v = run([m(page, page)]);
+      expect(v.violations.single.kind, ViolationKind.engine, reason: 'p $page');
+      expect(
+        v.violations.single.engine?.reason,
+        RuleViolationReason.pageNotEligibleForM,
+      );
+      expect(v.violations.single.engine?.page, page);
+    }
   });
 
   test(

@@ -25,9 +25,9 @@ class AppShell extends StatelessWidget {
     final l10n = context.l10n;
     final destinations = <_Destination>[
       _Destination(Icons.today_outlined, Icons.today, l10n.navToday),
-      _Destination(Icons.settings_outlined, Icons.settings, l10n.navSettings),
-      _Destination(Icons.grid_view_outlined, Icons.grid_view, l10n.navOverview),
       _Destination(Icons.menu_book_outlined, Icons.menu_book, l10n.navBrowse),
+      _Destination(Icons.grid_view_outlined, Icons.grid_view, l10n.navOverview),
+      _Destination(Icons.settings_outlined, Icons.settings, l10n.navSettings),
     ];
     final width = MediaQuery.sizeOf(context).width;
 

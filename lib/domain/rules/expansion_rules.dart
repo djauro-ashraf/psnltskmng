@@ -8,9 +8,17 @@ import 'package:personaltskmng/domain/reference/s_table.dart';
 
 /// The bidirectional expansion rule for the main D range (section 7): after
 /// [PlannerConstraints.maxConsecutiveExpansionDirection] consecutive
-/// expansions the same way, the next one must go the other way. This is a
-/// hard constraint - the spec calls it out explicitly as one the AI "must
-/// never violate" - so it is enforced here, not left to planning.
+/// expansions the same way, the next one must go the other way.
+///
+/// This is a PLANNING rule, not an engine rule. The engine only detects an
+/// expansion ([directionOf]) and records it in the tracker, so the count is
+/// always right; it never rejects a manually logged expansion for breaking the
+/// alternation. The rule is enforced where proposals are made: the planners
+/// stay inside it through `ExpansionFacts` (`allowedByStreak`) and
+/// `ReferencePolicy`, and `PlanValidator` refuses a proposed expansion that
+/// breaks it ([isDirectionAllowed], read on the running Q). The user's log is
+/// the truth: a 4th forward expansion in a row that really happened is logged,
+/// counted, and makes the planner switch to the other direction afterwards.
 ///
 /// The rule only exists in [ExpansionDirectionMode.both]. In a
 /// single-direction mode there is no opposite direction to alternate with, so
@@ -64,13 +72,15 @@ final class ExpansionRules {
     return ExpansionDirection.backward;
   }
 
-  /// Whether [direction] is currently allowed by the tracker's history.
+  /// Whether a PROPOSED expansion in [direction] is allowed by the tracker's
+  /// history (the alternation rule). Used by planning only (the facts, the
+  /// planners and `PlanValidator`); the engine never calls it.
   /// In a single-direction mode the alternation rule does not apply, so this
   /// is always true. Whether a direction is enabled at all is a planning
-  /// matter ([ExpansionDirectionMode.allows]), not a matter of history, and
-  /// the engine never rejects on it.
+  /// matter ([ExpansionDirectionMode.allows]), not a matter of history.
   /// [oppositeAvailable] is whether the opposite direction is even physically
-  /// possible right now (there is ND room to expand into); when it is not,
+  /// possible right now (there is ND room to expand into, see
+  /// [isOppositeAvailable]); when it is not,
   /// [PlannerConstraints.allowSameDirectionWhenOppositeBlocked] decides
   /// whether the same direction may continue rather than deadlock at a Q
   /// boundary.
@@ -88,5 +98,23 @@ final class ExpansionRules {
     if (!atCap) return true;
     if (oppositeAvailable) return false;
     return constraints.allowSameDirectionWhenOppositeBlocked;
+  }
+
+  /// Whether the direction opposite to [direction] is physically possible on
+  /// [q]: the page right next to [mainRange] on that side exists and is ND.
+  /// Read on the Q before the op. This is the [isDirectionAllowed] input
+  /// `oppositeAvailable` for a proposal that expands [direction].
+  static bool isOppositeAvailable({
+    required Q q,
+    required PageRange mainRange,
+    required ExpansionDirection direction,
+  }) {
+    final forwardAvailable = mainRange.end < q.totalPages &&
+        q.page(mainRange.end + 1).state == PageState.nd;
+    final backwardAvailable =
+        mainRange.start > 1 && q.page(mainRange.start - 1).state == PageState.nd;
+    return direction == ExpansionDirection.forward
+        ? backwardAvailable
+        : forwardAvailable;
   }
 }

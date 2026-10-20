@@ -787,6 +787,67 @@ class AppLocalizationsEn extends AppLocalizations {
       'A plan request sends a summary of your Q (page states, no personal text) to the provider.';
 
   @override
+  String get aiModelPickerTitle => 'Choose a model';
+
+  @override
+  String get aiModelPickerHint =>
+      'Free-plan models. You can also type any model name.';
+
+  @override
+  String get aiModelRecommended => 'Recommended';
+
+  @override
+  String get aiModelNoteNewest => 'Newest and smartest';
+
+  @override
+  String get aiModelNoteBalanced => 'Previous generation, fast and balanced';
+
+  @override
+  String get aiModelNoteLight => 'Lightweight, for simple tasks';
+
+  @override
+  String get aiModelNoteLargest => 'Largest open model, best reasoning';
+
+  @override
+  String get aiModelNoteSmall => 'Smaller and faster';
+
+  @override
+  String get aiSavedKeysTitle => 'Saved keys';
+
+  @override
+  String get aiSavedKeysDeviceOnly =>
+      'Kept on this device only. Never in backups.';
+
+  @override
+  String get aiSavedKeysEmpty => 'No saved keys yet.';
+
+  @override
+  String get aiSavedKeyAdd => 'Add a key';
+
+  @override
+  String get aiSavedKeyNameLabel => 'Name';
+
+  @override
+  String get aiSavedKeyReplaces => 'Replaces the saved key with this name.';
+
+  @override
+  String get aiSavedKeyDelete => 'Delete';
+
+  @override
+  String aiSavedKeyDeleteTitle(String name) {
+    return 'Delete “$name”?';
+  }
+
+  @override
+  String get aiSavedKeyDeleteBody =>
+      'It is removed from this device. The key in use does not change.';
+
+  @override
+  String aiSavedKeyUsing(String name) {
+    return 'Using “$name”.';
+  }
+
+  @override
   String get fieldAiLowFactor => 'AI plan: low factor';
 
   @override

@@ -7,6 +7,7 @@ import 'package:personaltskmng/features/browse/domain/browse_index.dart';
 import 'package:personaltskmng/features/browse/presentation/browse_texts.dart';
 import 'package:personaltskmng/features/browse/presentation/providers/browse_providers.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/browse_row_card.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/surah_labels.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 
 // Every row shows the open-note count of its unit (nothing for 0). A row reads
@@ -34,7 +35,8 @@ class PageRow extends ConsumerWidget {
   }
 }
 
-/// An s: "s 5", its exact pages and the ch it spans, and its page count.
+/// An s: "s 5", its exact pages and the ch it spans, its page count, and its
+/// Arabic and English names at the end.
 class SRow extends ConsumerWidget {
   const SRow({super.key, required this.s, required this.path});
 
@@ -57,6 +59,7 @@ class SRow extends ConsumerWidget {
         chRunLabel(l10n, chs.first, chs.last),
       ),
       trailing: l10n.browsePageCount(last - first + 1),
+      aside: SurahRowAside(s: s),
       openNotes: notes,
       onTap: () => context.go(path),
     );
@@ -92,7 +95,8 @@ class ChRow extends ConsumerWidget {
 }
 
 /// A part in the first level of "more details": a ch of an s ([byCh]), or an s
-/// of a ch. Shows only the pages the part has (what the second level lists).
+/// of a ch (with its names). Shows only the pages the part has (what the second
+/// level lists).
 class PartRow extends ConsumerWidget {
   const PartRow({
     super.key,
@@ -115,6 +119,7 @@ class PartRow extends ConsumerWidget {
       title: byCh ? l10n.chLabelOne(part.ch) : l10n.sLabelOne(part.s),
       subtitle: pagesLabel(l10n, part.firstPage, part.lastPage),
       trailing: l10n.browsePageCount(part.pageCount),
+      aside: byCh ? null : SurahRowAside(s: part.s),
       openNotes: notes,
       onTap: () => context.go(path),
     );

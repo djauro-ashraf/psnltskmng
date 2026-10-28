@@ -17,8 +17,7 @@ import 'package:personaltskmng/notes/models/note_book.dart';
 /// - **Save first.** A change is kept in memory only after it was saved: when
 ///   saving throws, the book is unchanged and the error reaches the caller.
 final class NotesController {
-  NotesController({required this.store, DayLogReader? dayLog})
-    : _dayLog = dayLog;
+  NotesController({required this.store, this._dayLog});
 
   final NoteStore store;
   final DayLogReader? _dayLog;

@@ -1,4 +1,6 @@
 import 'package:personaltskmng/domain/models/day.dart';
+import 'package:personaltskmng/domain/models/operation.dart';
+import 'package:personaltskmng/domain/models/page_range.dart';
 import 'package:personaltskmng/domain/models/q.dart';
 import 'package:personaltskmng/domain/rules/rules_engine.dart';
 import 'package:personaltskmng/planning/config/planning_config.dart';
@@ -8,6 +10,7 @@ import 'package:personaltskmng/planning/data/settings_codec.dart';
 import 'package:personaltskmng/planning/data/stored_state.dart';
 import 'package:personaltskmng/planning/day/daily_planning_service.dart';
 import 'package:personaltskmng/planning/day/day_record.dart';
+import 'package:personaltskmng/planning/day/past_day.dart';
 import 'package:personaltskmng/planning/day/today_session.dart';
 import 'package:personaltskmng/planning/planners/planner.dart';
 import 'package:personaltskmng/planning/planners/rule_based_planner.dart';
@@ -55,7 +58,9 @@ typedef PlannerFactory = Planner Function(RulesEngine engine, PlanningConfig con
 ///   calls back here after every day record, so `state.json` (the latest Q
 ///   and the session) is always as new as the day record.
 /// - [startToday] restores the stored session when it is for today, otherwise
-///   drops it and starts the day from the stored latest Q.
+///   drops it (keeping it as a finished day, see [loggableDays]) and starts the
+///   day from the stored latest Q.
+/// - [backfill] logs something on yesterday or the day before.
 /// - [updateSettings] checks [settingsProblems] first. The engine and service
 ///   are rebuilt from the new values on their next use: always read [service]
 ///   and [engine] from the controller, do not keep them.
@@ -83,6 +88,10 @@ final class PlanningController {
   String _failureReason = '';
   RulesEngine? _engine;
   DailyPlanningService? _service;
+
+  /// The days kept for logging late while a [backfill] is being saved: the
+  /// save point writes these instead of the ones in [_state].
+  List<PastDay>? _pendingRewind;
 
   /// The result of the last [load] / [startFresh]; null before the first load.
   PlanningLoad? get status => _status;
@@ -244,16 +253,69 @@ final class PlanningController {
   /// proposals). Otherwise the stored session is dropped and the day starts
   /// from the stored latest Q: [DailyPlanningService.startDay] catches it up,
   /// so the end-of-day degradation of every earlier day applies.
+  ///
+  /// A dropped session of an earlier day is not lost: it becomes a finished
+  /// day in the state's `rewind` (written with the next save), the starting
+  /// point for [backfill].
   TodaySession startToday(Day today) {
     _requireReady();
     final stored = _state!.session;
     if (stored != null && stored.day == today) return stored.toSession();
-    _state = StoredState.ofQ(_state!.q);
+    final rewind = stored != null && stored.day.isBefore(today)
+        ? PastDays.push(
+            _state!.rewind,
+            PastDay.ofSession(stored.toSession()),
+            today,
+          )
+        : PastDays.prune(_state!.rewind, today);
+    _state = StoredState.ofQ(_state!.q, rewind: rewind);
     return service.startDay(
       q: _state!.q,
       day: today,
       budgetMinutes: _settings.baseBudgetMinutes,
     );
+  }
+
+  /// The days before [today] something can still be logged on, nearest
+  /// first: yesterday and the day before when the app kept what a replay needs
+  /// (see [backfill]). Empty before the first day has passed.
+  List<Day> loggableDays(Day today) {
+    _requireReady();
+    return PastDays.loggable(_state!.rewind, today);
+  }
+
+  /// Logs something that was done on [day], yesterday or the day before (see
+  /// [loggableDays]), while [session] is today's. Replays the days since with
+  /// it, so the Q now is the one the user would have if it had been logged on
+  /// time (see `Backfill`), then saves the changed day records and the state
+  /// in one go. A history the rules refuse is a
+  /// [BackfillRejected]; nothing changes then. Today's old plan is dropped
+  /// from the session (the day record keeps it): it was made for another Q.
+  Future<BackfillOutcome> backfill(
+    TodaySession session, {
+    required Day day,
+    required Operation operation,
+    required PageRange range,
+    bool successful = true,
+  }) async {
+    _requireReady();
+    final prepared = await service.prepareBackfill(
+      session,
+      past: _state!.rewind,
+      day: day,
+      operation: operation,
+      range: range,
+      successful: successful,
+      defaultBudgetMinutes: _settings.baseBudgetMinutes,
+    );
+    if (prepared is! BackfillPrepared) return prepared;
+    _pendingRewind = prepared.rewind;
+    try {
+      await service.commitBackfill(prepared);
+    } finally {
+      _pendingRewind = null;
+    }
+    return prepared;
   }
 
   /// Saves new settings. Checks [settingsProblems] first: with any problem
@@ -286,16 +348,12 @@ final class PlanningController {
     if (!canSave) return;
     // The day record's proposals (earlier ones included) travel with the
     // session, so a restart never drops them from the day's file.
-    final proposals = record.json['proposals'];
     final next = StoredState.ofSession(
       StoredSession.fromSession(
         session,
-        earlierProposals: [
-          if (proposals is List)
-            for (final p in proposals)
-              if (p is Map) Map<String, Object?>.from(p),
-        ],
+        earlierProposals: DayRecord.proposalsOf(record.json),
       ),
+      rewind: _pendingRewind ?? _state!.rewind,
     );
     await store.saveState(next);
     _state = next;

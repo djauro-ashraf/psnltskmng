@@ -9,6 +9,9 @@ import 'package:personaltskmng/features/browse/browse.dart';
 import 'package:personaltskmng/features/browse/domain/browse_data.dart';
 import 'package:personaltskmng/features/browse/domain/browse_groups.dart';
 import 'package:personaltskmng/features/browse/presentation/providers/browse_providers.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/browse_list.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/browse_rows.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/surah_labels.dart';
 import 'package:personaltskmng/features/daily_plan/presentation/providers/planning_providers.dart';
 import 'package:personaltskmng/features/notes/presentation/providers/notes_providers.dart';
 import 'package:personaltskmng/features/notes/presentation/viewmodels/notes_view_model.dart';
@@ -316,6 +319,83 @@ void main() {
       await tester.fling(find.byType(CustomScrollView).first, const Offset(0, 800), 2000);
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('Runtime Checks: surah names never overflow', () {
+    // Every s row, with a note pill on one of them, in a narrow window and
+    // at a big text scale: the names are shrunk, nothing overflows.
+    for (final (width, scale) in [(320.0, 1.0), (320.0, 1.5), (360.0, 2.0)]) {
+      testWidgets('all 114 s rows at ${width}px, text scale $scale', (
+        tester,
+      ) async {
+        _setViewport(tester, width: width, height: 568);
+        final notes = await _controllerWith([
+          _sampleNote('n1', 554, 63, 61, 'On the hypocrites'),
+        ]);
+        await tester.pumpWidget(
+          _wrapRuntime(
+            notes: notes,
+            textScale: scale,
+            home: Scaffold(
+              body: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  children: [
+                    for (var s = 1; s <= 114; s++)
+                      SizedBox(
+                        height: BrowseMetrics.rowExtent * scale,
+                        child: SRow(s: s, path: '/browse/ss/$s'),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.byType(SRow), findsNWidgets(114));
+      });
+    }
+
+    testWidgets('s group headers fit on 320px', (tester) async {
+      _setViewport(tester, width: 320, height: 568);
+      await tester.pumpWidget(
+        _wrapRuntime(
+          home: Scaffold(
+            body: BrowseList(
+              sections: [
+                for (final s in [3, 63, 77, 83])
+                  BrowseSection(
+                    title: 's $s',
+                    subtitle: 'p 106 - 127',
+                    aside: SurahHeaderAside(s: s),
+                    itemCount: 1,
+                    itemBuilder: (context, index) => const SizedBox(),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('Al-Munafiqun'), findsOneWidget);
+    });
+
+    testWidgets('page and s screens with names fit on 320px', (tester) async {
+      _setViewport(tester, width: 320, height: 568);
+      for (final location in [
+        '/browse/ps/604', // three s
+        '/browse/ps/106', // two s
+        '/browse/ss/63', // a long Arabic name
+        '/browse/ss/60', // the longest meaning
+        '/browse/ch/13/ss/4',
+      ]) {
+        await _openLocation(tester, location);
+        expect(tester.takeException(), isNull, reason: location);
+      }
     });
   });
 }

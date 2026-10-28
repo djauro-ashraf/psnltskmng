@@ -6,6 +6,7 @@ import 'package:personaltskmng/core/constants/app_breakpoints.dart';
 import 'package:personaltskmng/core/constants/app_routes.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/core/theme/app_theme.dart';
+import 'package:personaltskmng/domain/models/day.dart';
 import 'package:personaltskmng/domain/models/operation.dart';
 import 'package:personaltskmng/domain/models/page_state.dart';
 import 'package:personaltskmng/domain/models/q.dart';
@@ -95,7 +96,12 @@ class TodayView extends ConsumerWidget {
                     _SummaryCard(session: session),
                     _OverBudgetNote(session: session),
                     const SizedBox(height: AppSpacing.lg),
-                    _Actions(busy: state.busy, vm: vm),
+                    _Actions(
+                      busy: state.busy,
+                      vm: vm,
+                      today: session.day,
+                      totalPages: session.currentQ.totalPages,
+                    ),
                     const SizedBox(height: AppSpacing.xl),
                     if (_nothingToPlan(session.currentQ))
                       Container(
@@ -403,10 +409,19 @@ class _BudgetBar extends StatelessWidget {
 }
 
 class _Actions extends StatelessWidget {
-  const _Actions({required this.busy, required this.vm});
+  const _Actions({
+    required this.busy,
+    required this.vm,
+    required this.today,
+    required this.totalPages,
+  });
 
   final bool busy;
   final TodayViewModel vm;
+  final Day today;
+
+  /// The page count of the Q: ch and s can be typed only for the 604-page Q.
+  final int totalPages;
 
   @override
   Widget build(BuildContext context) {
@@ -421,15 +436,34 @@ class _Actions extends StatelessWidget {
             FilledButton.icon(
               onPressed: busy
                   ? null
-                  : () => showLogDialog(
-                      context,
-                      submitFor: (operation, successful) =>
-                          (range) => vm.logCustom(
-                            operation,
-                            range,
-                            successful: successful,
-                          ),
-                    ),
+                  : () async {
+                      // The earlier day it was logged on, if it was.
+                      Day? loggedOn;
+                      final logged = await showLogDialog(
+                        context,
+                        today: today,
+                        totalPages: totalPages,
+                        earlierDays: vm.loggableDays(),
+                        submitFor: (day, operation, successful) =>
+                            (range) async {
+                              final result = await vm.logCustom(
+                                operation,
+                                range,
+                                successful: successful,
+                                day: day,
+                              );
+                              if (result.isOk) loggedOn = day;
+                              return result;
+                            },
+                      );
+                      final day = loggedOn;
+                      if (logged && day != null && context.mounted) {
+                        showAppSnackBar(
+                          context,
+                          context.l10n.logLateDone(day.toString()),
+                        );
+                      }
+                    },
               icon: const Icon(Icons.edit_note_rounded),
               label: Text(l10n.logSomethingElse),
             ),
@@ -609,6 +643,7 @@ class _ProposalSection extends StatelessWidget {
                     context,
                     op: proposal.ops[i].range,
                     byCh: byCh,
+                    totalPages: session.currentQ.totalPages,
                     onSubmit: (range) =>
                         vm.logRowPartly(proposal.index, i, range),
                   ),

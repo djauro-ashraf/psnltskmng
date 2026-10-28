@@ -68,8 +68,8 @@ void main() {
   Map<String, Object?> grant({String? refresh = 'refresh-1'}) => {
     'access_token': 'access-1',
     'expires_in': 3600,
-    if (refresh != null) 'refresh_token': refresh,
     'token_type': 'Bearer',
+    'refresh_token': ?refresh,
   };
 
   setUp(() {

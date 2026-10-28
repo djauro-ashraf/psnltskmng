@@ -72,15 +72,12 @@ abstract interface class DriveAuth {
 /// is kept in the secure store, the short-lived access token only in memory.
 final class GoogleDeviceAuth implements DriveAuth {
   GoogleDeviceAuth({
-    required DriveConfig config,
-    required http.Client client,
-    required ApiKeyStore vault,
+    required this._config,
+    required this._client,
+    required this._vault,
     DateTime Function()? clock,
     Future<void> Function(Duration)? delay,
-  }) : _config = config,
-       _client = client,
-       _vault = vault,
-       _clock = clock ?? DateTime.now,
+  }) : _clock = clock ?? DateTime.now,
        _delay = delay ?? Future<void>.delayed;
 
   /// The scopes: the app's own files in Drive, and the account's e-mail.

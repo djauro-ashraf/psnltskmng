@@ -443,13 +443,13 @@ abstract class AppLocalizations {
   /// No description provided for @partialFrom.
   ///
   /// In en, this message translates to:
-  /// **'From page'**
+  /// **'From'**
   String get partialFrom;
 
   /// No description provided for @partialTo.
   ///
   /// In en, this message translates to:
-  /// **'To page'**
+  /// **'To'**
   String get partialTo;
 
   /// No description provided for @partialChipLabel.
@@ -488,6 +488,42 @@ abstract class AppLocalizations {
   /// **'Log session'**
   String get logSomethingElse;
 
+  /// No description provided for @logDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Day'**
+  String get logDay;
+
+  /// No description provided for @logDayToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get logDayToday;
+
+  /// No description provided for @logDayYesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get logDayYesterday;
+
+  /// No description provided for @logDayDaysAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} days ago'**
+  String logDayDaysAgo(int days);
+
+  /// No description provided for @logLateNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Logged on {date}. The days since are worked out again with it, and today’s plan is cleared: ask for a new one.'**
+  String logLateNote(String date);
+
+  /// No description provided for @logLateDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Logged on {date}. Ask for a new plan for today.'**
+  String logLateDone(String date);
+
   /// No description provided for @logOperation.
   ///
   /// In en, this message translates to:
@@ -515,8 +551,44 @@ abstract class AppLocalizations {
   /// No description provided for @logPagesInvalid.
   ///
   /// In en, this message translates to:
-  /// **'Enter whole page numbers, from the first to the last.'**
+  /// **'Enter a page number, or ch or s with a number: 12, ch 3, s 5.'**
   String get logPagesInvalid;
+
+  /// No description provided for @logRangeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A page number, or ch or s with a number: 12, p 12, ch 3, s 5. Leave To empty to log just the From page, ch or s.'**
+  String get logRangeHint;
+
+  /// No description provided for @logResolved.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs {pages}'**
+  String logResolved(String pages);
+
+  /// No description provided for @logRangeBackwards.
+  ///
+  /// In en, this message translates to:
+  /// **'From must not come after To.'**
+  String get logRangeBackwards;
+
+  /// No description provided for @logUnitUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'“{text}” is not a unit. Use {units}, or just a number.'**
+  String logUnitUnknown(String text, String units);
+
+  /// No description provided for @logUnitOutOfRange.
+  ///
+  /// In en, this message translates to:
+  /// **'{unit} {number} does not exist: use {unit} 1 to {unit} {max}.'**
+  String logUnitOutOfRange(String unit, int number, int max);
+
+  /// No description provided for @logUnitUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'{unit} needs the {pages}-page Q. Use page numbers instead.'**
+  String logUnitUnavailable(String unit, int pages);
 
   /// No description provided for @loggedTitle.
   ///
@@ -1855,6 +1927,240 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add'**
   String get noteAddSave;
+
+  /// No description provided for @pageSideInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Info'**
+  String get pageSideInfo;
+
+  /// No description provided for @pageSideQuran.
+  ///
+  /// In en, this message translates to:
+  /// **'Quran'**
+  String get pageSideQuran;
+
+  /// No description provided for @mushafNotInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'The Quran pages are not installed yet. Download them in Quran data.'**
+  String get mushafNotInstalled;
+
+  /// No description provided for @mushafFontMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The font of this page is missing. Download the fonts in Quran data.'**
+  String get mushafFontMissing;
+
+  /// No description provided for @mushafBroken.
+  ///
+  /// In en, this message translates to:
+  /// **'The data of this page could not be read.'**
+  String get mushafBroken;
+
+  /// No description provided for @quranViewMushaf.
+  ///
+  /// In en, this message translates to:
+  /// **'Mushaf'**
+  String get quranViewMushaf;
+
+  /// No description provided for @quranViewWords.
+  ///
+  /// In en, this message translates to:
+  /// **'Words'**
+  String get quranViewWords;
+
+  /// No description provided for @wordsNotInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'The words or the page lines are not downloaded yet.'**
+  String get wordsNotInstalled;
+
+  /// No description provided for @wordsNoTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'No translation is downloaded yet. Download one in Quran data.'**
+  String get wordsNoTranslation;
+
+  /// No description provided for @wordsTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation'**
+  String get wordsTranslation;
+
+  /// No description provided for @quranDataOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Download the Quran'**
+  String get quranDataOpen;
+
+  /// No description provided for @quranDataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quran data'**
+  String get quranDataTitle;
+
+  /// No description provided for @quranDataIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Download the Quran once. After that it works without internet.'**
+  String get quranDataIntro;
+
+  /// No description provided for @quranDataAddressTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Where the packs are'**
+  String get quranDataAddressTitle;
+
+  /// No description provided for @quranDataAddressHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Address of manifest.json'**
+  String get quranDataAddressHint;
+
+  /// No description provided for @quranDataAddressSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save and check'**
+  String get quranDataAddressSave;
+
+  /// No description provided for @quranDataNoAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the address of the packs to download the page lines, the words and the translations. The fonts do not need it.'**
+  String get quranDataNoAddress;
+
+  /// No description provided for @quranDataManifestError.
+  ///
+  /// In en, this message translates to:
+  /// **'The pack list could not be loaded. Check the address and your connection.'**
+  String get quranDataManifestError;
+
+  /// No description provided for @quranDataSectionPages.
+  ///
+  /// In en, this message translates to:
+  /// **'Quran pages'**
+  String get quranDataSectionPages;
+
+  /// No description provided for @quranDataSectionText.
+  ///
+  /// In en, this message translates to:
+  /// **'Words and translations'**
+  String get quranDataSectionText;
+
+  /// No description provided for @quranPackFontsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Page fonts'**
+  String get quranPackFontsTitle;
+
+  /// No description provided for @quranPackFontsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'The letters of the 604 pages, as in the printed mushaf (604 files).'**
+  String get quranPackFontsDesc;
+
+  /// No description provided for @quranPackTextFontTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Arabic text font'**
+  String get quranPackTextFontTitle;
+
+  /// No description provided for @quranPackTextFontDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'For the surah banners and the Words view (1 file).'**
+  String get quranPackTextFontDesc;
+
+  /// No description provided for @quranDataDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get quranDataDownload;
+
+  /// No description provided for @quranDataCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get quranDataCancel;
+
+  /// No description provided for @quranDataDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get quranDataDelete;
+
+  /// No description provided for @quranDataDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded'**
+  String get quranDataDownloaded;
+
+  /// No description provided for @quranDataFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed:'**
+  String get quranDataFailed;
+
+  /// No description provided for @quranDataCredits.
+  ///
+  /// In en, this message translates to:
+  /// **'Quran fonts: provided by Quran Foundation. Page lines, words and translations: Quranic Universal Library (Tarteel). Each translation belongs to its translator.'**
+  String get quranDataCredits;
+
+  /// No description provided for @settingsQuranData.
+  ///
+  /// In en, this message translates to:
+  /// **'Quran data'**
+  String get settingsQuranData;
+
+  /// No description provided for @settingsQuranDataHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Download the Quran, its words and translations'**
+  String get settingsQuranDataHint;
+
+  /// No description provided for @quranEditionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mushaf print'**
+  String get quranEditionTitle;
+
+  /// No description provided for @quranEditionV1.
+  ///
+  /// In en, this message translates to:
+  /// **'1405 print (V1)'**
+  String get quranEditionV1;
+
+  /// No description provided for @quranEditionV2.
+  ///
+  /// In en, this message translates to:
+  /// **'1421 print (V2)'**
+  String get quranEditionV2;
+
+  /// No description provided for @quranEditionNoteV1.
+  ///
+  /// In en, this message translates to:
+  /// **'The classic Madinah print, and the one the app\'s page tables are made for: every surah starts and ends on the page the planner expects.'**
+  String get quranEditionNoteV1;
+
+  /// No description provided for @quranEditionNoteV2.
+  ///
+  /// In en, this message translates to:
+  /// **'The newer Madinah print. 36 pages hold different ayahs than in the classic print, so a page number can mean other ayahs than in the planner\'s tables.'**
+  String get quranEditionNoteV2;
+
+  /// No description provided for @quranEditionMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The pack list has no page lines for this print yet.'**
+  String get quranEditionMissing;
+
+  /// No description provided for @wordsFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get wordsFootnote;
 }
 
 class _AppLocalizationsDelegate

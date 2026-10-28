@@ -804,5 +804,101 @@ void main() {
       expect(find.text('ch 1'), findsOneWidget);
     });
   });
-}
 
+  group('surah names', () {
+    testWidgets('ss rows carry the Arabic and the English name', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_wrap(home: const BrowsePage()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('ss'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('s 1'), findsOneWidget);
+      expect(find.text('الفاتحة'), findsOneWidget);
+      expect(find.text('Al-Fatihah'), findsOneWidget);
+      expect(find.text('البقرة'), findsOneWidget);
+      expect(find.text('Al-Baqarah'), findsOneWidget);
+    });
+
+    testWidgets('an s screen shows its names and their meaning', (
+      tester,
+    ) async {
+      await _openAt(tester, '/browse/ss/5');
+      expect(find.text('s 5'), findsOneWidget); // the title bar
+      expect(find.text('Al-Ma’idah'), findsOneWidget);
+      expect(find.text('The Table Spread'), findsOneWidget);
+      expect(find.text('المائدة'), findsOneWidget);
+    });
+
+    testWidgets('a name that means itself is not shown twice', (tester) async {
+      await _openAt(tester, '/browse/ss/11');
+      expect(find.text('s 11'), findsOneWidget);
+      expect(find.text('هود'), findsOneWidget);
+      expect(find.text('Hud'), findsOneWidget);
+    });
+
+    testWidgets('a part screen shows the names of its s', (tester) async {
+      await _openAt(tester, '/browse/ch/13/ss/4');
+      expect(find.text('s 4 · ch 13'), findsOneWidget);
+      expect(find.text('An-Nisa’'), findsOneWidget);
+      expect(find.text('النساء'), findsOneWidget);
+    });
+
+    testWidgets('the s of a ch are listed with their names', (tester) async {
+      await _openAt(tester, '/browse/ch/13');
+      await tester.tap(find.text('More details'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('s 4'), findsOneWidget);
+      expect(find.text('An-Nisa’'), findsOneWidget);
+      expect(find.text('النساء'), findsOneWidget);
+      expect(find.text('s 5'), findsOneWidget);
+      expect(find.text('Al-Ma’idah'), findsOneWidget);
+      expect(find.text('المائدة'), findsOneWidget);
+    });
+
+    testWidgets('a page shows its s, two on a shared page', (tester) async {
+      await _openAt(tester, '/browse/ps/12');
+      expect(find.text('s 2 · Al-Baqarah'), findsOneWidget);
+      expect(find.text('البقرة'), findsOneWidget);
+
+      await _openAt(tester, '/browse/ps/106');
+      expect(find.text('s 4 · An-Nisa’'), findsOneWidget);
+      expect(find.text('s 5 · Al-Ma’idah'), findsOneWidget);
+      expect(find.text('النساء'), findsOneWidget);
+      expect(find.text('المائدة'), findsOneWidget);
+    });
+
+    testWidgets('the last page shows its three s', (tester) async {
+      await _openAt(tester, '/browse/ps/604');
+      expect(find.text('s 112 · Al-Ikhlas'), findsOneWidget);
+      expect(find.text('s 113 · Al-Falaq'), findsOneWidget);
+      expect(find.text('s 114 · An-Nas'), findsOneWidget);
+    });
+
+    testWidgets('the names show even when no Q is loaded', (tester) async {
+      await _openAt(tester, '/browse/ss/5', hasQ: false);
+      expect(find.text('Al-Ma’idah'), findsOneWidget);
+      expect(find.text('المائدة'), findsOneWidget);
+
+      await _openAt(tester, '/browse/ps/12', hasQ: false);
+      expect(find.text('s 2 · Al-Baqarah'), findsOneWidget);
+    });
+
+    testWidgets('grouping ps by s puts the names in the group header', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_wrap(home: const BrowsePage()));
+      await tester.pumpAndSettle();
+      expect(find.text('Al-Fatihah'), findsNothing);
+
+      await tester.tap(_groupBy('s'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('s 1'), findsOneWidget); // the header
+      expect(find.text('Al-Fatihah'), findsOneWidget);
+      expect(find.text('الفاتحة'), findsOneWidget);
+    });
+  });
+}

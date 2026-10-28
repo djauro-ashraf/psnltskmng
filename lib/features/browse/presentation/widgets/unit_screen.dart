@@ -19,6 +19,9 @@ class UnitScreen extends StatelessWidget {
     this.positionLabel,
     this.onPrevious,
     this.onNext,
+    this.sideToggle,
+    this.quran,
+    this.showQuran = false,
   });
 
   final String title;
@@ -41,6 +44,21 @@ class UnitScreen extends StatelessWidget {
   /// Callback to navigate to the next sibling.
   final VoidCallback? onNext;
 
+  /// The switch between the two sides of the screen, shown under the title
+  /// bar (a page screen has one).
+  final Widget? sideToggle;
+
+  /// The other side of the screen: what is shown instead of the info and the
+  /// notes while [showQuran] is true.
+  final Widget? quran;
+
+  /// Show [quran] instead of the info and the notes.
+  final bool showQuran;
+
+  /// The height of the slot of [sideToggle] under the title bar. The toggle
+  /// scales down inside it when the text is big, so it never overflows.
+  static const double _toggleHeight = 44;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -49,6 +67,8 @@ class UnitScreen extends StatelessWidget {
     final positionLabel = this.positionLabel;
     final onPrevious = this.onPrevious;
     final onNext = this.onNext;
+    final sideToggle = this.sideToggle;
+    final quran = this.quran;
     // Previous / next sit and point the way the text runs: with it running
     // right to left, the previous page is on the right (arrow pointing right)
     // and the next page on the left (arrow pointing left).
@@ -56,6 +76,12 @@ class UnitScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        bottom: sideToggle == null
+            ? null
+            : PreferredSize(
+                preferredSize: const Size.fromHeight(_toggleHeight),
+                child: SizedBox(height: _toggleHeight, child: sideToggle),
+              ),
         title: Text(
           title,
           style: theme.textTheme.titleLarge?.copyWith(
@@ -145,40 +171,66 @@ class UnitScreen extends StatelessWidget {
           constraints: const BoxConstraints(
             maxWidth: AppBreakpoints.formMaxWidth,
           ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final horizontalPadding = constraints.maxWidth < 360
-                  ? AppSpacing.md
-                  : AppSpacing.lg;
-              return CustomScrollView(
-                slivers: [
-                  SliverPadding(
-                    padding: EdgeInsets.fromLTRB(
-                      horizontalPadding,
-                      AppSpacing.lg,
-                      horizontalPadding,
-                      AppSpacing.md,
-                    ),
-                    sliver: SliverToBoxAdapter(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          info,
-                          if (navigation != null) ...[
-                            const SizedBox(height: AppSpacing.md),
-                            navigation,
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                  NotesSlivers(unit: unit),
-                ],
-              );
-            },
-          ),
+          child: showQuran && quran != null
+              ? quran
+              : _InfoAndNotes(
+                  info: info,
+                  navigation: navigation,
+                  unit: unit,
+                ),
         ),
       ),
+    );
+  }
+}
+
+/// The info side of a unit screen: the info and its navigation together at the
+/// top, then the notes, in one scrolling area.
+class _InfoAndNotes extends StatelessWidget {
+  const _InfoAndNotes({
+    required this.info,
+    required this.navigation,
+    required this.unit,
+  });
+
+  final Widget info;
+  final Widget? navigation;
+  final NoteUnit unit;
+
+  @override
+  Widget build(BuildContext context) {
+    final navigation = this.navigation;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final horizontalPadding = constraints.maxWidth < 360
+            ? AppSpacing.md
+            : AppSpacing.lg;
+        return CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                AppSpacing.lg,
+                horizontalPadding,
+                AppSpacing.md,
+              ),
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    info,
+                    if (navigation != null) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      navigation,
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            NotesSlivers(unit: unit),
+          ],
+        );
+      },
     );
   }
 }

@@ -150,8 +150,7 @@ final class FakeDriveServer {
 /// A [DriveAuth] that signs in without Google, for the tests of what is built
 /// on top of it.
 final class FakeDriveAuth implements DriveAuth {
-  FakeDriveAuth({this.configured = true, DriveAccount? signedIn})
-    : _signedIn = signedIn;
+  FakeDriveAuth({this.configured = true, this._signedIn});
 
   bool configured;
   DriveAccount? _signedIn;

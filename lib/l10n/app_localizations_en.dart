@@ -212,10 +212,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get partialTitle => 'Done partly';
 
   @override
-  String get partialFrom => 'From page';
+  String get partialFrom => 'From';
 
   @override
-  String get partialTo => 'To page';
+  String get partialTo => 'To';
 
   @override
   String partialChipLabel(int ch, String pages) {
@@ -243,6 +243,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logSomethingElse => 'Log session';
 
   @override
+  String get logDay => 'Day';
+
+  @override
+  String get logDayToday => 'Today';
+
+  @override
+  String get logDayYesterday => 'Yesterday';
+
+  @override
+  String logDayDaysAgo(int days) {
+    return '$days days ago';
+  }
+
+  @override
+  String logLateNote(String date) {
+    return 'Logged on $date. The days since are worked out again with it, and today’s plan is cleared: ask for a new one.';
+  }
+
+  @override
+  String logLateDone(String date) {
+    return 'Logged on $date. Ask for a new plan for today.';
+  }
+
+  @override
   String get logOperation => 'Operation';
 
   @override
@@ -256,7 +280,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get logPagesInvalid =>
-      'Enter whole page numbers, from the first to the last.';
+      'Enter a page number, or ch or s with a number: 12, ch 3, s 5.';
+
+  @override
+  String get logRangeHint =>
+      'A page number, or ch or s with a number: 12, p 12, ch 3, s 5. Leave To empty to log just the From page, ch or s.';
+
+  @override
+  String logResolved(String pages) {
+    return 'Logs $pages';
+  }
+
+  @override
+  String get logRangeBackwards => 'From must not come after To.';
+
+  @override
+  String logUnitUnknown(String text, String units) {
+    return '“$text” is not a unit. Use $units, or just a number.';
+  }
+
+  @override
+  String logUnitOutOfRange(String unit, int number, int max) {
+    return '$unit $number does not exist: use $unit 1 to $unit $max.';
+  }
+
+  @override
+  String logUnitUnavailable(String unit, int pages) {
+    return '$unit needs the $pages-page Q. Use page numbers instead.';
+  }
 
   @override
   String get loggedTitle => 'Logged today';
@@ -1026,4 +1077,135 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noteAddSave => 'Add';
+
+  @override
+  String get pageSideInfo => 'Info';
+
+  @override
+  String get pageSideQuran => 'Quran';
+
+  @override
+  String get mushafNotInstalled =>
+      'The Quran pages are not installed yet. Download them in Quran data.';
+
+  @override
+  String get mushafFontMissing =>
+      'The font of this page is missing. Download the fonts in Quran data.';
+
+  @override
+  String get mushafBroken => 'The data of this page could not be read.';
+
+  @override
+  String get quranViewMushaf => 'Mushaf';
+
+  @override
+  String get quranViewWords => 'Words';
+
+  @override
+  String get wordsNotInstalled =>
+      'The words or the page lines are not downloaded yet.';
+
+  @override
+  String get wordsNoTranslation =>
+      'No translation is downloaded yet. Download one in Quran data.';
+
+  @override
+  String get wordsTranslation => 'Translation';
+
+  @override
+  String get quranDataOpen => 'Download the Quran';
+
+  @override
+  String get quranDataTitle => 'Quran data';
+
+  @override
+  String get quranDataIntro =>
+      'Download the Quran once. After that it works without internet.';
+
+  @override
+  String get quranDataAddressTitle => 'Where the packs are';
+
+  @override
+  String get quranDataAddressHint => 'Address of manifest.json';
+
+  @override
+  String get quranDataAddressSave => 'Save and check';
+
+  @override
+  String get quranDataNoAddress =>
+      'Enter the address of the packs to download the page lines, the words and the translations. The fonts do not need it.';
+
+  @override
+  String get quranDataManifestError =>
+      'The pack list could not be loaded. Check the address and your connection.';
+
+  @override
+  String get quranDataSectionPages => 'Quran pages';
+
+  @override
+  String get quranDataSectionText => 'Words and translations';
+
+  @override
+  String get quranPackFontsTitle => 'Page fonts';
+
+  @override
+  String get quranPackFontsDesc =>
+      'The letters of the 604 pages, as in the printed mushaf (604 files).';
+
+  @override
+  String get quranPackTextFontTitle => 'Arabic text font';
+
+  @override
+  String get quranPackTextFontDesc =>
+      'For the surah banners and the Words view (1 file).';
+
+  @override
+  String get quranDataDownload => 'Download';
+
+  @override
+  String get quranDataCancel => 'Cancel';
+
+  @override
+  String get quranDataDelete => 'Delete';
+
+  @override
+  String get quranDataDownloaded => 'Downloaded';
+
+  @override
+  String get quranDataFailed => 'Download failed:';
+
+  @override
+  String get quranDataCredits =>
+      'Quran fonts: provided by Quran Foundation. Page lines, words and translations: Quranic Universal Library (Tarteel). Each translation belongs to its translator.';
+
+  @override
+  String get settingsQuranData => 'Quran data';
+
+  @override
+  String get settingsQuranDataHint =>
+      'Download the Quran, its words and translations';
+
+  @override
+  String get quranEditionTitle => 'Mushaf print';
+
+  @override
+  String get quranEditionV1 => '1405 print (V1)';
+
+  @override
+  String get quranEditionV2 => '1421 print (V2)';
+
+  @override
+  String get quranEditionNoteV1 =>
+      'The classic Madinah print, and the one the app\'s page tables are made for: every surah starts and ends on the page the planner expects.';
+
+  @override
+  String get quranEditionNoteV2 =>
+      'The newer Madinah print. 36 pages hold different ayahs than in the classic print, so a page number can mean other ayahs than in the planner\'s tables.';
+
+  @override
+  String get quranEditionMissing =>
+      'The pack list has no page lines for this print yet.';
+
+  @override
+  String get wordsFootnote => 'Note';
 }

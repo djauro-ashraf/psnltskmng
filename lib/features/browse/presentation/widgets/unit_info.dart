@@ -5,6 +5,7 @@ import 'package:personaltskmng/domain/models/day.dart';
 import 'package:personaltskmng/features/browse/domain/browse_data.dart';
 import 'package:personaltskmng/features/browse/domain/browse_index.dart';
 import 'package:personaltskmng/features/browse/presentation/providers/browse_providers.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/surah_labels.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 import 'package:personaltskmng/shared/widgets/page_state_widgets.dart';
 
@@ -57,14 +58,28 @@ class PageInfoCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(browseDataProvider);
     final record = data.record(page);
-    if (record == null) return const _Unavailable();
-    return _InfoPanel(
-      children: [
-        PageFacts(
-          info: PageInfo.of(record, data.day, lMonthDays: data.lMonthDays),
-          day: data.day,
-        ),
-      ],
+    // The names do not depend on the Q, so they show even while it is not
+    // loaded.
+    final index = BrowseIndex.instance;
+    return _WithHeader(
+      header: PageSurahCard(
+        first: index.firstSOfPage(page),
+        last: index.lastSOfPage(page),
+      ),
+      child: record == null
+          ? const _Unavailable()
+          : _InfoPanel(
+              children: [
+                PageFacts(
+                  info: PageInfo.of(
+                    record,
+                    data.day,
+                    lMonthDays: data.lMonthDays,
+                  ),
+                  day: data.day,
+                ),
+              ],
+            ),
     );
   }
 }
@@ -87,7 +102,18 @@ class ScopeInfoCard extends ConsumerWidget {
       ChScope(:final ch) => data.chSummary(ch),
       PartScope(:final part) => data.pagesSummary(part.firstPage, part.lastPage),
     };
-    if (summary == null) return const _Unavailable();
+    // The names do not depend on the Q; a ch has no name of its own to show.
+    final nameOf = switch (scope) {
+      SScope(:final s) => s,
+      PartScope(:final part) => part.s,
+      ChScope() => null,
+    };
+    if (summary == null) {
+      return _WithHeader(
+        header: nameOf == null ? null : SurahTitleCard(s: nameOf),
+        child: const _Unavailable(),
+      );
+    }
 
     final mergedCh = switch (scope) {
       ChScope(:final ch) => ch,
@@ -97,27 +123,48 @@ class ScopeInfoCard extends ConsumerWidget {
     final shared = mergedCh == null ? null : data.mergedState(mergedCh);
 
     String yesNo(bool value) => value ? l10n.infoYes : l10n.infoNo;
-    return _InfoPanel(
-      children: [
-        _Row(label: l10n.infoComplete, value: Text(yesNo(summary.complete))),
-        _Row(
-          label: l10n.infoWorstState,
-          value: StateBadge(state: summary.worstState),
-        ),
-        _Row(
-          label: l10n.infoAllAtLeastD3,
-          value: Text(yesNo(summary.allAtLeastD3)),
-        ),
-        if (shared != null) ...[
-          const Divider(height: AppSpacing.xl),
-          Text(l10n.infoMergedShared, style: theme.textTheme.titleSmall),
-          const SizedBox(height: AppSpacing.sm),
-          PageFacts(
-            info: PageInfo.of(shared, data.day, lMonthDays: data.lMonthDays),
-            day: data.day,
+    return _WithHeader(
+      header: nameOf == null ? null : SurahTitleCard(s: nameOf),
+      child: _InfoPanel(
+        children: [
+          _Row(label: l10n.infoComplete, value: Text(yesNo(summary.complete))),
+          _Row(
+            label: l10n.infoWorstState,
+            value: StateBadge(state: summary.worstState),
           ),
+          _Row(
+            label: l10n.infoAllAtLeastD3,
+            value: Text(yesNo(summary.allAtLeastD3)),
+          ),
+          if (shared != null) ...[
+            const Divider(height: AppSpacing.xl),
+            Text(l10n.infoMergedShared, style: theme.textTheme.titleSmall),
+            const SizedBox(height: AppSpacing.sm),
+            PageFacts(
+              info: PageInfo.of(shared, data.day, lMonthDays: data.lMonthDays),
+              day: data.day,
+            ),
+          ],
         ],
-      ],
+      ),
+    );
+  }
+}
+
+/// [child] with an optional [header] card above it (the names of the s).
+class _WithHeader extends StatelessWidget {
+  const _WithHeader({required this.header, required this.child});
+
+  final Widget? header;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final header = this.header;
+    if (header == null) return child;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [header, const SizedBox(height: AppSpacing.md), child],
     );
   }
 }

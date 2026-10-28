@@ -29,6 +29,18 @@ final class DayRecord {
   String get qId => json['qId']! as String;
   String get day => json['day']! as String;
 
+  /// The `proposals` of a record's JSON (as read from a [DayRecordStore] or
+  /// [json]) as opaque maps, for `TodaySession.earlierProposals`. Empty for a
+  /// null record or one without proposals.
+  static List<Map<String, Object?>> proposalsOf(Map<String, Object?>? record) {
+    final proposals = record?['proposals'];
+    return [
+      if (proposals is List)
+        for (final p in proposals)
+          if (p is Map) Map<String, Object?>.from(p),
+    ];
+  }
+
   factory DayRecord.fromSession(
     TodaySession s, {
     required String qId,

@@ -5,7 +5,8 @@ The Drive backup is real: it signs in to your Google account and keeps ONE file,
 can do the one step that belongs to you: **Google must be told that this app
 exists**. That is a one-time job in the Google Cloud Console, about ten minutes.
 Until it is done, the Drive dialog says "Google Drive is not set up in this
-build" and the copy-and-paste export/import still works.
+build" and the backup file (save to a place you choose, import from storage) and
+the copy-and-paste export/import still work.
 
 ## 1. Create the OAuth client (once)
 
@@ -68,6 +69,39 @@ Then:
 
 A backup is refused while the first-run setup is not done, so a new install can
 never replace a good backup on Drive with an empty state.
+
+## Restoring on a new install
+
+The first-run screen ("Set up your Q", step 1) has an **Already have data?**
+card with three ways to restore instead of setting up from scratch:
+
+- **Restore from Google Drive**: connect the account (the same code flow as
+  above), the app looks for `qrm-backup.json` and shows when it was saved, then
+  **Restore this backup**. No backup on the account? It says so, and "Use another
+  account" signs out so you can connect the right one. This dialog has no Backup
+  Now and no auto-backup setting: there is nothing to back up yet.
+- **Import from file**: opens the file chooser at once; pick a backup file from
+  storage and restore it.
+- **Paste backup text**: the same import dialog, on its paste field.
+
+## Backup as a file
+
+Settings > Cloud Backup & Device Sync:
+
+- **Export Backup (JSON)** > **Save to file...** opens the system "save as"
+  dialog (Windows, Android) so you choose the folder and the name; the suggested
+  name is `qrm-backup-YYYY-MM-DD.json`. In a browser it is a normal download
+  (the browser decides the folder, or asks, by its own setting). **Copy to
+  Clipboard** is still there.
+- **Import Backup (file or text)** > **Choose backup file...** picks a `.json`
+  (or `.txt`) file from storage and shows what it holds (pages, days, notes, when
+  it was exported) before anything is replaced; pasting the text works as before.
+  When this device already has data, a restore asks first.
+
+The dialogs are `package:file_picker` (kept on 11.x because 12 and later need
+win32 6, which `flutter_secure_storage` 9.x cannot have), behind the small
+`BackupFiles` interface (`features/backup/services/backup_files.dart`), so tests
+use a fake.
 
 ## Where things are kept
 

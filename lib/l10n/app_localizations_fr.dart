@@ -213,10 +213,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get partialTitle => 'Fait en partie';
 
   @override
-  String get partialFrom => 'De la page';
+  String get partialFrom => 'De';
 
   @override
-  String get partialTo => 'À la page';
+  String get partialTo => 'À';
 
   @override
   String partialChipLabel(int ch, String pages) {
@@ -244,6 +244,30 @@ class AppLocalizationsFr extends AppLocalizations {
   String get logSomethingElse => 'Enregistrer une séance';
 
   @override
+  String get logDay => 'Jour';
+
+  @override
+  String get logDayToday => 'Aujourd’hui';
+
+  @override
+  String get logDayYesterday => 'Hier';
+
+  @override
+  String logDayDaysAgo(int days) {
+    return 'Il y a $days jours';
+  }
+
+  @override
+  String logLateNote(String date) {
+    return 'Enregistré le $date. Les jours suivants sont recalculés avec cette séance, et le plan d’aujourd’hui est effacé : demandez-en un nouveau.';
+  }
+
+  @override
+  String logLateDone(String date) {
+    return 'Enregistré le $date. Demandez un nouveau plan pour aujourd’hui.';
+  }
+
+  @override
   String get logOperation => 'Opération';
 
   @override
@@ -257,7 +281,34 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get logPagesInvalid =>
-      'Saisissez des numéros de page entiers, de la première à la dernière.';
+      'Saisissez un numéro de page, ou ch ou s avec un numéro : 12, ch 3, s 5.';
+
+  @override
+  String get logRangeHint =>
+      'Un numéro de page, ou ch ou s avec un numéro : 12, p 12, ch 3, s 5. Laissez À vide pour enregistrer seulement la page, le ch ou le s de De.';
+
+  @override
+  String logResolved(String pages) {
+    return 'Enregistre $pages';
+  }
+
+  @override
+  String get logRangeBackwards => 'De ne doit pas venir après À.';
+
+  @override
+  String logUnitUnknown(String text, String units) {
+    return '« $text » n’est pas une unité. Utilisez $units, ou seulement un numéro.';
+  }
+
+  @override
+  String logUnitOutOfRange(String unit, int number, int max) {
+    return '$unit $number n’existe pas : utilisez de $unit 1 à $unit $max.';
+  }
+
+  @override
+  String logUnitUnavailable(String unit, int pages) {
+    return '$unit demande le Q de $pages pages. Utilisez plutôt des numéros de page.';
+  }
 
   @override
   String get loggedTitle => 'Enregistré aujourd’hui';
@@ -1036,4 +1087,136 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get noteAddSave => 'Ajouter';
+
+  @override
+  String get pageSideInfo => 'Infos';
+
+  @override
+  String get pageSideQuran => 'Coran';
+
+  @override
+  String get mushafNotInstalled =>
+      'Les pages du Coran ne sont pas encore installées. Télécharge-les dans Données du Coran.';
+
+  @override
+  String get mushafFontMissing =>
+      'La police de cette page est absente. Télécharge les polices dans Données du Coran.';
+
+  @override
+  String get mushafBroken =>
+      'Les données de cette page n’ont pas pu être lues.';
+
+  @override
+  String get quranViewMushaf => 'Mushaf';
+
+  @override
+  String get quranViewWords => 'Mots';
+
+  @override
+  String get wordsNotInstalled =>
+      'Les mots ou les lignes des pages ne sont pas encore téléchargés.';
+
+  @override
+  String get wordsNoTranslation =>
+      'Aucune traduction n’est encore téléchargée. Télécharge-en une dans Données du Coran.';
+
+  @override
+  String get wordsTranslation => 'Traduction';
+
+  @override
+  String get quranDataOpen => 'Télécharger le Coran';
+
+  @override
+  String get quranDataTitle => 'Données du Coran';
+
+  @override
+  String get quranDataIntro =>
+      'Télécharge le Coran une fois. Ensuite il fonctionne sans internet.';
+
+  @override
+  String get quranDataAddressTitle => 'Où sont les paquets';
+
+  @override
+  String get quranDataAddressHint => 'Adresse de manifest.json';
+
+  @override
+  String get quranDataAddressSave => 'Enregistrer et vérifier';
+
+  @override
+  String get quranDataNoAddress =>
+      'Saisis l’adresse des paquets pour télécharger les lignes des pages, les mots et les traductions. Les polices n’en ont pas besoin.';
+
+  @override
+  String get quranDataManifestError =>
+      'La liste des paquets n’a pas pu être chargée. Vérifie l’adresse et ta connexion.';
+
+  @override
+  String get quranDataSectionPages => 'Pages du Coran';
+
+  @override
+  String get quranDataSectionText => 'Mots et traductions';
+
+  @override
+  String get quranPackFontsTitle => 'Polices des pages';
+
+  @override
+  String get quranPackFontsDesc =>
+      'Les lettres des 604 pages, comme dans le mushaf imprimé (604 fichiers).';
+
+  @override
+  String get quranPackTextFontTitle => 'Police du texte arabe';
+
+  @override
+  String get quranPackTextFontDesc =>
+      'Pour les bandeaux de sourate et la vue Mots (1 fichier).';
+
+  @override
+  String get quranDataDownload => 'Télécharger';
+
+  @override
+  String get quranDataCancel => 'Annuler';
+
+  @override
+  String get quranDataDelete => 'Supprimer';
+
+  @override
+  String get quranDataDownloaded => 'Téléchargé';
+
+  @override
+  String get quranDataFailed => 'Échec du téléchargement :';
+
+  @override
+  String get quranDataCredits =>
+      'Polices du Coran : fournies par Quran Foundation. Lignes des pages, mots et traductions : Quranic Universal Library (Tarteel). Chaque traduction appartient à son traducteur.';
+
+  @override
+  String get settingsQuranData => 'Données du Coran';
+
+  @override
+  String get settingsQuranDataHint =>
+      'Télécharger le Coran, ses mots et ses traductions';
+
+  @override
+  String get quranEditionTitle => 'Édition du mushaf';
+
+  @override
+  String get quranEditionV1 => 'Édition 1405 (V1)';
+
+  @override
+  String get quranEditionV2 => 'Édition 1421 (V2)';
+
+  @override
+  String get quranEditionNoteV1 =>
+      'L’édition classique de Médine, celle pour laquelle les tables de pages de l’application sont faites : chaque sourate commence et finit sur la page prévue par le planificateur.';
+
+  @override
+  String get quranEditionNoteV2 =>
+      'L’édition plus récente de Médine. 36 pages contiennent d’autres versets que dans l’édition classique : un numéro de page peut donc désigner d’autres versets que dans les tables du planificateur.';
+
+  @override
+  String get quranEditionMissing =>
+      'La liste des paquets n’a pas encore les lignes des pages de cette édition.';
+
+  @override
+  String get wordsFootnote => 'Note';
 }

@@ -17,6 +17,7 @@ class BrowseSection {
     this.title,
     this.subtitle,
     this.accentColor,
+    this.aside,
     required this.itemCount,
     required this.itemBuilder,
   });
@@ -29,6 +30,11 @@ class BrowseSection {
 
   /// Distinctive accent color for the group indicator.
   final Color? accentColor;
+
+  /// Drawn in the header between the title and the subtitle (the names of an
+  /// s). Shrunk to fit, never wider than 30% of the screen, and left out when
+  /// the text scale is 1.3 or more.
+  final Widget? aside;
 
   final int itemCount;
   final Widget Function(BuildContext context, int index) itemBuilder;
@@ -124,6 +130,7 @@ class _BrowseListState extends State<BrowseList> {
             title: title,
             subtitle: section.subtitle,
             accentColor: section.accentColor,
+            aside: section.aside,
             horizontal: horizontal,
             extent: headerExtent,
           ),
@@ -139,6 +146,7 @@ class _GroupHeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.title,
     required this.subtitle,
     this.accentColor,
+    this.aside,
     required this.horizontal,
     required this.extent,
   });
@@ -146,6 +154,7 @@ class _GroupHeaderDelegate extends SliverPersistentHeaderDelegate {
   final String title;
   final String? subtitle;
   final Color? accentColor;
+  final Widget? aside;
   final double horizontal;
   final double extent;
 
@@ -164,6 +173,11 @@ class _GroupHeaderDelegate extends SliverPersistentHeaderDelegate {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final subtitle = this.subtitle;
+    // Big text leaves no room for the names next to the title and the range:
+    // they are dropped (the rows below still show them).
+    final aside = MediaQuery.textScalerOf(context).scale(1) < 1.3
+        ? this.aside
+        : null;
     final indicatorColor = accentColor ?? scheme.primary;
 
     return SizedBox(
@@ -223,6 +237,19 @@ class _GroupHeaderDelegate extends SliverPersistentHeaderDelegate {
                     ),
                   ),
                 ),
+                if (aside != null) ...[
+                  const SizedBox(width: AppSpacing.sm),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.sizeOf(context).width * 0.3,
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: aside,
+                    ),
+                  ),
+                ],
                 if (subtitle != null) ...[
                   const SizedBox(width: AppSpacing.sm),
                   Container(
@@ -259,6 +286,7 @@ class _GroupHeaderDelegate extends SliverPersistentHeaderDelegate {
       title != oldDelegate.title ||
       subtitle != oldDelegate.subtitle ||
       accentColor != oldDelegate.accentColor ||
+      (aside == null) != (oldDelegate.aside == null) ||
       horizontal != oldDelegate.horizontal ||
       extent != oldDelegate.extent;
 }

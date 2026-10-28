@@ -139,23 +139,53 @@ class TodayViewModel extends Notifier<TodayState> {
     );
   }
 
-  /// Log session (manual logging).
+  /// The days before today something can still be logged on, nearest first
+  /// (yesterday and the day before, once the app has kept them). Empty while
+  /// there is no session.
+  List<Day> loggableDays() {
+    final session = state.session;
+    if (session == null) return const [];
+    return _controller.loggableDays(session.day);
+  }
+
+  /// Log session (manual logging). With [day], an earlier day from
+  /// [loggableDays]: the days since are replayed with it, and today's old plan
+  /// is dropped (ask for a new one).
   Future<TodayActionResult> logCustom(
     Operation operation,
     PageRange range, {
     bool successful = true,
-  }) => _run((session) async {
-    final out = await _controller.service.log(
-      session,
-      operation: operation,
-      range: range,
-      successful: successful,
-    );
-    return switch (out) {
-      LogAccepted(:final session) => (session, null, null),
-      LogRejected(:final violation) => (null, violation, null),
-    };
-  });
+    Day? day,
+  }) {
+    final session = state.session;
+    if (day != null && session != null && day != session.day) {
+      return _run((session) async {
+        final out = await _controller.backfill(
+          session,
+          day: day,
+          operation: operation,
+          range: range,
+          successful: successful,
+        );
+        return switch (out) {
+          BackfillPrepared(:final session) => (session, null, null),
+          BackfillRejected(:final violation) => (null, violation, null),
+        };
+      }, newPlan: true);
+    }
+    return _run((session) async {
+      final out = await _controller.service.log(
+        session,
+        operation: operation,
+        range: range,
+        successful: successful,
+      );
+      return switch (out) {
+        LogAccepted(:final session) => (session, null, null),
+        LogRejected(:final violation) => (null, violation, null),
+      };
+    });
+  }
 
   Future<(TodaySession?, PlanViolation?, (String, RowStatus)?)> _logPlanned(
     TodaySession session,
@@ -183,12 +213,15 @@ class TodayViewModel extends Notifier<TodayState> {
   }
 
   /// Runs one request: busy while it runs, the new session shown afterwards.
+  /// [newPlan]: the session comes back without proposals, so what was done
+  /// with the rows of the old ones is forgotten too.
   Future<TodayActionResult> _run(
     Future<(TodaySession?, PlanViolation?, (String, RowStatus)?)> Function(
       TodaySession session,
     )
-    action,
-  ) async {
+    action, {
+    bool newPlan = false,
+  }) async {
     final session = state.session;
     if (session == null || state.busy) return const TodayActionResult.ignored();
     state = state.copyWith(busy: true);
@@ -202,7 +235,9 @@ class TodayViewModel extends Notifier<TodayState> {
       state = state.copyWith(
         session: next,
         busy: false,
-        rowStatus: mark == null
+        rowStatus: newPlan
+            ? const {}
+            : mark == null
             ? null
             : {...state.rowStatus, mark.$1: mark.$2},
       );

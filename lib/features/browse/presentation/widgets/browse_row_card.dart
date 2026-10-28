@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 
-/// One card row of the browse lists: a title, an optional second line, the
-/// open-note count (a small pill with a note icon, only when there is one), an
-/// optional trailing count (a small tonal pill) and a chevron. Flat (no
+/// One card row of the browse lists: a title, an optional second line, an
+/// optional [aside] (the names of an s), the open-note count (a small
+/// pill with a note icon, only when there is one), an optional trailing count
+/// (a small tonal pill) and a chevron. Flat (no
 /// elevation) with a hairline outline, because hundreds of elevated cards are
 /// costly to paint. It fills the fixed row height its list gives it.
 ///
@@ -16,6 +17,7 @@ class BrowseRowCard extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.trailing,
+    this.aside,
     this.openNotes = 0,
     required this.onTap,
   });
@@ -23,6 +25,11 @@ class BrowseRowCard extends StatelessWidget {
   final String title;
   final String? subtitle;
   final String? trailing;
+
+  /// Drawn after the text and before the pills (the Arabic and English name of
+  /// an s). It is shrunk to at most 30% of the row, so it never pushes the
+  /// text or the pills out, whatever the width and the text scale.
+  final Widget? aside;
 
   /// How many open notes the row's unit has; nothing is shown for 0.
   final int openNotes;
@@ -34,6 +41,7 @@ class BrowseRowCard extends StatelessWidget {
     final scheme = theme.colorScheme;
     final subtitle = this.subtitle;
     final trailing = this.trailing;
+    final aside = this.aside;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
@@ -89,6 +97,19 @@ class BrowseRowCard extends StatelessWidget {
                         ],
                       ),
                     ),
+                    if (aside != null) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: constraints.maxWidth * 0.3,
+                        ),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: AlignmentDirectional.centerEnd,
+                          child: aside,
+                        ),
+                      ),
+                    ],
                     if (openNotes > 0) ...[
                       const SizedBox(width: AppSpacing.sm),
                       _NotesPill(count: openNotes),

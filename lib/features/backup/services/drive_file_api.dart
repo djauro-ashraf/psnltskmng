@@ -19,10 +19,9 @@ final class DriveBackupFile {
 /// any language).
 final class DriveFileApi {
   DriveFileApi({
-    required http.Client client,
-    required Future<String> Function() accessToken,
-  }) : _client = client,
-       _accessToken = accessToken;
+    required this._client,
+    required this._accessToken,
+  });
 
   /// The name of the backup file in the hidden folder.
   static const String fileName = 'qrm-backup.json';

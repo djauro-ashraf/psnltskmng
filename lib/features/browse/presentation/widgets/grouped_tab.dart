@@ -7,6 +7,7 @@ import 'package:personaltskmng/features/browse/presentation/browse_texts.dart';
 import 'package:personaltskmng/features/browse/presentation/providers/browse_providers.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/browse_list.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/group_by_bar.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/surah_labels.dart';
 import 'package:personaltskmng/l10n/app_localizations.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 
@@ -59,10 +60,12 @@ class _GroupedTabState extends ConsumerState<GroupedTab>
     String? title;
     String? subtitle;
     Color? accentColor;
+    Widget? aside;
     if (unit != null) {
       title = unitLabel(l10n, unit, group.number);
       subtitle = pagesLabel(l10n, group.firstPage, group.lastPage);
       accentColor = scheme.primary;
+      if (unit == BrowseUnit.s) aside = SurahHeaderAside(s: group.number);
     } else if (state != null) {
       title = state.name.toUpperCase();
       subtitle = widget.countLabel(l10n, group.items.length);
@@ -76,6 +79,7 @@ class _GroupedTabState extends ConsumerState<GroupedTab>
       title: title,
       subtitle: subtitle,
       accentColor: accentColor,
+      aside: aside,
       itemCount: group.items.length,
       itemBuilder: (context, index) => widget.rowOf(context, group.items[index]),
     );

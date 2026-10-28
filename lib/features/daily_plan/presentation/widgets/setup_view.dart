@@ -655,7 +655,7 @@ class _SetupViewState extends ConsumerState<SetupView> {
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
-        // Restore backup option
+        // Restore backup options: Google Drive, a file from storage, pasted text
         Card(
           color: theme.colorScheme.surfaceContainerHighest,
           child: Padding(
@@ -674,12 +674,36 @@ class _SetupViewState extends ConsumerState<SetupView> {
                   style: theme.textTheme.bodySmall,
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                OutlinedButton.icon(
-                  onPressed: _busy
-                      ? null
-                      : () => showImportBackupDialog(context, ref),
-                  icon: const Icon(Icons.restore_rounded),
-                  label: const Text('Restore from backup'),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    FilledButton.tonalIcon(
+                      onPressed: _busy
+                          ? null
+                          : () => showGoogleDriveRestoreDialog(context, ref),
+                      icon: const Icon(Icons.cloud_download_outlined),
+                      label: const Text('Restore from Google Drive'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _busy
+                          ? null
+                          : () => showImportBackupDialog(
+                              context,
+                              ref,
+                              chooseFileFirst: true,
+                            ),
+                      icon: const Icon(Icons.folder_open_rounded),
+                      label: const Text('Import from file'),
+                    ),
+                    TextButton.icon(
+                      onPressed: _busy
+                          ? null
+                          : () => showImportBackupDialog(context, ref),
+                      icon: const Icon(Icons.content_paste_rounded),
+                      label: const Text('Paste backup text'),
+                    ),
+                  ],
                 ),
               ],
             ),

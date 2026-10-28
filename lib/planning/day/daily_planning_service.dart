@@ -5,10 +5,13 @@ import 'package:personaltskmng/domain/models/q.dart';
 import 'package:personaltskmng/domain/rules/rule_violation.dart';
 import 'package:personaltskmng/domain/rules/rules_engine.dart';
 import 'package:personaltskmng/planning/config/planning_config.dart';
+import 'package:personaltskmng/planning/day/backfill.dart';
 import 'package:personaltskmng/planning/day/day_record.dart';
+import 'package:personaltskmng/planning/day/past_day.dart';
 import 'package:personaltskmng/planning/day/today_session.dart';
 import 'package:personaltskmng/planning/facts/planning_facts.dart';
 import 'package:personaltskmng/planning/models/logged_op.dart';
+import 'package:personaltskmng/planning/models/plan_op.dart';
 import 'package:personaltskmng/planning/models/plan_violation.dart';
 import 'package:personaltskmng/planning/planners/planner.dart';
 import 'package:personaltskmng/planning/planners/rule_based_planner.dart';
@@ -30,6 +33,44 @@ final class LogAccepted extends LogOutcome {
 /// The log was illegal: nothing changed. Show [violation] to the user.
 final class LogRejected extends LogOutcome {
   const LogRejected(this.violation);
+
+  final PlanViolation violation;
+}
+
+/// How a late log ([DailyPlanningService.prepareBackfill]) ended.
+sealed class BackfillOutcome {
+  const BackfillOutcome();
+}
+
+/// The late log is legal and its whole new history is built, but nothing is
+/// saved yet: [DailyPlanningService.commitBackfill] saves it.
+final class BackfillPrepared extends BackfillOutcome {
+  const BackfillPrepared({
+    required this.session,
+    required this.entry,
+    required this.rewind,
+    required this.records,
+  });
+
+  /// Today's session after the replay: the same day, budget and logged
+  /// operations, the new Q, and no proposals as objects (the earlier ones
+  /// travel as JSON in `earlierProposals`): the old plan was made for a Q that
+  /// is no longer the one, so the user asks for a new one.
+  final TodaySession session;
+
+  /// The operation that was added.
+  final LoggedOp entry;
+
+  /// The days to keep for logging late, as they are after the replay.
+  final List<PastDay> rewind;
+
+  /// The day records of the finished days the replay changed.
+  final List<DayRecord> records;
+}
+
+/// The late log was refused: nothing changed. Show [violation] to the user.
+final class BackfillRejected extends BackfillOutcome {
+  const BackfillRejected(this.violation);
 
   final PlanViolation violation;
 }
@@ -257,6 +298,133 @@ final class DailyPlanningService {
     );
     await _persist(next);
     return LogAccepted(next, entry);
+  }
+
+  /// Log something on a finished day: yesterday or the day before (see
+  /// [backfillDays]). [past] is what the state kept of the last days
+  /// (`StoredState.rewind`) and [session] is today's.
+  ///
+  /// The history from the kept day to today is replayed with the new
+  /// operation in it (see `Backfill`), so what the day's end did to the Q is
+  /// worked out again. Saves nothing: a [BackfillPrepared] is saved with
+  /// [commitBackfill], one write for the day records and the state. A history
+  /// the rules refuse is a [BackfillRejected] and changes nothing.
+  Future<BackfillOutcome> prepareBackfill(
+    TodaySession session, {
+    required List<PastDay> past,
+    required Day day,
+    required Operation operation,
+    required PageRange range,
+    bool successful = true,
+    required double defaultBudgetMinutes,
+  }) async {
+    final totalPages = session.currentQ.totalPages;
+    if (range.start < 1 || range.end > totalPages) {
+      return BackfillRejected(
+        PlanViolation(
+          kind: ViolationKind.outOfBounds,
+          message: 'pages must be within 1-$totalPages',
+        ),
+      );
+    }
+    final now = _clock();
+    final result = Backfill.replay(
+      engine: engine,
+      config: config,
+      past: past,
+      today: session,
+      day: day,
+      operation: operation,
+      range: range,
+      successful: successful,
+      at: now,
+      defaultBudgetMinutes: defaultBudgetMinutes,
+    );
+    final BackfillReplayed replayed;
+    switch (result) {
+      case BackfillUnavailable(:final reason):
+        return BackfillRejected(
+          PlanViolation(kind: ViolationKind.engine, message: reason),
+        );
+      case final BackfillRefused refused:
+        return BackfillRejected(_refusal(refused));
+      case final BackfillReplayed done:
+        replayed = done;
+    }
+
+    // The finished days from the logged one on changed: write them again.
+    final records = <DayRecord>[];
+    for (final d in replayed.days) {
+      if (d.day.isBefore(day)) continue;
+      final existing = await store.read(qId, d.day.toString());
+      if (existing == null && d.day != day) continue;
+      records.add(
+        DayRecord.fromSession(
+          TodaySession(
+            day: d.day,
+            startQ: d.startQ,
+            currentQ: d.endQ,
+            baseBudgetMinutes: d.baseBudgetMinutes,
+            extraMinutes: d.extraMinutes,
+            logged: d.logged,
+            earlierProposals: DayRecord.proposalsOf(existing),
+          ),
+          qId: qId,
+          savedAt: now,
+        ),
+      );
+    }
+
+    // Today: the replayed Qs, the same logged operations, the plan so far
+    // kept in the record as earlier proposals.
+    final todayRecord = DayRecord.fromSession(session, qId: qId, savedAt: now);
+    final next = TodaySession(
+      day: session.day,
+      startQ: replayed.todayStartQ,
+      currentQ: replayed.todayQ,
+      baseBudgetMinutes: session.baseBudgetMinutes,
+      extraMinutes: session.extraMinutes,
+      logged: session.logged,
+      earlierProposals: DayRecord.proposalsOf(todayRecord.json),
+    );
+
+    final firstReplayed = replayed.days.first.day;
+    final rewind = PastDays.prune([
+      for (final p in past)
+        if (p.day.isBefore(firstReplayed)) p,
+      for (final d in replayed.days) d.toPastDay(),
+    ], session.day);
+
+    return BackfillPrepared(
+      session: next,
+      entry: replayed.entry,
+      rewind: rewind,
+      records: records,
+    );
+  }
+
+  /// The violation shown for a refused replay.
+  static PlanViolation _refusal(BackfillRefused refused) {
+    final violation = refused.violation;
+    final kind = violation.reason == RuleViolationReason.pageAlreadyRToday
+        ? ViolationKind.alreadyRToday
+        : ViolationKind.engine;
+    // The operation being added: the same words as a live log. A later one
+    // that no longer fits: say which one, and on which day.
+    final message = refused.isNew
+        ? violation.toString()
+        : 'it would break ${refused.operation.letter} ${refused.range} '
+              'logged on ${refused.day}: $violation';
+    return PlanViolation(kind: kind, message: message, engine: violation);
+  }
+
+  /// Saves a [BackfillPrepared]: the changed day records first, then today's
+  /// (through the one save point, which also writes the app state).
+  Future<void> commitBackfill(BackfillPrepared prepared) async {
+    for (final record in prepared.records) {
+      await store.save(record);
+    }
+    await _persist(prepared.session);
   }
 
   /// "Done" (whole op) or "partial" (pass [only], a sub-range) for one op of a

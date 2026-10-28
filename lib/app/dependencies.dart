@@ -17,6 +17,11 @@ import 'package:personaltskmng/features/settings/data/datasources/settings_local
 import 'package:personaltskmng/features/settings/data/repositories/settings_repository_impl.dart';
 import 'package:personaltskmng/features/settings/presentation/providers/ai_providers.dart';
 import 'package:personaltskmng/features/settings/presentation/providers/settings_providers.dart';
+import 'package:personaltskmng/mushaf/controller/mushaf_edition.dart';
+import 'package:personaltskmng/mushaf/controller/mushaf_providers.dart';
+import 'package:personaltskmng/mushaf/controller/page_side.dart';
+import 'package:personaltskmng/mushaf/data/shared_mushaf_edition_store.dart';
+import 'package:personaltskmng/mushaf/data/shared_page_side_store.dart';
 import 'package:personaltskmng/notes/controller/notes_controller.dart';
 import 'package:personaltskmng/notes/data/day_log.dart';
 import 'package:personaltskmng/notes/data/file_note_store.dart';
@@ -28,6 +33,10 @@ import 'package:personaltskmng/planning/data/file_app_state_store.dart';
 import 'package:personaltskmng/planning/data/json_dir_day_record_store.dart';
 import 'package:personaltskmng/planning/data/preferences_app_state_store.dart';
 import 'package:personaltskmng/planning/day/day_record.dart';
+import 'package:personaltskmng/quran_data/controller/quran_prefs.dart';
+import 'package:personaltskmng/quran_data/controller/quran_providers.dart';
+import 'package:personaltskmng/quran_data/data/file_mushaf_source.dart';
+import 'package:personaltskmng/quran_data/data/shared_quran_prefs_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Composition root: the only place (with main.dart) that knows concrete
@@ -114,6 +123,19 @@ Future<List<Override>> buildOverrides() async {
     aiRuntimeProvider.overrideWithValue(aiRuntime),
     dayRecordStoreProvider.overrideWithValue(dayRecords),
     driveBackupServiceProvider.overrideWithValue(driveService),
+    // Which side of a page screen was open (info or the Quran): a view
+    // preference kept in the app preferences, not in the settings.
+    pageSideStoreProvider.overrideWithValue(SharedPageSideStore(prefs)),
+    // The Quran side reads the downloaded Quran; the view, the translation and
+    // the pack address chosen there are kept in the app preferences too.
+    quranPrefsStoreProvider.overrideWithValue(SharedQuranPrefsStore(prefs)),
+    mushafEditionStoreProvider.overrideWithValue(SharedMushafEditionStore(prefs)),
+    mushafSourceProvider.overrideWith(
+      (ref) => FileMushafSource(
+        storage: ref.watch(quranStorageProvider.future),
+        content: ref.watch(quranContentProvider.future),
+      ),
+    ),
   ];
 }
 

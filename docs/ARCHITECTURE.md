@@ -47,12 +47,19 @@ lib/
                         s_table.dart: STable, the exact pages of each s
                         (also `sOfPage`). shared_pages.dart: SharedPages,
                         which pages are in two ch or two s.
+                        surah_names.dart: SurahNames / SurahName, the Arabic name, the
+                        English name and its meaning of each of the 114 s. Display
+                        data only, never read by rules, planners or the AI.
                         ch_status.dart: ChStatus and SStatus, the read-only
                         status of each ch and s derived from a Q (levels,
                         lagging and warning pages, mergeReady), computed on
                         demand, nothing stored.
                         merged_spans.dart: MergedSpans, the read-only view of
                         the merged ch (owned page spans, runs) used by planning.
+                        page_input.dart: PageInput and PageUnit, read what the
+                        user types for the pages of a log ("12", "p 12", "ch 3",
+                        "s 5") and turn it into a page range; one PageUnit per
+                        kind of number, new kinds are added there.
                         catch_up_groups.dart: CatchUpGroups, the read-only
                         list of catch-up ch (complete, not merged, with pages
                         in D1 or F3) with their lag, hold, r and mMin; computed
@@ -125,6 +132,14 @@ AI (Stage 6+) proposing plans that this layer validates, never the reverse.
   or the capacity gate reads the marker, planners and the AI never propose L
   (`PlanValidator` rejects it, the parser has no L), the AI snapshot shows a logged L as
   the R it contains, and no UI shows page state labels yet. See `RULES.md`.
+- **Typing pages when logging.** `domain/reference/page_input.dart` (`PageInput.resolve`, `PageUnit`)
+  is pure Dart: it reads the From and To texts of the Log session and Done partly dialogs
+  (`widgets/dialogs.dart`, both through the shared `_RangeFields`) and returns a `PageRange` or a
+  `PageInputError` whose `problem` the UI turns into a localized message
+  (`pageInputMessage` in `widgets/plan_texts.dart`). A bare number or `p` is a page, `ch` and `s`
+  are units built on the same tables as `ChTable.displayRange` and `STable`; everything below the
+  dialog (view model, controller, engine, day record) still only sees pages. The dialog gets the Q's
+  page count from `TodayView`, because ch and s exist only for the 604-page Q. See `RULES.md`.
 - **Showing a range by ch.** `domain/reference/ch_segments.dart` (`ChSegments`) is a pure,
   read-only function: it gives every page of one range to its owner ch, groups them, and
   returns segments (ch, first page, last page, kind `whole` / `fromBeginning` / `middle`),
@@ -363,6 +378,7 @@ Rules and file contents: `RULES.md`, "Storage". Layout:
 
 - `planning/data/` (pure Dart, no Flutter): `QCodec` (exact Q round trip, runs `Q.checkInvariants()` on load), `SettingsCodec` + `PlanningSettings` + `settingsProblems`, `StoredState` / `StoredSession`, `AppStateCodec` (text <-> object, shared by every store) and the `AppStateStore` interface with `InMemoryAppStateStore`. `FileAppStateStore` is the only file that imports `dart:io` (atomic temp-file + rename writes, bad files renamed to `<name>.bad-<timestamp>`).
 - `planning/controller/planning_controller.dart` (pure Dart): `PlanningController` loads settings and state, builds `RulesEngine` and `DailyPlanningService` from the stored settings, exposes `PlanningLoad` (`PlanningLoaded` / `PlanningEmptyStarted` / `PlanningLoadFailed(reason)`), restores or drops the session in `startToday`, and offers `updateSettings` and `startFresh`. It saves nothing while the load is failed.
+- Late logging (yesterday, the day before; see `RULES.md`, "Logging on a day that is over"): `planning/day/past_day.dart` (`PastDay`, `PastDays`, `coreOf`, `backfillDays`) is a finished day kept in `StoredState.rewind` (codec: optional `rewind` key in `state.json`, read leniently); `planning/day/backfill.dart` (`Backfill.replay`, pure) runs the history again from a kept day with the new op; `DailyPlanningService.prepareBackfill` builds the new session, kept days and day records, `commitBackfill` saves them; `PlanningController.backfill` ties it to the state and `startToday` keeps the dropped session as a `PastDay`. The Today view model's `logCustom(..., day:)` and `loggableDays()` and the day chips of the Log dialog are the UI.
 - Save point: `DailyPlanningService._persist` writes the day record and then calls `onPersisted`; the controller uses it to write `state.json`. Do not add another save path.
 - Wiring (same style as settings): `features/daily_plan/presentation/providers/planning_providers.dart` (`planningControllerProvider`, throws until overridden) and `viewmodels/planning_view_model.dart` (`Notifier<PlanningLoad>`). `app/dependencies.dart` builds `FileAppStateStore` and `JsonDirDayRecordStore` (`days/`) in the documents directory (`path_provider` is used only there), loads the controller before the first frame, and overrides the provider. A settings screen must call `settingsProblems` before `updateSettings`.
 
@@ -386,6 +402,7 @@ Rules: `RULES.md`, "Page labels", "Overview", "Settings screen", "AI planner set
 - AI: `lib/ai/ai_runtime.dart` has `AiRuntime` (switch, provider, models, which providers have a key; never a key), `aiProviderInfos` and `aiAwarePlannerFactory`. `AiSetupViewModel` saves the switch, provider and model in `AppSettings`, the key in `ApiKeyStore`, updates the `AiRuntime` and calls `PlanningController.plannerChanged`. `app/dependencies.dart` builds `SecureApiKeyStore`, the `AiRuntime` (with which providers already have a key) and the controller with the AI-aware factory; `apiKeyStoreProvider` and `aiRuntimeProvider` are overridden there. Model lists live in `lib/ai/ai_models.dart` (free-plan models per provider, one marked recommended) and reach the screen through `AiProviderInfo.models`. Keys saved under a name are `SavedKeyStore` (`lib/ai/saved_key_store.dart`): one JSON entry in the same `ApiKeyStore`, so device-only and outside the backup; `savedKeyStoreProvider` is derived from `apiKeyStoreProvider` and `SavedKeysViewModel` exposes names only.
 - `AppSettings` gained `aiEnabled`, `aiProvider` and `aiModels` (old stored records read with the defaults).
 - `AppSettings` gained `readingDirection` (`rightToLeft` by default; a missing or unknown stored value, and backups made before it, read as right to left).
+- Backup files: `features/backup/services/backup_files.dart` has the `BackupFiles` interface (`save` with a location chooser, `pick` from storage) and the pure helpers (`backupFileName`, `describeSavedLocation`, `decodeBackupBytes`); `file_picker_backup_files.dart` is the `package:file_picker` implementation (no `dart:io`, so it builds for the web), provided by `backupFilesProvider` (tests override it). `backup_dialogs.dart` holds the export dialog (Save to file / Copy), the import dialog (choose a file or paste, preview, confirm when data exists) and `GoogleDriveDialog` (`restoreOnly` for the first-run screen); the first-run card in `setup_view.dart` opens them.
 
 ## Browse (ps, ss, ch)
 
@@ -393,6 +410,9 @@ Rules: `RULES.md`, "Browse". Reference data only: nothing here reads or changes 
 
 - `features/browse/domain/` (pure Dart): `browse_index.dart` (`BrowseIndex`, `BrowsePart`, `BrowseScope` = `SScope` / `ChScope` / `PartScope`) built once from `ChTable` and `STable`: the ch of an s and the s of a ch (the ch table's own lists), the parts (the pages an s and a ch share), the s and ch on a page. `browse_groups.dart` (`BrowseGroups`, `BrowseGroup`, `BrowseGrouping`): the groups of the three lists, cached.
 - `features/browse/presentation/`: `pages/browse_page.dart` is the fourth tab (route `AppRoutes.browse`): a `TabBar` over the three lists. `widgets/grouped_tab.dart` is one list (group-by bar + `BrowseList`, keep-alive so the grouping and scroll position survive a tab switch). `widgets/browse_list.dart` is the efficient list: `SliverFixedExtentList` rows (fixed height, scaled with the text scale), no keep-alive per row, one pinned header per group (`SliverMainAxisGroup`), its own `ScrollController`, flat cards. Looks come from the app theme (`BrowseRowCard`: control-radius card with a tonal count pill; group headers: serif title, hairline only while pinned over rows), so the feature has no colors of its own. `browse_routes.dart` is the route tree (locations in `browse_paths.dart`); detail pages are children of the tab's route and receive ids only (a bad id shows `BrowseNotFoundPage`). `browse_texts.dart` builds the localized labels (`p`, `s`, `ch` are never translated).
+- Surah names (see `RULES.md`, "Browse"): `SurahNames` is read by `widgets/surah_labels.dart` (`SurahRowAside`, `SurahHeaderAside`, `SurahTitleCard`, `PageSurahCard`) and by `shared/widgets/surah_arabic_text.dart` (`SurahArabicText`, right to left, `locale: ar`). `BrowseRowCard.aside` and `BrowseSection.aside` take such a widget and shrink it (`FittedBox`) to at most 30% of the row or screen, so a long name or a big text scale never overflows. `ScopeInfoCard` and `PageInfoCard` put the names card above the info panel. The existing title, subtitle and label texts are unchanged; the names are separate widgets.
+- The Quran side of a page screen (see `RULES.md`, "Browse"): two small kernels like `lib/notes/`, imported by features and by `shared/`, importing no feature. `lib/mushaf/` is how a page is drawn: `models/` is pure Dart (`MushafPage` reads a page of a layout pack, `MushafFit` is the fitting arithmetic, `MushafEdition` names the two prints and their packs and fonts), `data/mushaf_source.dart` is the interface `MushafSource` (never throws: `MushafPageResult` is ready, not installed, font missing or broken) and `controller/` the providers and the kept side `PageSide` and print `MushafEdition`. `lib/quran_data/` is the downloaded Quran: `models/` is pure Dart (`QuranPack` and `QuranManifest`, `QuranFonts`, the models of the words and translations by s, `FootnoteText` that splits a translation at its footnote markers); `data/` is the file side (`DirectoryPackStorage` in `<app support>/quran`, `PackCodec` the one-line-per-row gzip format, `PackInstaller` with retries, checks and cancel, `QuranRepository` that reads the lines of a page and the words and translations of ayahs, `FileMushafSource` that gives the mushaf its pages and registers fonts); `controller/` holds the providers, the download controller (`QuranDataController`) and the kept choices (`QuranPrefsStore`: view, translation, pack address). `mushaf` never imports `quran_data`; `app/dependencies.dart` is where the downloaded Quran is plugged into `mushafSourceProvider`. The widgets are in `shared/` (`MushafPageView`, `WordsPageView`, `QuranNotice`, `PillToggle`); Browse adds `PageSideToggle`, the `quran` / `showQuran` slots of `UnitScreen` and the Quran side of `page_detail_page.dart`; `features/quran_data/` is only the Quran data screen. `tool/build_quran_packs.py` (with its tests) makes the packs from QUL downloads and `docs/QURAN_DATA.md` describes how they are published.
+
 - The feature imports no other feature. `app/router.dart` adds one `StatefulShellBranch(routes: [browseRoute()])` and `app/app_shell.dart` one destination. One tab with three screens, not three tabs: Material 3 bottom bars are meant for 3 to 5 destinations, and six would crowd the bar and make the rail (used on wide and landscape layouts) taller.
 
 ## Minutes band for AI plans (code)

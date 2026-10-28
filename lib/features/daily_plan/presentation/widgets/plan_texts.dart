@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:personaltskmng/domain/models/page_range.dart';
 import 'package:personaltskmng/domain/reference/ch_segments.dart';
+import 'package:personaltskmng/domain/reference/ch_table.dart';
+import 'package:personaltskmng/domain/reference/page_input.dart';
 import 'package:personaltskmng/l10n/app_localizations.dart';
 import 'package:personaltskmng/planning/models/minutes.dart';
 
@@ -11,6 +13,28 @@ String pagesText(AppLocalizations l10n, int from, int to) =>
 
 String rangeText(AppLocalizations l10n, PageRange range) =>
     pagesText(l10n, range.start, range.end);
+
+/// What to tell the user when the From / To text of a log was not understood
+/// (see `PageInput.resolve`).
+String pageInputMessage(AppLocalizations l10n, PageInputError error) =>
+    switch (error.problem) {
+      PageInputProblem.missing ||
+      PageInputProblem.malformed => l10n.logPagesInvalid,
+      PageInputProblem.unknownUnit => l10n.logUnitUnknown(
+        error.text,
+        PageUnit.all.map((unit) => unit.label).join(', '),
+      ),
+      PageInputProblem.outOfRange => l10n.logUnitOutOfRange(
+        error.unit!.label,
+        error.number!,
+        error.max!,
+      ),
+      PageInputProblem.unavailable => l10n.logUnitUnavailable(
+        error.unit!.label,
+        ChTable.totalPages,
+      ),
+      PageInputProblem.backwards => l10n.logRangeBackwards,
+    };
 
 /// "12 min", "37.5 min".
 String minutesText(AppLocalizations l10n, double minutes) =>

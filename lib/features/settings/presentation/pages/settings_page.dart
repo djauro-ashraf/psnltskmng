@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:personaltskmng/core/constants/app_breakpoints.dart';
+import 'package:personaltskmng/core/constants/app_routes.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/core/errors/failure.dart';
 import 'package:personaltskmng/domain/reference/ch_table.dart';
@@ -292,6 +294,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         const _AppearanceSection(),
         const SizedBox(height: AppSpacing.md),
         const _BackupSection(),
+        const _QuranDataSection(),
         const SizedBox(height: AppSpacing.lg),
         Card(
           child: Padding(
@@ -775,7 +778,7 @@ class _BackupSection extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Keep your learning data safe with Google Drive, or export and import backups across devices.',
+              'Keep your learning data safe with Google Drive, or save a backup file where you choose and import it on any device.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -820,12 +823,33 @@ class _BackupSection extends ConsumerWidget {
                 OutlinedButton.icon(
                   onPressed: () => showImportBackupDialog(context, ref),
                   icon: const Icon(Icons.upload_rounded),
-                  label: const Text('Import Backup (JSON)'),
+                  label: const Text('Import Backup (file or text)'),
                 ),
               ],
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The way to the Quran data screen, where the Quran, its words and its
+/// translations are downloaded.
+class _QuranDataSection extends StatelessWidget {
+  const _QuranDataSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: ListTile(
+        leading: const Icon(Icons.menu_book_rounded),
+        title: Text(l10n.settingsQuranData),
+        subtitle: Text(l10n.settingsQuranDataHint),
+        trailing: const Icon(Icons.chevron_right_rounded),
+        onTap: () => context.push(AppRoutes.quranData),
       ),
     );
   }

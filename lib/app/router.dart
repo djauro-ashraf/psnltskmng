@@ -6,6 +6,7 @@ import 'package:personaltskmng/core/constants/app_routes.dart';
 import 'package:personaltskmng/features/browse/browse.dart';
 import 'package:personaltskmng/features/daily_plan/daily_plan.dart';
 import 'package:personaltskmng/features/overview/overview.dart';
+import 'package:personaltskmng/features/quran_data/quran_data.dart';
 import 'package:personaltskmng/features/settings/settings.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 import 'package:personaltskmng/shared/widgets/empty_state.dart';
@@ -18,6 +19,12 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: AppRoutes.today,
     routes: [
       GoRoute(path: '/', redirect: (context, state) => AppRoutes.today),
+      // Above the tabs: reached from Settings and from the Quran side of a
+      // page, and closed with the back button.
+      GoRoute(
+        path: AppRoutes.quranData,
+        builder: (context, state) => const QuranDataPage(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             AppShell(navigationShell: navigationShell),

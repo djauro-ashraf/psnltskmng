@@ -1,12 +1,17 @@
 name: personaltskmng
 description: QRM Intelligent Planner - decides what to do each day to keep every page of Q healthy and progressing.
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.2.0+2
 
 environment:
   sdk: ^3.13.3
 
 dependencies:
+  # Native save / open dialogs for the backup file (save with a location
+  # chooser, import from storage). Kept on 11.x on purpose: 12 and later need
+  # win32 6, while flutter_secure_storage 9.x needs win32 5, so `pub get` would
+  # fail on the combination. Move both together.
+  file_picker: ^11.0.3
   flutter:
     sdk: flutter
   flutter_localizations:
@@ -24,6 +29,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
+  shared_preferences_platform_interface: ^2.4.1
 
 flutter:
   uses-material-design: true
@@ -31,20 +37,6 @@ flutter:
 
   assets:
     - assets/icon/
-
-flutter_launcher_icons:
-  android: true
-  ios: true
-  image_path: "assets/icon/app_icon_white.png"
-  min_sdk_android: 21
-  adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/icon/app_icon_transparent.png"
-  web:
-    generate: true
-    image_path: "assets/icon/app_icon_white.png"
-  windows:
-    generate: true
-    image_path: "assets/icon/app_icon_white.png"
 
   # Spectral (headings, numerals) and IBM Plex Sans (interface text).
   # Both are SIL Open Font License 1.1; the licenses sit next to the files.
@@ -67,3 +59,17 @@ flutter_launcher_icons:
           weight: 500
         - asset: assets/fonts/IBMPlexSans-SemiBold.ttf
           weight: 600
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon_white.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/app_icon_transparent.png"
+  web:
+    generate: true
+    image_path: "assets/icon/app_icon_white.png"
+  windows:
+    generate: true
+    image_path: "assets/icon/app_icon_white.png"

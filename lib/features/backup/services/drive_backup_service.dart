@@ -132,6 +132,10 @@ class DriveBackupService {
     return backup;
   }
 
+  /// The backup file on Drive (its id and when it was last written), or null
+  /// when there is none. What the first-run screen shows before a restore.
+  Future<DriveBackupFile?> findCloudBackup() => files.find();
+
   /// When the backup on Drive was last written, or null when there is none.
   Future<DateTime?> cloudBackupTime() async => (await files.find())?.modifiedTime;
 

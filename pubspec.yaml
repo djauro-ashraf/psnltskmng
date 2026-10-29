@@ -1,23 +1,21 @@
 name: personaltskmng
 description: QRM Intelligent Planner - decides what to do each day to keep every page of Q healthy and progressing.
 publish_to: 'none'
-version: 0.2.0+2
+version: 0.2.0+3
 
 environment:
   sdk: ^3.13.3
 
 dependencies:
   # Native save / open dialogs for the backup file (save with a location
-  # chooser, import from storage). Kept on 11.x on purpose: 12 and later need
-  # win32 6, while flutter_secure_storage 9.x needs win32 5, so `pub get` would
-  # fail on the combination. Move both together.
-  file_picker: ^11.0.3
+  # chooser, import from storage).
+  file_picker: ^13.3.0
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
   flutter_riverpod: ^3.2.1
-  flutter_secure_storage: ^9.2.4
+  flutter_secure_storage: ^11.2.0
   go_router: ^17.1.0
   http: ^1.2.0
   intl: any

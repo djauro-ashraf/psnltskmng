@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personaltskmng/quran_data/controller/quran_prefs.dart';
+import 'package:personaltskmng/quran_data/quran_data_config.dart';
 
 class _FailingStore implements QuranPrefsStore {
   @override
@@ -24,7 +25,7 @@ void main() {
     final container = _container(MemoryQuranPrefsStore());
     expect(container.read(quranViewProvider), QuranView.mushaf);
     expect(container.read(translationChoiceProvider), isNull);
-    expect(container.read(manifestUrlProvider), '');
+    expect(container.read(manifestUrlProvider), QuranDataConfig.defaultManifestUrl);
   });
 
   test('the choices are kept and read back', () async {

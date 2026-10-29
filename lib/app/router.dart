@@ -26,8 +26,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const QuranDataPage(),
       ),
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) =>
-            AppShell(navigationShell: navigationShell),
+        builder: (context, state, navigationShell) => AppShell(
+          navigationShell: navigationShell,
+          location: state.uri.path,
+        ),
         branches: [
           StatefulShellBranch(
             routes: [

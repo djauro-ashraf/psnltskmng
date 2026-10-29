@@ -11,6 +11,7 @@ class PillToggle<T> extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.horizontalPadding = AppSpacing.xl,
+    this.verticalPadding = AppSpacing.sm - 3,
   });
 
   /// The options, each a value and its label.
@@ -20,6 +21,9 @@ class PillToggle<T> extends StatelessWidget {
 
   /// The room on each side of a label.
   final double horizontalPadding;
+
+  /// The room above and below a label (less for a slim line).
+  final double verticalPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +43,7 @@ class PillToggle<T> extends StatelessWidget {
                 label: label,
                 selected: option == value,
                 horizontalPadding: horizontalPadding,
+                verticalPadding: verticalPadding,
                 onTap: () => onChanged(option),
               ),
           ],
@@ -53,12 +58,14 @@ class _Segment extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.horizontalPadding,
+    required this.verticalPadding,
     required this.onTap,
   });
 
   final String label;
   final bool selected;
   final double horizontalPadding;
+  final double verticalPadding;
   final VoidCallback onTap;
 
   @override
@@ -77,7 +84,7 @@ class _Segment extends StatelessWidget {
           child: Padding(
             padding: EdgeInsets.symmetric(
               horizontal: horizontalPadding,
-              vertical: AppSpacing.sm - 3,
+              vertical: verticalPadding,
             ),
             child: Text(
               label,

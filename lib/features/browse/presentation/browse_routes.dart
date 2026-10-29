@@ -6,7 +6,7 @@ import 'package:personaltskmng/features/browse/presentation/pages/browse_not_fou
 import 'package:personaltskmng/features/browse/presentation/pages/browse_page.dart';
 import 'package:personaltskmng/features/browse/presentation/pages/children_page.dart';
 import 'package:personaltskmng/features/browse/presentation/pages/page_detail_page.dart';
-import 'package:personaltskmng/features/browse/presentation/pages/scope_detail_page.dart';
+import 'package:personaltskmng/features/browse/presentation/pages/scope_screen.dart';
 import 'package:personaltskmng/features/browse/presentation/pages/scope_pages_page.dart';
 
 /// The route tree of the Browse tab (the locations are listed in
@@ -101,7 +101,7 @@ Widget Function(BuildContext, GoRouterState) _detail(_ScopeOf scopeOf) =>
       final scope = scopeOf(state);
       return scope == null
           ? const BrowseNotFoundPage()
-          : ScopeDetailPage(scope: scope, location: state.matchedLocation);
+          : ScopeScreen(scope: scope, location: state.matchedLocation);
     };
 
 Widget Function(BuildContext, GoRouterState) _children(_ScopeOf scopeOf) =>

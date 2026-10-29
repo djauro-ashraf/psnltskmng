@@ -21,4 +21,27 @@ abstract final class BrowsePaths {
   static const String ps = '$root/ps';
   static const String ss = '$root/ss';
   static const String ch = '$root/ch';
+
+  static final RegExp _pageScreen = RegExp(
+    '^${RegExp.escape(root)}/(?:.*/)?ps/\\d+/?\$',
+  );
+
+  /// True for the location of a page screen (`.../ps/:page`), false for
+  /// everything else, the list of pages (`.../ps`) included.
+  static bool isPageScreen(String location) => _pageScreen.hasMatch(location);
+
+  static final RegExp _scopeScreen = RegExp(
+    '^${RegExp.escape(root)}/'
+    '(?:ss/\\d+(?:/ch/\\d+)?|ch/\\d+(?:/ss/\\d+)?)/?\$',
+  );
+
+  /// True for the location of the screen of an s, a ch or a part
+  /// (`/ss/:s`, `/ss/:s/ch/:ch`, `/ch/:ch`, `/ch/:ch/ss/:s`), false for their
+  /// lists (`.../ch`, `.../ss`, `.../ps`).
+  static bool isScopeScreen(String location) => _scopeScreen.hasMatch(location);
+
+  /// A screen that has the Quran as its other side: a page, or a unit (whose
+  /// Quran side is its pages).
+  static bool isReadingScreen(String location) =>
+      isPageScreen(location) || isScopeScreen(location);
 }

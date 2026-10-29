@@ -5,14 +5,18 @@ import 'package:personaltskmng/features/browse/domain/browse_index.dart';
 import 'package:personaltskmng/features/browse/domain/note_unit.dart';
 import 'package:personaltskmng/features/browse/presentation/browse_texts.dart';
 import 'package:personaltskmng/features/browse/presentation/providers/browse_providers.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/page_side_toggle.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/unit_info.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/unit_screen.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 import 'package:personaltskmng/shared/widgets/text_flow.dart';
 
-/// The screen of one s, one ch, or one part (an s inside a ch). It shows the
+/// The screen of one s, one ch, or one part (an s inside a ch), in the Info
+/// mode (in the Quran mode `ScopeScreen` opens its pages instead). It shows the
 /// unit's info (complete, worst state, all pages at least D3; a merged ch also
-/// its shared state) and its navigation together, then its notes.
+/// its shared state) and its navigation together, then its notes. The Info |
+/// Quran switch under the title is the one of a page screen: Quran goes to the
+/// pages of the unit.
 ///
 /// Supports seamless swipe navigation between sibling items, in the reading
 /// direction (with the text running right to left, swiping right on ch 1 goes
@@ -181,6 +185,7 @@ class _ScopeDetailPageState extends ConsumerState<ScopeDetailPage> {
           info: ScopeInfoCard(scope: currentScope),
           unit: NoteUnit.of(currentScope, merged: merged),
           positionLabel: _positionLabel(currentScope, index),
+          sideToggle: const PageSideToggle(),
           onPrevious: index > 0 ? () => _animateTo(index - 1) : null,
           onNext: index < _itemCount - 1 ? () => _animateTo(index + 1) : null,
           navigation: currentScope.pageCount > 1

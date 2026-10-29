@@ -4,8 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:personaltskmng/core/theme/app_theme.dart';
 import 'package:personaltskmng/domain/models/day.dart';
 import 'package:personaltskmng/features/browse/domain/browse_data.dart';
+import 'package:personaltskmng/features/browse/domain/browse_index.dart';
 import 'package:personaltskmng/features/browse/presentation/pages/page_detail_page.dart';
+import 'package:personaltskmng/features/browse/presentation/pages/scope_screen.dart';
 import 'package:personaltskmng/features/browse/presentation/providers/browse_providers.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/reader_bar.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/unit_info.dart';
 import 'package:personaltskmng/features/daily_plan/presentation/providers/planning_providers.dart';
 import 'package:personaltskmng/features/notes/presentation/providers/notes_providers.dart';
@@ -98,6 +101,7 @@ Widget _app({
   NotesController? notes,
   double textScale = 1,
   int page = 106,
+  Widget? home,
   List overrides = const [],
 }) {
   return ProviderScope(
@@ -129,7 +133,7 @@ Widget _app({
         ).copyWith(textScaler: TextScaler.linear(textScale)),
         child: child!,
       ),
-      home: PageDetailPage(page: page),
+      home: home ?? PageDetailPage(page: page),
     ),
   );
 }
@@ -499,6 +503,233 @@ void main() {
           reason: '$size',
         );
       }
+    });
+  });
+
+  group('the reading line of the Quran side', () {
+    testWidgets('replaces the title bar and the two switches', (tester) async {
+      _tall(tester);
+      await tester.pumpWidget(_app(source: _installed()));
+      await tester.pumpAndSettle();
+      expect(find.byType(AppBar), findsOneWidget);
+      expect(find.byType(ReaderBar), findsNothing);
+
+      await tester.tap(find.text('Quran'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AppBar), findsNothing);
+      expect(find.byType(ReaderBar), findsOneWidget);
+      // One switch: back to the info, or the way to read the page.
+      expect(find.text('Info'), findsOneWidget);
+      expect(find.text('Mushaf'), findsOneWidget);
+      expect(find.text('Words'), findsOneWidget);
+      expect(find.text('106 / 604'), findsOneWidget);
+      expect(tester.getSize(find.byType(ReaderBar)).height, ReaderBar.height);
+
+      await tester.tap(find.text('Info'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AppBar), findsOneWidget);
+      expect(find.byType(ReaderBar), findsNothing);
+    });
+
+    testWidgets('gives the page the room the title bar had', (tester) async {
+      _tall(tester);
+      await tester.pumpWidget(
+        _app(
+          source: _installed(),
+          store: MemoryPageSideStore(PageSide.quran),
+        ),
+      );
+      await tester.pumpAndSettle();
+      // Under the one slim line, the page runs to the bottom of the screen.
+      final canvas = tester.getRect(find.byType(MushafPageCanvas));
+      expect(canvas.top, ReaderBar.height);
+      expect(canvas.bottom, 1200);
+    });
+
+    testWidgets('a tap on the mushaf clears it away, and brings it back', (
+      tester,
+    ) async {
+      _tall(tester);
+      await tester.pumpWidget(
+        _app(
+          source: _installed(),
+          store: MemoryPageSideStore(PageSide.quran),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(ReaderBar), findsOneWidget);
+
+      await tester.tap(find.byType(MushafPageCanvas));
+      await tester.pumpAndSettle();
+      expect(find.byType(ReaderBar), findsNothing);
+      expect(tester.getRect(find.byType(MushafPageCanvas)).top, 0);
+
+      await tester.tap(find.byType(MushafPageCanvas));
+      await tester.pumpAndSettle();
+      expect(find.byType(ReaderBar), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the words keep the line: a tap there does not clear it', (
+      tester,
+    ) async {
+      _tall(tester);
+      await tester.pumpWidget(
+        _app(
+          source: _installed(),
+          store: MemoryPageSideStore(PageSide.quran),
+          overrides: [
+            quranPrefsStoreProvider.overrideWithValue(
+              MemoryQuranPrefsStore({QuranPrefKeys.view: 'words'}),
+            ),
+            quranContentProvider.overrideWith((ref) async => _WordsContent()),
+            installedTranslationsProvider.overrideWith((ref) async => const []),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(WordsPageView), findsOneWidget);
+
+      await tester.tapAt(const Offset(400, 1100));
+      await tester.pumpAndSettle();
+      expect(find.byType(ReaderBar), findsOneWidget);
+    });
+
+    testWidgets('comes back when the reader changes side', (tester) async {
+      _tall(tester);
+      await tester.pumpWidget(
+        _app(
+          source: _installed(),
+          store: MemoryPageSideStore(PageSide.quran),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(MushafPageCanvas));
+      await tester.pumpAndSettle();
+      expect(find.byType(ReaderBar), findsNothing);
+
+      // From the notes badge, say: the side changes without the line.
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(PageDetailPage)),
+      );
+      await container.read(pageSideProvider.notifier).set(PageSide.info);
+      await container.read(pageSideProvider.notifier).set(PageSide.quran);
+      await tester.pumpAndSettle();
+      expect(find.byType(ReaderBar), findsOneWidget);
+    });
+  });
+
+  group('a unit opened in the Quran mode', () {
+    const scope = SScope(5);
+    const location = '/browse/ss/5';
+
+    Widget unit({PageSideStore? store}) => _app(
+      source: _installed(),
+      store: store,
+      home: const ScopeScreen(scope: scope, location: location),
+    );
+
+    testWidgets('opens on its own pages, with no More details to go through', (
+      tester,
+    ) async {
+      _tall(tester);
+      await tester.pumpWidget(
+        unit(store: MemoryPageSideStore(PageSide.quran)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MushafPageCanvas), findsOneWidget);
+      expect(find.byType(ReaderBar), findsOneWidget);
+      expect(find.text('More details'), findsNothing);
+      // The first page of the s, and its place among the pages of the s.
+      expect(scope.firstPage, 106);
+      expect(find.text('106 (1/${scope.pageCount})'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('opens on its info in the Info mode, and Quran goes to the pages', (
+      tester,
+    ) async {
+      _tall(tester);
+      await tester.pumpWidget(unit());
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ScopeInfoCard), findsOneWidget);
+      expect(find.text('More details'), findsOneWidget);
+      expect(find.byType(MushafPageCanvas), findsNothing);
+
+      await tester.tap(find.text('Quran'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ScopeInfoCard), findsNothing);
+      expect(find.byType(MushafPageCanvas), findsOneWidget);
+      expect(find.text('106 (1/${scope.pageCount})'), findsOneWidget);
+    });
+
+    testWidgets('Info on one of its pages is that page, not the unit', (
+      tester,
+    ) async {
+      _tall(tester);
+      await tester.pumpWidget(
+        unit(store: MemoryPageSideStore(PageSide.quran)),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Info'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PageInfoCard), findsOneWidget);
+      expect(find.byType(ScopeInfoCard), findsNothing);
+      expect(find.text('p 106'), findsOneWidget);
+
+      // And Quran brings the pages back, still the pages of the unit.
+      await tester.tap(find.text('Quran'));
+      await tester.pumpAndSettle();
+      expect(find.byType(MushafPageCanvas), findsOneWidget);
+      expect(find.text('106 (1/${scope.pageCount})'), findsOneWidget);
+    });
+
+    testWidgets('the pager stops at the first and the last page of the unit', (
+      tester,
+    ) async {
+      _tall(tester);
+      final store = MemoryPageSideStore(PageSide.quran);
+
+      await tester.pumpWidget(
+        _app(
+          source: _installed(),
+          store: store,
+          home: const PageDetailPage(page: 106, first: 106, last: 110),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('106 (1/5)'), findsOneWidget);
+      expect(find.byTooltip('Previous'), findsNothing);
+      expect(find.byTooltip('Next'), findsOneWidget);
+
+      await tester.pumpWidget(
+        _app(
+          source: _installed(),
+          store: store,
+          home: const PageDetailPage(page: 110, first: 106, last: 110),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('110 (5/5)'), findsOneWidget);
+      expect(find.byTooltip('Previous'), findsOneWidget);
+      expect(find.byTooltip('Next'), findsNothing);
+    });
+
+    testWidgets('the whole book keeps its page number out of 604', (
+      tester,
+    ) async {
+      _tall(tester);
+      await tester.pumpWidget(
+        _app(
+          source: _installed(),
+          store: MemoryPageSideStore(PageSide.quran),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('106 / ${BrowseIndex.pageCount}'), findsOneWidget);
     });
   });
 }

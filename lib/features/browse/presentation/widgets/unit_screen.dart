@@ -4,11 +4,15 @@ import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/core/theme/app_theme.dart';
 import 'package:personaltskmng/features/browse/domain/note_unit.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/notes_slivers.dart';
-import 'package:personaltskmng/shared/widgets/text_flow.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/position_nav.dart';
 
 /// The layout of every unit screen (a p, an s, a ch, a part): the unit's info
 /// and its navigation ("More details") together at the top, then the notes
 /// block with its pinned header and "+", all in one scrolling area.
+///
+/// A page screen has a second side, the Quran. While [showQuran] is true the
+/// title bar is gone and the page gets the whole screen: the only chrome is
+/// [readerBar], one slim line (or nothing, when the reader cleared it away).
 class UnitScreen extends StatelessWidget {
   const UnitScreen({
     super.key,
@@ -22,6 +26,7 @@ class UnitScreen extends StatelessWidget {
     this.sideToggle,
     this.quran,
     this.showQuran = false,
+    this.readerBar,
   });
 
   final String title;
@@ -55,6 +60,10 @@ class UnitScreen extends StatelessWidget {
   /// Show [quran] instead of the info and the notes.
   final bool showQuran;
 
+  /// The one slim line above [quran] (null: none, the page has all the room).
+  /// Only used while [showQuran] is true.
+  final Widget? readerBar;
+
   /// The height of the slot of [sideToggle] under the title bar. The toggle
   /// scales down inside it when the text is big, so it never overflows.
   static const double _toggleHeight = 44;
@@ -62,17 +71,36 @@ class UnitScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final navigation = this.navigation;
     final positionLabel = this.positionLabel;
     final onPrevious = this.onPrevious;
     final onNext = this.onNext;
     final sideToggle = this.sideToggle;
     final quran = this.quran;
-    // Previous / next sit and point the way the text runs: with it running
-    // right to left, the previous page is on the right (arrow pointing right)
-    // and the next page on the left (arrow pointing left).
-    final rtl = context.textRunsRightToLeft;
+    final readerBar = this.readerBar;
+
+    if (showQuran && quran != null) {
+      // Reading: no title bar, no switch under it. The page gets everything
+      // the screen has apart from the safe area and the one slim line.
+      return Scaffold(
+        body: SafeArea(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: AppBreakpoints.formMaxWidth,
+              ),
+              child: Column(
+                children: [
+                  ?readerBar,
+                  Expanded(child: quran),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -93,74 +121,10 @@ class UnitScreen extends StatelessWidget {
           if (positionLabel != null || onPrevious != null || onNext != null)
             Padding(
               padding: const EdgeInsets.only(right: 4),
-              child: Row(
-                // Only the order of the three: the label keeps its own
-                // direction, so "12 / 604" still reads as written.
-                textDirection: context.textFlow,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (onPrevious != null)
-                    SizedBox(
-                      width: 32,
-                      height: 32,
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        icon: Icon(
-                          rtl
-                              ? Icons.arrow_forward_ios_rounded
-                              : Icons.arrow_back_ios_new_rounded,
-                          size: 14,
-                        ),
-                        tooltip: 'Previous',
-                        onPressed: onPrevious,
-                      ),
-                    ),
-                  if (positionLabel != null)
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 84),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: scheme.surfaceContainerHighest,
-                          borderRadius:
-                              BorderRadius.circular(AppRadius.chip),
-                          border: Border.all(
-                            color: scheme.outlineVariant
-                                .withValues(alpha: 0.5),
-                          ),
-                        ),
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            positionLabel,
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (onNext != null)
-                    SizedBox(
-                      width: 32,
-                      height: 32,
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        icon: Icon(
-                          rtl
-                              ? Icons.arrow_back_ios_new_rounded
-                              : Icons.arrow_forward_ios_rounded,
-                          size: 14,
-                        ),
-                        tooltip: 'Next',
-                        onPressed: onNext,
-                      ),
-                    ),
-                ],
+              child: PositionNav(
+                positionLabel: positionLabel,
+                onPrevious: onPrevious,
+                onNext: onNext,
               ),
             ),
         ],
@@ -171,13 +135,11 @@ class UnitScreen extends StatelessWidget {
           constraints: const BoxConstraints(
             maxWidth: AppBreakpoints.formMaxWidth,
           ),
-          child: showQuran && quran != null
-              ? quran
-              : _InfoAndNotes(
-                  info: info,
-                  navigation: navigation,
-                  unit: unit,
-                ),
+          child: _InfoAndNotes(
+            info: info,
+            navigation: navigation,
+            unit: unit,
+          ),
         ),
       ),
     );

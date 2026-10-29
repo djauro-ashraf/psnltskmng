@@ -6,13 +6,13 @@ import 'package:personaltskmng/features/browse/domain/browse_index.dart';
 import 'package:personaltskmng/features/browse/domain/note_unit.dart';
 import 'package:personaltskmng/features/browse/presentation/providers/browse_providers.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/page_side_toggle.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/reader_bar.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/unit_info.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/unit_screen.dart';
 import 'package:personaltskmng/mushaf/controller/page_side.dart';
 import 'package:personaltskmng/quran_data/controller/quran_prefs.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 import 'package:personaltskmng/shared/widgets/mushaf_page_view.dart';
-import 'package:personaltskmng/shared/widgets/pill_toggle.dart';
 import 'package:personaltskmng/shared/widgets/quran_words_view.dart';
 import 'package:personaltskmng/shared/widgets/text_flow.dart';
 
@@ -22,29 +22,58 @@ import 'package:personaltskmng/shared/widgets/text_flow.dart';
 /// navigation between sibling pages (1..604), in the reading direction: with
 /// the text running right to left, page 1 is on the right. Swiping turns the
 /// Quran page like a book.
-class PageDetailPage extends StatefulWidget {
+///
+/// The Quran side is a reading screen: no title bar, one slim line on top
+/// (`ReaderBar`), and the bottom navigation bar steps aside (see `AppShell`).
+/// A tap on the mushaf clears the line away for the whole page; another tap
+/// brings it back.
+///
+/// The pager runs over [first] to [last], all 604 pages by default. A unit
+/// (an s, a ch, a part) opened in the Quran mode uses it with its own range:
+/// its pages and no others, see `ScopeScreen`.
+class PageDetailPage extends ConsumerStatefulWidget {
   const PageDetailPage({
     super.key,
     required this.page,
     this.location,
-  });
+    this.first = 1,
+    this.last = BrowseIndex.pageCount,
+  }) : assert(
+         first >= 1 && last <= BrowseIndex.pageCount && first <= last,
+         'the range is inside the book',
+       ),
+       assert(page >= first && page <= last, 'the page is in the range');
 
   final int page;
+
+  /// This screen's own location; swiping keeps it in step with the page. Null:
+  /// the location stays as it is (a unit's pager).
   final String? location;
 
+  /// The first and the last page the pager reaches (inclusive).
+  final int first;
+  final int last;
+
+  /// The pager does not run over the whole book.
+  bool get _bounded => first != 1 || last != BrowseIndex.pageCount;
+
   @override
-  State<PageDetailPage> createState() => _PageDetailPageState();
+  ConsumerState<PageDetailPage> createState() => _PageDetailPageState();
 }
 
-class _PageDetailPageState extends State<PageDetailPage> {
+class _PageDetailPageState extends ConsumerState<PageDetailPage> {
   late PageController _controller;
   late int _currentPage;
+
+  /// The reading line, cleared away by a tap on the mushaf. Kept here, not in
+  /// a page of the pager, so it stays away while the reader turns pages.
+  bool _barHidden = false;
 
   @override
   void initState() {
     super.initState();
     _currentPage = widget.page;
-    _controller = PageController(initialPage: widget.page - 1);
+    _controller = PageController(initialPage: widget.page - widget.first);
   }
 
   @override
@@ -53,8 +82,8 @@ class _PageDetailPageState extends State<PageDetailPage> {
     if (widget.page != _currentPage) {
       _currentPage = widget.page;
       if (_controller.hasClients &&
-          _controller.page?.round() != widget.page - 1) {
-        _controller.jumpToPage(widget.page - 1);
+          _controller.page?.round() != widget.page - widget.first) {
+        _controller.jumpToPage(widget.page - widget.first);
       }
     }
   }
@@ -66,7 +95,7 @@ class _PageDetailPageState extends State<PageDetailPage> {
   }
 
   void _onPageChanged(int index) {
-    final newPage = index + 1;
+    final newPage = widget.first + index;
     if (_currentPage == newPage) return;
     setState(() => _currentPage = newPage);
     _syncUrl(newPage);
@@ -83,6 +112,8 @@ class _PageDetailPageState extends State<PageDetailPage> {
     }
   }
 
+  void _toggleBar() => setState(() => _barHidden = !_barHidden);
+
   void _animateTo(int index) {
     if (_controller.hasClients) {
       _controller.animateToPage(
@@ -95,7 +126,11 @@ class _PageDetailPageState extends State<PageDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final total = BrowseIndex.pageCount;
+    // The line belongs to the Quran side: a switch of sides brings it back.
+    ref.listen<PageSide>(pageSideProvider, (previous, next) {
+      if (_barHidden) setState(() => _barHidden = false);
+    });
+    final total = widget.last - widget.first + 1;
     return PageView.builder(
       reverse: context.textRunsRightToLeft,
       controller: _controller,
@@ -105,12 +140,18 @@ class _PageDetailPageState extends State<PageDetailPage> {
       ),
       onPageChanged: _onPageChanged,
       itemBuilder: (context, index) {
-        final p = index + 1;
+        final p = widget.first + index;
         return _PageScreen(
           page: p,
-          positionLabel: '$p / $total',
-          onPrevious: p > 1 ? () => _animateTo(p - 2) : null,
-          onNext: p < total ? () => _animateTo(p) : null,
+          // Inside a unit the position is among its pages ("106 (2/9)"); in
+          // the whole book it is the page number out of 604.
+          positionLabel: widget._bounded
+              ? '$p (${index + 1}/$total)'
+              : '$p / $total',
+          onPrevious: index > 0 ? () => _animateTo(index - 1) : null,
+          onNext: index < total - 1 ? () => _animateTo(index + 1) : null,
+          barHidden: _barHidden,
+          onToggleBar: _toggleBar,
         );
       },
     );
@@ -124,6 +165,8 @@ class _PageScreen extends ConsumerWidget {
     required this.positionLabel,
     required this.onPrevious,
     required this.onNext,
+    required this.barHidden,
+    required this.onToggleBar,
   });
 
   final int page;
@@ -131,9 +174,18 @@ class _PageScreen extends ConsumerWidget {
   final VoidCallback? onPrevious;
   final VoidCallback? onNext;
 
+  /// The reader cleared the reading line away.
+  final bool barHidden;
+  final VoidCallback onToggleBar;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final side = ref.watch(pageSideProvider);
+    final reading = side == PageSide.quran;
+    // Only the mushaf is a quiet page to tap; the words are a list with
+    // things to tap in it, so there the line stays.
+    final tapToClear =
+        reading && ref.watch(quranViewProvider) == QuranView.mushaf;
     return UnitScreen(
       title: context.l10n.pagesSingle(page),
       info: PageInfoCard(page: page),
@@ -142,18 +194,29 @@ class _PageScreen extends ConsumerWidget {
       onPrevious: onPrevious,
       onNext: onNext,
       sideToggle: const PageSideToggle(),
-      showQuran: side == PageSide.quran,
-      quran: _QuranSide(page: page),
+      showQuran: reading,
+      quran: _QuranSide(page: page, onTap: tapToClear ? onToggleBar : null),
+      readerBar: tapToClear && barHidden
+          ? null
+          : ReaderBar(
+              positionLabel: positionLabel,
+              onPrevious: onPrevious,
+              onNext: onNext,
+            ),
     );
   }
 }
 
 /// The Quran side: the page, and (when the page has open notes) a small badge
-/// with their number that takes the reader back to the notes.
+/// with their number that takes the reader back to the notes. What switches the
+/// view and the side is the reading line above it (`ReaderBar`).
 class _QuranSide extends ConsumerWidget {
-  const _QuranSide({required this.page});
+  const _QuranSide({required this.page, required this.onTap});
 
   final int page;
+
+  /// A tap on the page (null: the page is not tappable).
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -161,45 +224,18 @@ class _QuranSide extends ConsumerWidget {
       browseDataProvider.select((data) => data.notes.onPage(page)),
     );
     final view = ref.watch(quranViewProvider);
-    final l10n = context.l10n;
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: PillToggle<QuranView>(
-              horizontalPadding: AppSpacing.lg,
-              options: [
-                (QuranView.mushaf, l10n.quranViewMushaf),
-                (QuranView.words, l10n.quranViewWords),
-              ],
-              value: view,
-              onChanged: (next) =>
-                  ref.read(quranViewProvider.notifier).set(next),
-            ),
-          ),
-        ),
-        Expanded(child: _quranBody(context, ref, view, notes)),
-      ],
-    );
-  }
-
-  /// The chosen view of the Quran, with the notes badge on top of it.
-  Widget _quranBody(
-    BuildContext context,
-    WidgetRef ref,
-    QuranView view,
-    int notes,
-  ) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Stack(
       children: [
         Positioned.fill(
-          child: view == QuranView.mushaf
-              ? MushafPageView(page: page)
-              : WordsPageView(page: page),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            child: view == QuranView.mushaf
+                ? MushafPageView(page: page)
+                : WordsPageView(page: page),
+          ),
         ),
         if (notes > 0)
           PositionedDirectional(

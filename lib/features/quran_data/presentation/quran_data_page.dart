@@ -85,6 +85,13 @@ class _QuranDataPageState extends ConsumerState<QuranDataPage> {
                 if (pack.kind == QuranPackKind.words ||
                     pack.kind == QuranPackKind.translation)
                   PackTile(pack: pack),
+              if (remote.any((p) => p.kind == QuranPackKind.tafsir)) ...[
+                const SizedBox(height: AppSpacing.lg),
+                _Heading(l10n.tafsirTitle),
+                for (final pack in remote)
+                  if (pack.kind == QuranPackKind.tafsir)
+                    PackTile(pack: pack),
+              ],
               const SizedBox(height: AppSpacing.xl),
               Text(
                 l10n.quranDataCredits,

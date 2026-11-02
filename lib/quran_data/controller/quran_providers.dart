@@ -79,6 +79,17 @@ final installedTranslationsProvider =
       ];
     });
 
+/// The tafsirs that are downloaded (known offline from their markers).
+final installedTafsirsProvider =
+    FutureProvider.autoDispose<List<InstalledPack>>((ref) async {
+      ref.watch(quranDataControllerProvider.select((s) => s.revision));
+      final storage = await ref.watch(quranStorageProvider.future);
+      return [
+        for (final pack in await storage.installed())
+          if (pack.kind == QuranPackKind.tafsir) pack,
+      ];
+    });
+
 /// The translation the Words view shows: the chosen one when it is
 /// downloaded, else the first that is, else none.
 final selectedTranslationIdProvider = FutureProvider.autoDispose<String?>((

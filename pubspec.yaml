@@ -7,6 +7,7 @@ environment:
   sdk: ^3.13.3
 
 dependencies:
+  archive: ^4.0.2
   # Native save / open dialogs for the backup file (save with a location
   # chooser, import from storage).
   file_picker: ^13.3.0

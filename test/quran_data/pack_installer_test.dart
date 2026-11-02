@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personaltskmng/quran_data/data/pack_codec.dart';
 import 'package:personaltskmng/quran_data/data/pack_installer.dart';
@@ -166,6 +168,37 @@ void main() {
     final pack = _pack('translation-sahih', QuranPackKind.translation);
     await installer((url) async => _packBytes()).install(pack);
     storage.file('translation-sahih.jsonl.gz').deleteSync();
+    expect(await storage.installed(), isEmpty);
+  });
+
+  test('installs a tafsir pack packaged in a zip archive', () async {
+    final rawJson = utf8.encode('{"1:1": {"text": "<p>Hello</p>"}}');
+    final archive = Archive()..addFile(ArchiveFile.bytes('tafsir-ibn-kathir.json', rawJson));
+    final zipBytes = ZipEncoder().encode(archive);
+
+    final pack = QuranPack(
+      id: 'tafsir-ibn-kathir',
+      kind: QuranPackKind.tafsir,
+      title: 'Tafsir Ibn Kathir',
+      files: [
+        PackFile(
+          path: 'tafsir-ibn-kathir.json',
+          url: Uri.parse('https://x/en-tafisr-ibn-kathir.json.zip'),
+        ),
+      ],
+    );
+
+    await installer((url) async => zipBytes).install(pack);
+
+    expect(storage.has('tafsir-ibn-kathir.json'), isTrue);
+    final installed = await storage.installed();
+    expect(installed, hasLength(1));
+    expect(installed.single.id, 'tafsir-ibn-kathir');
+    expect(installed.single.kind, QuranPackKind.tafsir);
+
+    // And delete removes it cleanly
+    await storage.delete(pack);
+    expect(storage.has('tafsir-ibn-kathir.json'), isFalse);
     expect(await storage.installed(), isEmpty);
   });
 }

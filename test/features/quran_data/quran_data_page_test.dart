@@ -22,7 +22,10 @@ const String _manifest = '''
    "file": {"url": "translation-sahih.jsonl.gz", "bytes": 900000}},
   {"id": "translation-pickthall", "kind": "translation", "language": "en",
    "title": "Pickthall", "author": "M. M. Pickthall",
-   "file": {"url": "translation-pickthall.jsonl.gz", "bytes": 850000}}
+   "file": {"url": "translation-pickthall.jsonl.gz", "bytes": 850000}},
+  {"id": "tafsir-ibn-kathir", "kind": "tafsir", "language": "en",
+   "title": "Tafsir Ibn Kathir", "author": "Ibn Kathir",
+   "file": {"url": "en-tafisr-ibn-kathir.json.zip", "path": "tafsir-ibn-kathir.json", "bytes": 3710331}}
 ]}
 ''';
 
@@ -112,17 +115,20 @@ void main() {
     for (final title in [
       'Quran pages',
       'Words and translations',
+      'Tafsir',
       'Quran pages lines',
       'Page fonts',
       'Arabic text font',
       'Words and Arabic text',
       'Saheeh International',
       'Pickthall',
+      'Tafsir Ibn Kathir',
     ]) {
       expect(find.text(title), findsOneWidget, reason: title);
     }
     // Sizes the pack list gives, and who made each translation.
     expect(find.textContaining('2.4 MB'), findsOneWidget);
+    expect(find.textContaining('3.5 MB'), findsOneWidget);
     expect(find.textContaining('Umm Muhammad'), findsOneWidget);
     // The credits are shown (the font terms ask for them).
     expect(find.textContaining('Quran Foundation'), findsOneWidget);
@@ -137,8 +143,8 @@ void main() {
 
     expect(find.text('Delete'), findsOneWidget);
     expect(find.text('Downloaded'), findsOneWidget);
-    // lines, 2 translations, page fonts, text font
-    expect(find.text('Download'), findsNWidgets(5));
+    // lines, 2 translations, 1 tafsir, page fonts, text font
+    expect(find.text('Download'), findsNWidgets(6));
   });
 
   testWidgets('without an address only the fonts can be downloaded', (

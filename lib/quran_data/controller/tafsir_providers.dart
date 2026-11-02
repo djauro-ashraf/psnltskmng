@@ -1,14 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/quran_data/controller/quran_providers.dart';
+import 'package:personaltskmng/quran_data/data/storage_tafsir_content.dart';
 import 'package:personaltskmng/quran_data/models/tafsir.dart';
 
-/// Where the tafsirs are read from. Nothing is downloaded yet; the data side
-/// overrides this in `app/dependencies.dart` when it exists (see
-/// `TafsirContent`).
-final tafsirContentProvider = Provider<TafsirContent>(
-  (ref) => const NoTafsirContent(),
-);
+/// Where the tafsirs are read from: reads downloaded tafsir packs from the Quran folder.
+final tafsirContentProvider = Provider<TafsirContent>((ref) {
+  final storage = ref.watch(quranStorageProvider).value;
+  if (storage == null) return const NoTafsirContent();
+  return StorageTafsirContent(storage);
+});
 
 /// The tafsirs that are downloaded. The Tafsir button of an ayah card and of the
 /// Mushaf selection bar shows only when this is not empty.

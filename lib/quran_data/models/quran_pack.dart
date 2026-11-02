@@ -19,6 +19,9 @@ enum QuranPackKind {
 
   /// One translation of every ayah, with its footnotes. One line per s.
   translation,
+
+  /// Tafsir commentary by passage.
+  tafsir,
 }
 
 /// One file of a pack: where it is kept (relative to the Quran folder), where
@@ -81,6 +84,7 @@ abstract final class QuranPackIds {
 
   static const String words = 'words-en';
   static const String translationPrefix = 'translation-';
+  static const String tafsirPrefix = 'tafsir-';
 }
 
 /// The list of downloadable Quran packs published at a URL (typically a GitHub release).

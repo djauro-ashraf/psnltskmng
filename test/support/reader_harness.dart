@@ -51,6 +51,11 @@ const InstalledPack pickthallPack = InstalledPack(
   kind: QuranPackKind.translation,
   title: 'Pickthall',
 );
+const InstalledPack ibnKathirPack = InstalledPack(
+  id: 'tafsir-ibn-kathir',
+  kind: QuranPackKind.tafsir,
+  title: 'Tafsir Ibn Kathir',
+);
 
 /// The Quran content of the tests.
 ///

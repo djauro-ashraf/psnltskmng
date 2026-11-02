@@ -70,6 +70,8 @@ class DirectoryPackStorage {
       final target = file(f.path);
       if (target.existsSync()) await target.delete();
     }
+    final jsonFile = file('${pack.id}.json');
+    if (jsonFile.existsSync()) await jsonFile.delete();
     final meta = file('${pack.id}.meta.json');
     if (meta.existsSync()) await meta.delete();
   }
@@ -99,7 +101,13 @@ class DirectoryPackStorage {
         final kind = QuranPackKind.values.asNameMap()[json['kind']];
         final id = json['id'];
         if (kind == null || id is! String) continue;
-        if (!has('$id.jsonl.gz')) continue;
+        if (kind == QuranPackKind.tafsir) {
+          if (!has('$id.json') && !has('$id.jsonl.gz') && !has('$id.json.gz')) {
+            continue;
+          }
+        } else {
+          if (!has('$id.jsonl.gz')) continue;
+        }
         out.add(
           InstalledPack(
             id: id,

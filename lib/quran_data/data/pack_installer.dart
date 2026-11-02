@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:personaltskmng/quran_data/data/pack_codec.dart';
 import 'package:personaltskmng/quran_data/data/pack_storage.dart';
 import 'package:personaltskmng/quran_data/models/quran_pack.dart';
@@ -128,7 +130,8 @@ class PackInstaller {
         final bytes = await fetch(file.url);
         final problem = _problem(pack.kind, bytes);
         if (problem != null) throw FormatException(problem);
-        await storage.write(file.path, bytes);
+        final bytesToWrite = _extractIfZip(bytes);
+        await storage.write(file.path, bytesToWrite);
         return;
       } catch (error) {
         last = error;
@@ -148,8 +151,33 @@ class PackInstaller {
       case QuranPackKind.words:
       case QuranPackKind.translation:
         return PackCodec.problem(bytes, shape: PackCodec.surahsShape);
+      case QuranPackKind.tafsir:
+        if (looksLikeZip(bytes)) return null;
+        try {
+          final len = bytes.length < 100 ? bytes.length : 100;
+          final s = utf8.decode(bytes.sublist(0, len));
+          if (s.trimLeft().startsWith('{')) return null;
+        } catch (_) {}
+        return 'not a tafsir file (expected zip or json)';
     }
   }
+
+  static List<int> _extractIfZip(List<int> bytes) {
+    if (!looksLikeZip(bytes)) return bytes;
+    final archive = ZipDecoder().decodeBytes(bytes);
+    for (final entry in archive.files) {
+      if (entry.isFile && (entry.name.endsWith('.json') || entry.name.endsWith('.jsonl.gz'))) {
+        return entry.content as List<int>;
+      }
+    }
+    for (final entry in archive.files) {
+      if (entry.isFile) return entry.content as List<int>;
+    }
+    return bytes;
+  }
+
+  static bool looksLikeZip(List<int> b) =>
+      b.length >= 4 && b[0] == 0x50 && b[1] == 0x4B;
 
   /// TrueType (0x00010000 or "true") or OpenType ("OTTO"), and not a tiny
   /// error page.

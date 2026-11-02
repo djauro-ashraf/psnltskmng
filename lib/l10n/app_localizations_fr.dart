@@ -1219,4 +1219,239 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get wordsFootnote => 'Note';
+
+  @override
+  String get browseHintInfo => 'Touche une ligne pour ouvrir ses infos';
+
+  @override
+  String get browseHintQuran => 'Touche une ligne pour la lire';
+
+  @override
+  String get browseJuzTitle => 'juz';
+
+  @override
+  String get browseGroupJuz => 'Juz';
+
+  @override
+  String browseContinue(String place, String view) {
+    return 'Continuer : $place · $view';
+  }
+
+  @override
+  String get browseJuzNeedsLayout =>
+      'Télécharge les lignes des pages dans Données du Coran pour voir les pages de chaque juz.';
+
+  @override
+  String get readerOptionsTitle => 'Options de lecture';
+
+  @override
+  String get readerUnit => 'Unité';
+
+  @override
+  String get readerUnitQuran => 'Tout le Coran';
+
+  @override
+  String get readerUnitChNotInV2 => 'ch n’est pas proposé dans l’édition 1421.';
+
+  @override
+  String get readerTranslationOff => 'Désactivée';
+
+  @override
+  String get readerTextSize => 'Taille du texte';
+
+  @override
+  String get readerKeepAwake => 'Garder l’écran allumé pendant la lecture';
+
+  @override
+  String get readerRukuTicks => 'Afficher les repères de ruku';
+
+  @override
+  String get goToTitle => 'Aller à';
+
+  @override
+  String get goToFieldHint => '2:255, p 42, j 15, hz 29';
+
+  @override
+  String get goToProblemUnknown => 'Essaie 2:255, p 42, j 15 ou hz 29';
+
+  @override
+  String get goToProblemRange => 'Cet endroit n’existe pas';
+
+  @override
+  String get goToThisS => 'Cette s';
+
+  @override
+  String get goToThisCh => 'Ce ch';
+
+  @override
+  String get goToThisJuz => 'Ce juz';
+
+  @override
+  String get goToThisPart => 'Cette partie';
+
+  @override
+  String get goToTabSurah => 'Sourate';
+
+  @override
+  String get goToTabJuz => 'Juz';
+
+  @override
+  String get goToTabHizb => 'Hizb';
+
+  @override
+  String get goToTabRuku => 'Ruku';
+
+  @override
+  String get goToTabPage => 'Page';
+
+  @override
+  String goToInfoRow(String name) {
+    return '$name · Infos';
+  }
+
+  @override
+  String goToRukuHeaderOne(String name) {
+    return '$name, 1 ruku';
+  }
+
+  @override
+  String goToRukuHeaderMany(String name, int count) {
+    return '$name, $count rukus';
+  }
+
+  @override
+  String get goToChangeSurah => 'Changer de sourate';
+
+  @override
+  String get goToChooseSurah => 'Choisis une sourate';
+
+  @override
+  String get goToNeedsLayout =>
+      'Télécharge les lignes des pages dans Données du Coran pour aller à une page, un juz ou un hizb.';
+
+  @override
+  String readerContinuesOn(int page) {
+    return 'se poursuit à la p $page';
+  }
+
+  @override
+  String get readerStartOfQuran => 'Début du Coran';
+
+  @override
+  String get readerEndOfQuran => 'Fin du Coran';
+
+  @override
+  String get readerBackToStart => 'Retour au début';
+
+  @override
+  String get readerKeepReading => 'Continuer la lecture';
+
+  @override
+  String get readerAyahsOne => '1 verset';
+
+  @override
+  String readerAyahsMany(int count) {
+    return '$count versets';
+  }
+
+  @override
+  String get readerMeccan => 'Mecquoise';
+
+  @override
+  String get readerMedinan => 'Médinoise';
+
+  @override
+  String readerSecondHalf(int juz) {
+    return 'seconde moitié du Juz $juz';
+  }
+
+  @override
+  String get readerTafsir => 'Tafsir';
+
+  @override
+  String readerTafsirCovers(String range) {
+    return 'Tafsir · $range';
+  }
+
+  @override
+  String readerEndOfS(int s, int next) {
+    return 'Fin de la s $s · continuer vers la s $next';
+  }
+
+  @override
+  String readerEndOfCh(int ch, int next) {
+    return 'Fin du ch $ch · continuer vers le ch $next';
+  }
+
+  @override
+  String readerEndOfJuz(int juz, int next) {
+    return 'Fin du Juz $juz · continuer vers le Juz $next';
+  }
+
+  @override
+  String get readerEndOfPart => 'Fin de cette partie · continuer la lecture';
+
+  @override
+  String get readerCopy => 'Copier';
+
+  @override
+  String get readerCopied => 'Copié';
+
+  @override
+  String get tafsirTitle => 'Tafsir';
+
+  @override
+  String tafsirCovers(String source, String range) {
+    return '$source · couvre $range';
+  }
+
+  @override
+  String tafsirShowAyahs(int count) {
+    return 'Afficher $count versets';
+  }
+
+  @override
+  String get tafsirHideAyahs => 'Masquer les versets';
+
+  @override
+  String get tafsirPrevious => 'Précédent';
+
+  @override
+  String get tafsirNext => 'Suivant';
+
+  @override
+  String tafsirNothingSeparate(String ayah, String range) {
+    return 'Rien de séparé pour $ayah dans ce tafsir. Affichage de $range.';
+  }
+
+  @override
+  String get tafsirShowInReading => 'Voir dans la lecture';
+
+  @override
+  String get tafsirNone =>
+      'Aucun tafsir n’est téléchargé. Télécharge-en un dans Données du Coran.';
+
+  @override
+  String get tafsirYourAyah => 'Le verset que tu as ouvert';
+
+  @override
+  String pageRukuBeginsOne(String ruku) {
+    return '$ruku commence ici';
+  }
+
+  @override
+  String pageRukuBeginsMany(String rukus) {
+    return '$rukus commencent ici';
+  }
+
+  @override
+  String get todayReadRange => 'Lire cette plage';
+
+  @override
+  String get goToThisRange => 'Cette plage';
+
+  @override
+  String browseJuzCount(int count) {
+    return '$count juz';
+  }
 }

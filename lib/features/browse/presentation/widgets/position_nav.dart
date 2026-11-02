@@ -14,6 +14,7 @@ class PositionNav extends StatelessWidget {
     this.onPrevious,
     this.onNext,
     this.showArrows = true,
+    this.onPositionTap,
   });
 
   /// The position among the siblings, e.g. "12 / 604".
@@ -26,10 +27,12 @@ class PositionNav extends StatelessWidget {
   /// reader swipes instead).
   final bool showArrows;
 
+  /// When given the position is a button (the reader's pill opens the Go to
+  /// sheet).
+  final VoidCallback? onPositionTap;
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final positionLabel = this.positionLabel;
     final onPrevious = showArrows ? this.onPrevious : null;
     final onNext = showArrows ? this.onNext : null;
@@ -57,33 +60,7 @@ class PositionNav extends StatelessWidget {
               onPressed: onPrevious,
             ),
           ),
-        if (positionLabel != null)
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 84),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: 3,
-              ),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(AppRadius.chip),
-                border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.5),
-                ),
-              ),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  positionLabel,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ),
-          ),
+        if (positionLabel != null) _pill(context, positionLabel),
         if (onNext != null)
           SizedBox(
             width: 32,
@@ -101,6 +78,53 @@ class PositionNav extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _pill(BuildContext context, String label) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final pill = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 84),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: 3,
+        ),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(AppRadius.chip),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ),
+    );
+    final onTap = onPositionTap;
+    if (onTap == null) return pill;
+    // A comfortable tap target around the small pill.
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 40, minWidth: 48),
+          child: Center(child: pill),
+        ),
+      ),
     );
   }
 }

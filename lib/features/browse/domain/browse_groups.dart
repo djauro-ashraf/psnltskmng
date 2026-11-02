@@ -3,19 +3,22 @@ import 'package:personaltskmng/domain/reference/ch_table.dart';
 import 'package:personaltskmng/domain/reference/s_table.dart';
 import 'package:personaltskmng/features/browse/domain/browse_data.dart';
 import 'package:personaltskmng/features/browse/domain/browse_index.dart';
+import 'package:personaltskmng/quran_data/models/juz_pages.dart';
 
 /// How a list can be grouped. Which of these a list offers is in
 /// [BrowseGroups.forPages], [BrowseGroups.forS] and [BrowseGroups.forCh]: a
 /// list is never offered a grouping by its own unit.
 ///
 /// - [ch] and [s]: by that unit (fixed reference data).
+/// - [juz]: by juz, in the pages of the print the reader chose (a page list
+///   only; it needs the layout pack, so a list without it does not offer it).
 /// - [state]: by state. A page by its own state; an s or a ch by its worst
 ///   state (ND when nothing of it is entered).
 /// - [notes]: by whether the item has open notes.
-enum BrowseGrouping { none, ch, s, state, notes }
+enum BrowseGrouping { none, ch, s, juz, state, notes }
 
 /// What a group header stands for.
-enum BrowseUnit { s, ch }
+enum BrowseUnit { s, ch, juz }
 
 /// One group of a list: a header and the numbers of its items. A list without
 /// grouping is one group with no header.
@@ -68,6 +71,7 @@ abstract final class BrowseGroups {
     BrowseGrouping.none,
     BrowseGrouping.ch,
     BrowseGrouping.s,
+    BrowseGrouping.juz,
     BrowseGrouping.state,
     BrowseGrouping.notes,
   ];
@@ -84,6 +88,13 @@ abstract final class BrowseGroups {
   static const List<BrowseGrouping> forCh = [
     BrowseGrouping.none,
     BrowseGrouping.s,
+    BrowseGrouping.state,
+    BrowseGrouping.notes,
+  ];
+
+  /// Groupings the juz list offers.
+  static const List<BrowseGrouping> forJuz = [
+    BrowseGrouping.none,
     BrowseGrouping.state,
     BrowseGrouping.notes,
   ];
@@ -108,13 +119,30 @@ abstract final class BrowseGroups {
   /// the flat list whatever the [grouping]. [data] (states and open notes) is
   /// read only by [BrowseGrouping.state] and [BrowseGrouping.notes]; without it
   /// every page is ND with no notes.
+  ///
+  /// [juz] are the pages of the 30 juz in the chosen print (see
+  /// `juzPagesProvider`); [BrowseGrouping.juz] without them is the flat list.
+  /// A page shared by two juz is in both, like a page shared by two ch.
   static List<BrowseGroup> pages(
     BrowseGrouping grouping, {
     int pageCount = BrowseIndex.pageCount,
     BrowseData? data,
+    List<JuzPages>? juz,
   }) {
     if (pageCount != BrowseIndex.pageCount) return [_flat(pageCount)];
     switch (grouping) {
+      case BrowseGrouping.juz:
+        if (juz == null) return [_flat(BrowseIndex.pageCount)];
+        return List<BrowseGroup>.unmodifiable([
+          for (final j in juz)
+            BrowseGroup(
+              unit: BrowseUnit.juz,
+              number: j.juz,
+              firstPage: j.first,
+              lastPage: j.last,
+              items: [for (var p = j.first; p <= j.last; p++) p],
+            ),
+        ]);
       case BrowseGrouping.state:
         final d = data ?? BrowseData.empty;
         return _byState(
@@ -143,6 +171,8 @@ abstract final class BrowseGroups {
       case BrowseGrouping.notes:
         final d = data ?? BrowseData.empty;
         return _byNotes(_flat(BrowseIndex.sCount).items, d.notes.inS);
+      case BrowseGrouping.juz:
+        return _s.putIfAbsent(BrowseGrouping.none, () => _buildS(BrowseGrouping.none));
       case BrowseGrouping.none:
       case BrowseGrouping.ch:
       case BrowseGrouping.s:
@@ -165,11 +195,54 @@ abstract final class BrowseGroups {
       case BrowseGrouping.notes:
         final d = data ?? BrowseData.empty;
         return _byNotes(_flat(BrowseIndex.chCount).items, d.notes.inCh);
+      case BrowseGrouping.juz:
+        return _ch.putIfAbsent(BrowseGrouping.none, () => _buildCh(BrowseGrouping.none));
       case BrowseGrouping.none:
       case BrowseGrouping.ch:
       case BrowseGrouping.s:
         return _ch.putIfAbsent(grouping, () => _buildCh(grouping));
     }
+  }
+
+  /// The groups of the juz list: [ranges] are the pages of the 30 juz (see
+  /// `juzPagesProvider`). A juz is in a state group by its worst state over the
+  /// pages it OWNS (a page it shares with the juz before is the earlier juz's,
+  /// the rule of a ch), and in a notes group by the open notes on the pages it
+  /// is on. [BrowseGrouping.state] and [BrowseGrouping.notes] read [data]; the
+  /// others give the flat list.
+  static List<BrowseGroup> juzList(
+    BrowseGrouping grouping, {
+    required List<JuzPages> ranges,
+    BrowseData? data,
+  }) {
+    final items = [for (final j in ranges) j.juz];
+    final d = data ?? BrowseData.empty;
+    switch (grouping) {
+      case BrowseGrouping.state:
+        return _byState(items, (juz) {
+          final r = ranges[juz - 1];
+          return BrowseData.stateOfLevel(
+            d.pagesSummary(r.ownedFirst, r.last)?.worst,
+          );
+        }, _unitStates);
+      case BrowseGrouping.notes:
+        return _byNotes(items, (juz) => juzNotes(ranges[juz - 1], d));
+      case BrowseGrouping.none:
+      case BrowseGrouping.ch:
+      case BrowseGrouping.s:
+      case BrowseGrouping.juz:
+        return List<BrowseGroup>.unmodifiable([BrowseGroup(items: items)]);
+    }
+  }
+
+  /// The open notes on the pages of a juz (a juz has none of its own; notes stay
+  /// on p, s and ch).
+  static int juzNotes(JuzPages juz, BrowseData data) {
+    var total = 0;
+    for (var page = juz.first; page <= juz.last; page++) {
+      total += data.notes.onPage(page);
+    }
+    return total;
   }
 
   /// [items] in one group per state of [order] that has an item, in that
@@ -251,6 +324,7 @@ abstract final class BrowseGroups {
                 page,
             ]),
         ]);
+      case BrowseGrouping.juz:
       case BrowseGrouping.state:
       case BrowseGrouping.notes:
         throw ArgumentError.value(
@@ -276,6 +350,7 @@ abstract final class BrowseGroups {
           'grouping',
           'a list of s cannot be grouped by s',
         );
+      case BrowseGrouping.juz:
       case BrowseGrouping.state:
       case BrowseGrouping.notes:
         throw ArgumentError.value(
@@ -301,6 +376,7 @@ abstract final class BrowseGroups {
           'grouping',
           'a list of ch cannot be grouped by ch',
         );
+      case BrowseGrouping.juz:
       case BrowseGrouping.state:
       case BrowseGrouping.notes:
         throw ArgumentError.value(

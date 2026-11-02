@@ -35,8 +35,10 @@ import 'package:personaltskmng/planning/data/preferences_app_state_store.dart';
 import 'package:personaltskmng/planning/day/day_record.dart';
 import 'package:personaltskmng/quran_data/controller/quran_prefs.dart';
 import 'package:personaltskmng/quran_data/controller/quran_providers.dart';
+import 'package:personaltskmng/quran_data/controller/screen_wake.dart';
 import 'package:personaltskmng/quran_data/data/file_mushaf_source.dart';
 import 'package:personaltskmng/quran_data/data/shared_quran_prefs_store.dart';
+import 'package:personaltskmng/quran_data/data/wakelock_screen_wake.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Composition root: the only place (with main.dart) that knows concrete
@@ -129,6 +131,8 @@ Future<List<Override>> buildOverrides() async {
     // The Quran side reads the downloaded Quran; the view, the translation and
     // the pack address chosen there are kept in the app preferences too.
     quranPrefsStoreProvider.overrideWithValue(SharedQuranPrefsStore(prefs)),
+    // "Keep screen on while reading" needs the platform's wake lock.
+    screenWakeProvider.overrideWithValue(const WakelockScreenWake()),
     mushafEditionStoreProvider.overrideWithValue(SharedMushafEditionStore(prefs)),
     mushafSourceProvider.overrideWith(
       (ref) => FileMushafSource(

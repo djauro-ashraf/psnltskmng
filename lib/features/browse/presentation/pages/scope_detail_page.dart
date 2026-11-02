@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:personaltskmng/features/browse/domain/browse_index.dart';
 import 'package:personaltskmng/features/browse/domain/note_unit.dart';
+import 'package:personaltskmng/features/browse/presentation/browse_paths.dart';
 import 'package:personaltskmng/features/browse/presentation/browse_texts.dart';
 import 'package:personaltskmng/features/browse/presentation/providers/browse_providers.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/page_side_toggle.dart';
@@ -11,12 +12,15 @@ import 'package:personaltskmng/features/browse/presentation/widgets/unit_screen.
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 import 'package:personaltskmng/shared/widgets/text_flow.dart';
 
-/// The screen of one s, one ch, or one part (an s inside a ch), in the Info
-/// mode (in the Quran mode `ScopeScreen` opens its pages instead). It shows the
+/// The INFO screen of one s, one ch, or one part (an s inside a ch). It shows the
 /// unit's info (complete, worst state, all pages at least D3; a merged ch also
 /// its shared state) and its navigation together, then its notes. The Info |
-/// Quran switch under the title is the one of a page screen: Quran goes to the
-/// pages of the unit.
+/// Quran switch under the title opens the reader on the unit (the first page of
+/// it, limited to its pages); Back returns here.
+///
+/// With [infoOnly] (opened from the reader, `/browse/info/...`) there is no
+/// switch and no "More details": the reader is the screen below, and Back
+/// returns to the same spot.
 ///
 /// Supports seamless swipe navigation between sibling items, in the reading
 /// direction (with the text running right to left, swiping right on ch 1 goes
@@ -26,9 +30,13 @@ class ScopeDetailPage extends ConsumerStatefulWidget {
     super.key,
     required this.scope,
     required this.location,
+    this.infoOnly = false,
   });
 
   final BrowseScope scope;
+
+  /// Opened from the reader: no Info | Quran switch, no "More details".
+  final bool infoOnly;
 
   /// This screen's own location; the next screen is a child of it.
   final String location;
@@ -51,6 +59,10 @@ class _ScopeDetailPageState extends ConsumerState<ScopeDetailPage> {
     _controller = PageController(initialPage: _currentIndex);
   }
 
+  /// Where the siblings of this screen are: the info screens of the lists, or
+  /// the info-only ones of the reader.
+  String get _base => widget.infoOnly ? BrowsePaths.info : BrowsePaths.root;
+
   void _initScopes() {
     final scope = widget.scope;
     final location = widget.location;
@@ -60,12 +72,12 @@ class _ScopeDetailPageState extends ConsumerState<ScopeDetailPage> {
         _itemCount = BrowseIndex.sCount;
         _currentIndex = s - 1;
         _scopes = [for (var i = 1; i <= _itemCount; i++) SScope(i)];
-        _locations = [for (var i = 1; i <= _itemCount; i++) '/browse/ss/$i'];
+        _locations = [for (var i = 1; i <= _itemCount; i++) '$_base/ss/$i'];
       case ChScope(:final ch):
         _itemCount = BrowseIndex.chCount;
         _currentIndex = ch - 1;
         _scopes = [for (var i = 1; i <= _itemCount; i++) ChScope(i)];
-        _locations = [for (var i = 1; i <= _itemCount; i++) '/browse/ch/$i'];
+        _locations = [for (var i = 1; i <= _itemCount; i++) '$_base/ch/$i'];
       case PartScope(:final part):
         List<BrowsePart> siblings = const [];
         if (location.contains('/ss/${part.s}/ch/')) {
@@ -83,11 +95,11 @@ class _ScopeDetailPageState extends ConsumerState<ScopeDetailPage> {
           _scopes = [for (final p in siblings) PartScope(p)];
           if (location.contains('/ss/${part.s}/ch/')) {
             _locations = [
-              for (final p in siblings) '/browse/ss/${part.s}/ch/${p.ch}',
+              for (final p in siblings) '$_base/ss/${part.s}/ch/${p.ch}',
             ];
           } else {
             _locations = [
-              for (final p in siblings) '/browse/ch/${part.ch}/ss/${p.s}',
+              for (final p in siblings) '$_base/ch/${part.ch}/ss/${p.s}',
             ];
           }
         } else {
@@ -145,6 +157,14 @@ class _ScopeDetailPageState extends ConsumerState<ScopeDetailPage> {
     };
   }
 
+  /// The reader on the unit of [scope]: the first page of it, limited to its
+  /// pages, Words following the unit.
+  String _readPath(BrowseScope scope) => switch (scope) {
+    SScope(:final s) => BrowsePaths.readSurah(s),
+    ChScope(:final ch) => BrowsePaths.readCh(ch),
+    PartScope(:final part) => BrowsePaths.readPart(part.s, part.ch),
+  };
+
   String _positionLabel(BrowseScope currentScope, int index) {
     return switch (currentScope) {
       SScope(:final s) => 's $s / $_itemCount',
@@ -185,10 +205,14 @@ class _ScopeDetailPageState extends ConsumerState<ScopeDetailPage> {
           info: ScopeInfoCard(scope: currentScope),
           unit: NoteUnit.of(currentScope, merged: merged),
           positionLabel: _positionLabel(currentScope, index),
-          sideToggle: const PageSideToggle(),
+          sideToggle: widget.infoOnly
+              ? null
+              : PageSideToggle(
+                  onQuran: () => context.push(_readPath(currentScope)),
+                ),
           onPrevious: index > 0 ? () => _animateTo(index - 1) : null,
           onNext: index < _itemCount - 1 ? () => _animateTo(index + 1) : null,
-          navigation: currentScope.pageCount > 1
+          navigation: !widget.infoOnly && currentScope.pageCount > 1
               ? FilledButton.tonalIcon(
                   onPressed: () =>
                       context.go(_detailsLocation(currentScope, currentLocation)),

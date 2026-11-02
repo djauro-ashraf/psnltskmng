@@ -4,17 +4,15 @@ import 'package:go_router/go_router.dart';
 import 'package:personaltskmng/core/constants/app_breakpoints.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/features/browse/browse.dart';
-import 'package:personaltskmng/mushaf/controller/page_side.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 
 /// Adaptive navigation chrome: bottom bar on phones, rail on wider screens.
 /// Adding a tab = one entry in [build]'s destinations + one StatefulShellBranch
 /// in router.dart (same order).
 ///
-/// On a phone the bottom bar steps aside while the Quran side of a page screen
-/// (or of a unit, whose Quran side is its pages) is showing: that screen is for
-/// reading, and the bar's height is the page's. The way out is the back button
-/// of the screen's reading line.
+/// On a phone the bottom bar steps aside while the reader (or the tafsir screen
+/// over it) is showing: those screens are for reading, and the bar's height is
+/// the page's. The way out is the back button of the reading line.
 class AppShell extends ConsumerWidget {
   const AppShell({
     super.key,
@@ -38,9 +36,7 @@ class AppShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final reading =
-        ref.watch(pageSideProvider) == PageSide.quran &&
-        BrowsePaths.isReadingScreen(location);
+    final reading = BrowsePaths.isReadingScreen(location);
     final destinations = <_Destination>[
       _Destination(Icons.today_outlined, Icons.today, l10n.navToday),
       _Destination(Icons.menu_book_outlined, Icons.menu_book, l10n.navBrowse),

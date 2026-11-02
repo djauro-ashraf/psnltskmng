@@ -8,23 +8,56 @@ import 'package:personaltskmng/mushaf/controller/mushaf_providers.dart';
 import 'package:personaltskmng/mushaf/data/mushaf_source.dart';
 import 'package:personaltskmng/mushaf/models/mushaf_fit.dart';
 import 'package:personaltskmng/mushaf/models/mushaf_page.dart';
+import 'package:personaltskmng/mushaf/models/page_ayahs.dart';
+import 'package:personaltskmng/mushaf/models/page_ticks.dart';
+import 'package:personaltskmng/quran_data/controller/quran_prefs.dart';
+import 'package:personaltskmng/quran_data/controller/quran_providers.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
+import 'package:personaltskmng/shared/widgets/division_labels.dart';
 import 'package:personaltskmng/shared/widgets/quran_notice.dart';
 
 /// One page of the Quran, drawn the way the printed Madinah mushaf has it:
 /// the same page, the same lines, each line stretched over the width. Loads the
 /// page and its font on its own; when they are not downloaded it says so and
 /// offers the download.
+///
+/// The page is a faithful print: no banners, nothing pushes it around. On top of
+/// it, and only when asked: the 3 px ticks on the edge where a juz or a hizb
+/// begins (and a ruku, with "Show ruku ticks"), the tint of the ayah the reader
+/// selected, and the tint of the line a jump landed on.
 class MushafPageView extends ConsumerWidget {
-  const MushafPageView({super.key, required this.page});
+  const MushafPageView({
+    super.key,
+    required this.page,
+    this.selectedAyah,
+    this.onAyahTap,
+    this.highlightAyah,
+  });
 
   /// 1 to 604.
   final int page;
+
+  /// The ayah (`2:255`) the reader selected: its words are tinted.
+  final String? selectedAyah;
+
+  /// A word was tapped: its ayah (`2:255`). Null: the page does not take word
+  /// taps.
+  final void Function(String ayah)? onAyahTap;
+
+  /// A jump landed on this ayah: its first line on the page is tinted for a
+  /// moment.
+  final String? highlightAyah;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final textFont = ref.watch(mushafTextFontProvider).value;
+    final showRukus = ref.watch(rukuTicksProvider);
+    final ticks = <PageTick>[
+      for (final tick
+          in ref.watch(pageTicksProvider(page)).value ?? const <PageTick>[])
+        if (tick.kind != TickKind.ruku || showRukus) tick,
+    ];
     return ref
         .watch(mushafPageProvider(page))
         .when(
@@ -35,6 +68,12 @@ class MushafPageView extends ConsumerWidget {
               page: page,
               fontFamily: fontFamily,
               textFontFamily: textFont,
+              ticks: ticks,
+              selectedAyah: selectedAyah,
+              onAyahTap: onAyahTap,
+              highlightLine: highlightAyah == null
+                  ? null
+                  : PageAyahMap.of(page).firstLineOf(highlightAyah!),
             ),
             MushafNotInstalled() => QuranNotice(message: l10n.mushafNotInstalled),
             MushafFontMissing() => QuranNotice(message: l10n.mushafFontMissing),
@@ -54,9 +93,25 @@ class MushafPageCanvas extends StatelessWidget {
     required this.page,
     required this.fontFamily,
     this.textFontFamily,
+    this.ticks = const [],
+    this.selectedAyah,
+    this.onAyahTap,
+    this.highlightLine,
   });
 
   final MushafPage page;
+
+  /// The ticks to draw on the right edge (the start of the lines), each at the
+  /// line where a division begins.
+  final List<PageTick> ticks;
+
+  /// The ayah whose words are tinted, and what a tap on a word does (see
+  /// [MushafPageView]).
+  final String? selectedAyah;
+  final void Function(String ayah)? onAyahTap;
+
+  /// The number of the line to tint for a moment (a jump landed on it).
+  final int? highlightLine;
 
   /// The font of this page's glyphs.
   final String fontFamily;
@@ -85,30 +140,78 @@ class MushafPageCanvas extends StatelessWidget {
         final fit = _measure(width, height);
         if (fit.fontSize <= 0) return const SizedBox.shrink();
 
-        return Padding(
-          padding: padding,
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: Padding(
-              padding: EdgeInsets.only(top: fit.top),
-              child: SizedBox(
-                width: width,
-                child: Column(
-                  children: [
-                    for (final line in page.lines)
-                      SizedBox(
-                        height: fit.pitch,
-                        child: _buildLine(line, fit, width, scheme),
-                      ),
-                  ],
+        final ayahs = PageAyahMap.of(page);
+        final l10n = context.l10n;
+        final top = padding.top + fit.top;
+        return Stack(
+          children: [
+            Padding(
+              padding: padding,
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Padding(
+                  padding: EdgeInsets.only(top: fit.top),
+                  child: SizedBox(
+                    width: width,
+                    child: Column(
+                      children: [
+                        for (final line in page.lines)
+                          SizedBox(
+                            height: fit.pitch,
+                            child: _LineTint(
+                              active: line.number == highlightLine,
+                              child: _buildLine(
+                                line,
+                                fit,
+                                width,
+                                scheme,
+                                ayahs,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+            // The ticks sit on the screen edge, at the line where a division
+            // begins. A tick has a wider invisible room to be tapped in.
+            for (final tick in ticks)
+              if (page.lines.indexWhere((l) => l.number == tick.line)
+                  case final index when index >= 0)
+                Positioned(
+                  top: top + index * fit.pitch,
+                  right: 0,
+                  width: _tickRoom,
+                  height: fit.pitch,
+                  child: Tooltip(
+                    message: tickLabel(l10n, tick),
+                    triggerMode: TooltipTriggerMode.tap,
+                    child: Container(
+                      color: Colors.transparent,
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: Container(
+                        width: 3,
+                        height: fit.pitch * 0.8,
+                        decoration: BoxDecoration(
+                          color: scheme.primary.withValues(
+                            alpha: tick.kind == TickKind.ruku ? 0.45 : 0.9,
+                          ),
+                          borderRadius: BorderRadius.circular(1.5),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+          ],
         );
       },
     );
   }
+
+  /// The width of the room a tick can be tapped in.
+  static const double _tickRoom = 24;
 
   /// Draws the widest line at a reference size to find the size that fills the
   /// width.
@@ -162,13 +265,21 @@ class MushafPageCanvas extends StatelessWidget {
     MushafFit fit,
     double width,
     ColorScheme scheme,
+    PageAyahMap ayahs,
   ) {
     switch (line.type) {
       case MushafLineType.ayah:
         return _WordsLine(
           words: _wordsOf(line),
+          ayahKeys: [
+            for (var i = 0; i < line.words.length; i++)
+              ayahs.ayahOf(line.number, i),
+          ],
           fontSize: fit.fontSize,
           color: scheme.onSurface,
+          selectedColor: scheme.primaryContainer,
+          selectedAyah: selectedAyah,
+          onAyahTap: onAyahTap,
           stretched: !line.centered,
           width: width,
         );
@@ -213,45 +324,37 @@ class _DrawnWord {
 
 /// The words of one ayah line, in order from the right. A stretched line
 /// spreads what room is left evenly between its words; a centered one keeps a
-/// small gap.
+/// small gap. The words of the selected ayah are tinted, and a tap on a word
+/// reports its ayah.
 class _WordsLine extends StatelessWidget {
   const _WordsLine({
     required this.words,
+    required this.ayahKeys,
     required this.fontSize,
     required this.color,
+    required this.selectedColor,
+    required this.selectedAyah,
+    required this.onAyahTap,
     required this.stretched,
     required this.width,
   });
 
   final List<_DrawnWord> words;
+
+  /// The ayah of each word (null where the page does not say).
+  final List<String?> ayahKeys;
   final double fontSize;
   final Color color;
+  final Color selectedColor;
+  final String? selectedAyah;
+  final void Function(String ayah)? onAyahTap;
   final bool stretched;
   final double width;
 
   @override
   Widget build(BuildContext context) {
-    final texts = [
-      for (final word in words)
-        Text(
-          word.text,
-          style: TextStyle(
-            fontFamily: word.family,
-            fontSize: fontSize,
-            color: color,
-          ),
-          // Every line is exactly one font size tall, whatever the font's own
-          // metrics are, so the lines sit on an even grid.
-          strutStyle: StrutStyle(
-            fontFamily: word.family,
-            fontSize: fontSize,
-            height: 1,
-            forceStrutHeight: true,
-          ),
-          textScaler: TextScaler.noScaling,
-          maxLines: 1,
-          softWrap: false,
-        ),
+    final texts = <Widget>[
+      for (var i = 0; i < words.length; i++) _word(i),
     ];
     if (stretched) {
       return Center(
@@ -276,6 +379,75 @@ class _WordsLine extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _word(int i) {
+    final word = words[i];
+    final key = i < ayahKeys.length ? ayahKeys[i] : null;
+    Widget text = Text(
+      word.text,
+      style: TextStyle(
+        fontFamily: word.family,
+        fontSize: fontSize,
+        color: color,
+      ),
+      // Every line is exactly one font size tall, whatever the font's own
+      // metrics are, so the lines sit on an even grid.
+      strutStyle: StrutStyle(
+        fontFamily: word.family,
+        fontSize: fontSize,
+        height: 1,
+        forceStrutHeight: true,
+      ),
+      textScaler: TextScaler.noScaling,
+      maxLines: 1,
+      softWrap: false,
+    );
+    if (key != null && key == selectedAyah) {
+      text = DecoratedBox(
+        decoration: BoxDecoration(
+          color: selectedColor,
+          borderRadius: BorderRadius.circular(3),
+        ),
+        child: text,
+      );
+    }
+    final onTap = onAyahTap;
+    if (key != null && onTap != null) {
+      text = GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => onTap(key),
+        child: text,
+      );
+    }
+    return text;
+  }
+}
+
+/// The tint of the line a jump landed on: full at once, fading over the time of
+/// an ayah card's ([1.5 s]); still, with "reduce motion", until the owner takes
+/// it away.
+class _LineTint extends StatelessWidget {
+  const _LineTint({required this.active, required this.child});
+
+  final bool active;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!active) return child;
+    final tint = Theme.of(context).colorScheme.primaryContainer;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return ColoredBox(color: tint.withValues(alpha: 0.7), child: child);
+    }
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.7, end: 0),
+      duration: const Duration(milliseconds: 1500),
+      curve: Curves.easeInCubic,
+      builder: (context, alpha, child) =>
+          ColoredBox(color: tint.withValues(alpha: alpha), child: child),
+      child: child,
     );
   }
 }

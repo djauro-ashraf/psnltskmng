@@ -5,11 +5,21 @@ import 'package:personaltskmng/mushaf/controller/page_side.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 import 'package:personaltskmng/shared/widgets/pill_toggle.dart';
 
-/// The switch under the title bar of a page screen: its info and notes on one
-/// side, the Quran page on the other. The choice is kept for every page and for
-/// the next time. Scaled down, never cut, when the text is big.
+/// The Info | Quran switch. It has two homes, and does the same thing in both:
+/// it says what a tap leads to.
+///
+/// - At the top of Browse ([onQuran] null): the choice of what a tap on a row
+///   does, Info or Quran. It is kept for the next time.
+/// - Under the title bar of an info screen ([onQuran] given): Info is what is
+///   showing, and Quran opens the reader on that unit ([onQuran]); Back from the
+///   reader returns to the info. The kept choice of Browse is not changed.
+///
+/// Scaled down, never cut, when the text is big.
 class PageSideToggle extends ConsumerWidget {
-  const PageSideToggle({super.key});
+  const PageSideToggle({super.key, this.onQuran});
+
+  /// Opens the reader on the unit of the screen this switch is on.
+  final VoidCallback? onQuran;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,9 +34,17 @@ class PageSideToggle extends ConsumerWidget {
               (PageSide.info, l10n.pageSideInfo),
               (PageSide.quran, l10n.pageSideQuran),
             ],
-            value: ref.watch(pageSideProvider),
-            onChanged: (side) =>
-                ref.read(pageSideProvider.notifier).set(side),
+            value: onQuran == null
+                ? ref.watch(pageSideProvider)
+                : PageSide.info,
+            onChanged: (side) {
+              final open = onQuran;
+              if (open == null) {
+                ref.read(pageSideProvider.notifier).set(side);
+              } else if (side == PageSide.quran) {
+                open();
+              }
+            },
           ),
         ),
       ),

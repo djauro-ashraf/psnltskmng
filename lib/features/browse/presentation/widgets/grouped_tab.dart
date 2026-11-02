@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personaltskmng/core/theme/page_state_colors.dart';
+import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/features/browse/domain/browse_data.dart';
 import 'package:personaltskmng/features/browse/domain/browse_groups.dart';
 import 'package:personaltskmng/features/browse/presentation/browse_texts.dart';
@@ -10,6 +11,7 @@ import 'package:personaltskmng/features/browse/presentation/widgets/group_by_bar
 import 'package:personaltskmng/features/browse/presentation/widgets/surah_labels.dart';
 import 'package:personaltskmng/l10n/app_localizations.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
+import 'package:personaltskmng/shared/widgets/division_labels.dart';
 
 /// One of the three lists (ps, ss, ch): a group-by bar (only when the list
 /// offers more than one grouping) over a [BrowseList]. The chosen grouping and
@@ -63,7 +65,11 @@ class _GroupedTabState extends ConsumerState<GroupedTab>
     Widget? aside;
     if (unit != null) {
       title = unitLabel(l10n, unit, group.number);
-      subtitle = pagesLabel(l10n, group.firstPage, group.lastPage);
+      // A juz header reads `Juz 15 · 17:1–18:74`: its ayahs, not its pages
+      // (the pages of its rows say where it is).
+      subtitle = unit == BrowseUnit.juz
+          ? ayahRangeText(QuranDivisions.juzRange(group.number))
+          : pagesLabel(l10n, group.firstPage, group.lastPage);
       accentColor = scheme.primary;
       if (unit == BrowseUnit.s) aside = SurahHeaderAside(s: group.number);
     } else if (state != null) {

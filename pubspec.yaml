@@ -21,6 +21,8 @@ dependencies:
   intl: any
   path_provider: ^2.1.5
   shared_preferences: ^2.5.4
+  # Keeps the screen on while reading, when the reader asks for it.
+  wakelock_plus: ^1.2.8
 
 dev_dependencies:
   flutter_launcher_icons: ^0.14.4

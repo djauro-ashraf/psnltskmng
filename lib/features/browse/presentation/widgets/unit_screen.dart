@@ -6,39 +6,36 @@ import 'package:personaltskmng/features/browse/domain/note_unit.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/notes_slivers.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/position_nav.dart';
 
-/// The layout of every unit screen (a p, an s, a ch, a part): the unit's info
-/// and its navigation ("More details") together at the top, then the notes
+/// The layout of every unit screen (a p, an s, a ch, a juz, a part): the unit's
+/// info and its navigation ("More details") together at the top, then the notes
 /// block with its pinned header and "+", all in one scrolling area.
 ///
-/// A page screen has a second side, the Quran. While [showQuran] is true the
-/// title bar is gone and the page gets the whole screen: the only chrome is
-/// [readerBar], one slim line (or nothing, when the reader cleared it away).
+/// This is the INFO side only. The Quran is read on the reader (`ReaderPage`),
+/// which the switch under the title opens. A juz has no notes of its own: with
+/// [unit] null the screen has no notes block.
 class UnitScreen extends StatelessWidget {
   const UnitScreen({
     super.key,
     required this.title,
     required this.info,
-    required this.unit,
+    this.unit,
     this.navigation,
     this.positionLabel,
     this.onPrevious,
     this.onNext,
     this.sideToggle,
-    this.quran,
-    this.showQuran = false,
-    this.readerBar,
   });
 
   final String title;
 
-  /// The info block (a `PageInfoCard` or `ScopeInfoCard`).
+  /// The info block (a `PageInfoCard`, `ScopeInfoCard` or `JuzInfoCard`).
   final Widget info;
 
   /// "More details", only when the unit has more than one page.
   final Widget? navigation;
 
-  /// Whose notes the screen shows.
-  final NoteUnit unit;
+  /// Whose notes the screen shows; null: none (a juz).
+  final NoteUnit? unit;
 
   /// Optional position among siblings (e.g. "12 / 604" or "ch 3 / 71").
   final String? positionLabel;
@@ -49,20 +46,9 @@ class UnitScreen extends StatelessWidget {
   /// Callback to navigate to the next sibling.
   final VoidCallback? onNext;
 
-  /// The switch between the two sides of the screen, shown under the title
-  /// bar (a page screen has one).
+  /// The Info | Quran switch under the title bar (null: none, as on the info
+  /// screens the reader opens: Back returns to it).
   final Widget? sideToggle;
-
-  /// The other side of the screen: what is shown instead of the info and the
-  /// notes while [showQuran] is true.
-  final Widget? quran;
-
-  /// Show [quran] instead of the info and the notes.
-  final bool showQuran;
-
-  /// The one slim line above [quran] (null: none, the page has all the room).
-  /// Only used while [showQuran] is true.
-  final Widget? readerBar;
 
   /// The height of the slot of [sideToggle] under the title bar. The toggle
   /// scales down inside it when the text is big, so it never overflows.
@@ -76,31 +62,6 @@ class UnitScreen extends StatelessWidget {
     final onPrevious = this.onPrevious;
     final onNext = this.onNext;
     final sideToggle = this.sideToggle;
-    final quran = this.quran;
-    final readerBar = this.readerBar;
-
-    if (showQuran && quran != null) {
-      // Reading: no title bar, no switch under it. The page gets everything
-      // the screen has apart from the safe area and the one slim line.
-      return Scaffold(
-        body: SafeArea(
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: AppBreakpoints.formMaxWidth,
-              ),
-              child: Column(
-                children: [
-                  ?readerBar,
-                  Expanded(child: quran),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
 
     return Scaffold(
       appBar: AppBar(
@@ -157,11 +118,12 @@ class _InfoAndNotes extends StatelessWidget {
 
   final Widget info;
   final Widget? navigation;
-  final NoteUnit unit;
+  final NoteUnit? unit;
 
   @override
   Widget build(BuildContext context) {
     final navigation = this.navigation;
+    final unit = this.unit;
     return LayoutBuilder(
       builder: (context, constraints) {
         final horizontalPadding = constraints.maxWidth < 360
@@ -189,7 +151,7 @@ class _InfoAndNotes extends StatelessWidget {
                 ),
               ),
             ),
-            NotesSlivers(unit: unit),
+            if (unit != null) NotesSlivers(unit: unit),
           ],
         );
       },

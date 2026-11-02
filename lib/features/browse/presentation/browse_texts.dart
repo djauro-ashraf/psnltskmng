@@ -19,6 +19,8 @@ String unitLabel(AppLocalizations l10n, BrowseUnit unit, int number) =>
     switch (unit) {
       BrowseUnit.s => l10n.sLabelOne(number),
       BrowseUnit.ch => l10n.chLabelOne(number),
+      // `Juz` is never translated, like `s` and `ch`.
+      BrowseUnit.juz => 'Juz $number',
     };
 
 /// The label of a grouping choice.
@@ -27,6 +29,7 @@ String groupingLabel(AppLocalizations l10n, BrowseGrouping grouping) =>
       BrowseGrouping.none => l10n.browseGroupNone,
       BrowseGrouping.ch => l10n.browseGroupCh,
       BrowseGrouping.s => l10n.browseGroupS,
+      BrowseGrouping.juz => l10n.browseGroupJuz,
       BrowseGrouping.state => l10n.browseGroupState,
       BrowseGrouping.notes => l10n.browseGroupNotes,
     };

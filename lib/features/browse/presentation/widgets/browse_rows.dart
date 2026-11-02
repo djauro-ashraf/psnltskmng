@@ -3,22 +3,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:personaltskmng/domain/reference/ch_table.dart';
 import 'package:personaltskmng/domain/reference/s_table.dart';
+import 'package:personaltskmng/features/browse/domain/browse_groups.dart';
 import 'package:personaltskmng/features/browse/domain/browse_index.dart';
 import 'package:personaltskmng/features/browse/presentation/browse_texts.dart';
 import 'package:personaltskmng/features/browse/presentation/providers/browse_providers.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/browse_row_card.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/surah_labels.dart';
+import 'package:personaltskmng/quran_data/models/juz_pages.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
+import 'package:personaltskmng/shared/widgets/division_labels.dart';
 
 // Every row shows the open-note count of its unit (nothing for 0). A row reads
 // only its own count, so it is rebuilt only when that count changes.
 
-/// A page: "p 106", with its ch and s underneath. Opens [path].
+/// A page: "p 106", with its ch and s underneath. Opens [path], or does
+/// [onTap] when it is given instead (the pages of a unit inside the Go to sheet,
+/// where the reader stays where it is).
 class PageRow extends ConsumerWidget {
-  const PageRow({super.key, required this.page, required this.path});
+  const PageRow({super.key, required this.page, this.path, this.onTap})
+    : assert(path != null || onTap != null, 'a row opens something');
 
   final int page;
-  final String path;
+  final String? path;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -30,7 +37,7 @@ class PageRow extends ConsumerWidget {
       title: l10n.pagesSingle(page),
       subtitle: pageSubtitle(l10n, page),
       openNotes: notes,
-      onTap: () => context.go(path),
+      onTap: onTap ?? () => context.go(path!),
     );
   }
 }
@@ -120,6 +127,36 @@ class PartRow extends ConsumerWidget {
       subtitle: pagesLabel(l10n, part.firstPage, part.lastPage),
       trailing: l10n.browsePageCount(part.pageCount),
       aside: byCh ? null : SurahRowAside(s: part.s),
+      openNotes: notes,
+      onTap: () => context.go(path),
+    );
+  }
+}
+
+/// A juz: "Juz 15", its pages and its ayahs, and its page count. It has no notes
+/// of its own: the number is the open notes on the pages it is on (a page shared
+/// with the juz before counts in both). The pages are those of the print the
+/// reader chose (see `juzPagesProvider`).
+class JuzRow extends ConsumerWidget {
+  const JuzRow({super.key, required this.pages, required this.path});
+
+  final JuzPages pages;
+  final String path;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final notes = ref.watch(
+      browseDataProvider.select((data) => BrowseGroups.juzNotes(pages, data)),
+    );
+    return BrowseRowCard(
+      // `Juz` is never translated, like `s` and `ch`.
+      title: 'Juz ${pages.juz}',
+      subtitle: l10n.browseTrail(
+        pagesLabel(l10n, pages.first, pages.last),
+        ayahRangeText(pages.ayahs),
+      ),
+      trailing: l10n.browsePageCount(pages.pageCount),
       openNotes: notes,
       onTap: () => context.go(path),
     );

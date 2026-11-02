@@ -2161,6 +2161,402 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Note'**
   String get wordsFootnote;
+
+  /// No description provided for @browseHintInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a row to open its info'**
+  String get browseHintInfo;
+
+  /// No description provided for @browseHintQuran.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a row to read it'**
+  String get browseHintQuran;
+
+  /// No description provided for @browseJuzTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'juz'**
+  String get browseJuzTitle;
+
+  /// No description provided for @browseGroupJuz.
+  ///
+  /// In en, this message translates to:
+  /// **'Juz'**
+  String get browseGroupJuz;
+
+  /// No description provided for @browseContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue: {place} · {view}'**
+  String browseContinue(String place, String view);
+
+  /// No description provided for @browseJuzNeedsLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Download the page lines in Quran data to see the pages of each juz.'**
+  String get browseJuzNeedsLayout;
+
+  /// No description provided for @readerOptionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading options'**
+  String get readerOptionsTitle;
+
+  /// No description provided for @readerUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'Unit'**
+  String get readerUnit;
+
+  /// No description provided for @readerUnitQuran.
+  ///
+  /// In en, this message translates to:
+  /// **'Whole Quran'**
+  String get readerUnitQuran;
+
+  /// No description provided for @readerUnitChNotInV2.
+  ///
+  /// In en, this message translates to:
+  /// **'ch is not offered in the 1421 print.'**
+  String get readerUnitChNotInV2;
+
+  /// No description provided for @readerTranslationOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get readerTranslationOff;
+
+  /// No description provided for @readerTextSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Text size'**
+  String get readerTextSize;
+
+  /// No description provided for @readerKeepAwake.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep screen on while reading'**
+  String get readerKeepAwake;
+
+  /// No description provided for @readerRukuTicks.
+  ///
+  /// In en, this message translates to:
+  /// **'Show ruku ticks'**
+  String get readerRukuTicks;
+
+  /// No description provided for @goToTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to'**
+  String get goToTitle;
+
+  /// No description provided for @goToFieldHint.
+  ///
+  /// In en, this message translates to:
+  /// **'2:255, p 42, j 15, hz 29'**
+  String get goToFieldHint;
+
+  /// No description provided for @goToProblemUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Try 2:255, p 42, j 15 or hz 29'**
+  String get goToProblemUnknown;
+
+  /// No description provided for @goToProblemRange.
+  ///
+  /// In en, this message translates to:
+  /// **'That place does not exist'**
+  String get goToProblemRange;
+
+  /// No description provided for @goToThisS.
+  ///
+  /// In en, this message translates to:
+  /// **'This s'**
+  String get goToThisS;
+
+  /// No description provided for @goToThisCh.
+  ///
+  /// In en, this message translates to:
+  /// **'This ch'**
+  String get goToThisCh;
+
+  /// No description provided for @goToThisJuz.
+  ///
+  /// In en, this message translates to:
+  /// **'This juz'**
+  String get goToThisJuz;
+
+  /// No description provided for @goToThisPart.
+  ///
+  /// In en, this message translates to:
+  /// **'This part'**
+  String get goToThisPart;
+
+  /// No description provided for @goToTabSurah.
+  ///
+  /// In en, this message translates to:
+  /// **'Surah'**
+  String get goToTabSurah;
+
+  /// No description provided for @goToTabJuz.
+  ///
+  /// In en, this message translates to:
+  /// **'Juz'**
+  String get goToTabJuz;
+
+  /// No description provided for @goToTabHizb.
+  ///
+  /// In en, this message translates to:
+  /// **'Hizb'**
+  String get goToTabHizb;
+
+  /// No description provided for @goToTabRuku.
+  ///
+  /// In en, this message translates to:
+  /// **'Ruku'**
+  String get goToTabRuku;
+
+  /// No description provided for @goToTabPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Page'**
+  String get goToTabPage;
+
+  /// No description provided for @goToInfoRow.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} · Info'**
+  String goToInfoRow(String name);
+
+  /// No description provided for @goToRukuHeaderOne.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, 1 ruku'**
+  String goToRukuHeaderOne(String name);
+
+  /// No description provided for @goToRukuHeaderMany.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {count} rukus'**
+  String goToRukuHeaderMany(String name, int count);
+
+  /// No description provided for @goToChangeSurah.
+  ///
+  /// In en, this message translates to:
+  /// **'Change surah'**
+  String get goToChangeSurah;
+
+  /// No description provided for @goToChooseSurah.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a surah'**
+  String get goToChooseSurah;
+
+  /// No description provided for @goToNeedsLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Download the page lines in Quran data to go to a page, a juz or a hizb.'**
+  String get goToNeedsLayout;
+
+  /// No description provided for @readerContinuesOn.
+  ///
+  /// In en, this message translates to:
+  /// **'continues on p {page}'**
+  String readerContinuesOn(int page);
+
+  /// No description provided for @readerStartOfQuran.
+  ///
+  /// In en, this message translates to:
+  /// **'Start of the Quran'**
+  String get readerStartOfQuran;
+
+  /// No description provided for @readerEndOfQuran.
+  ///
+  /// In en, this message translates to:
+  /// **'End of the Quran'**
+  String get readerEndOfQuran;
+
+  /// No description provided for @readerBackToStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to the start'**
+  String get readerBackToStart;
+
+  /// No description provided for @readerKeepReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep reading'**
+  String get readerKeepReading;
+
+  /// No description provided for @readerAyahsOne.
+  ///
+  /// In en, this message translates to:
+  /// **'1 ayah'**
+  String get readerAyahsOne;
+
+  /// No description provided for @readerAyahsMany.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} ayahs'**
+  String readerAyahsMany(int count);
+
+  /// No description provided for @readerMeccan.
+  ///
+  /// In en, this message translates to:
+  /// **'Meccan'**
+  String get readerMeccan;
+
+  /// No description provided for @readerMedinan.
+  ///
+  /// In en, this message translates to:
+  /// **'Medinan'**
+  String get readerMedinan;
+
+  /// No description provided for @readerSecondHalf.
+  ///
+  /// In en, this message translates to:
+  /// **'second half of Juz {juz}'**
+  String readerSecondHalf(int juz);
+
+  /// No description provided for @readerTafsir.
+  ///
+  /// In en, this message translates to:
+  /// **'Tafsir'**
+  String get readerTafsir;
+
+  /// No description provided for @readerTafsirCovers.
+  ///
+  /// In en, this message translates to:
+  /// **'Tafsir · {range}'**
+  String readerTafsirCovers(String range);
+
+  /// No description provided for @readerEndOfS.
+  ///
+  /// In en, this message translates to:
+  /// **'End of s {s} · continue to s {next}'**
+  String readerEndOfS(int s, int next);
+
+  /// No description provided for @readerEndOfCh.
+  ///
+  /// In en, this message translates to:
+  /// **'End of ch {ch} · continue to ch {next}'**
+  String readerEndOfCh(int ch, int next);
+
+  /// No description provided for @readerEndOfJuz.
+  ///
+  /// In en, this message translates to:
+  /// **'End of Juz {juz} · continue to Juz {next}'**
+  String readerEndOfJuz(int juz, int next);
+
+  /// No description provided for @readerEndOfPart.
+  ///
+  /// In en, this message translates to:
+  /// **'End of this part · keep reading'**
+  String get readerEndOfPart;
+
+  /// No description provided for @readerCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get readerCopy;
+
+  /// No description provided for @readerCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get readerCopied;
+
+  /// No description provided for @tafsirTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tafsir'**
+  String get tafsirTitle;
+
+  /// No description provided for @tafsirCovers.
+  ///
+  /// In en, this message translates to:
+  /// **'{source} · covers {range}'**
+  String tafsirCovers(String source, String range);
+
+  /// No description provided for @tafsirShowAyahs.
+  ///
+  /// In en, this message translates to:
+  /// **'Show {count} ayahs'**
+  String tafsirShowAyahs(int count);
+
+  /// No description provided for @tafsirHideAyahs.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide the ayahs'**
+  String get tafsirHideAyahs;
+
+  /// No description provided for @tafsirPrevious.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous'**
+  String get tafsirPrevious;
+
+  /// No description provided for @tafsirNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get tafsirNext;
+
+  /// No description provided for @tafsirNothingSeparate.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing separate for {ayah} in this tafsir. Showing {range}.'**
+  String tafsirNothingSeparate(String ayah, String range);
+
+  /// No description provided for @tafsirShowInReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Show in reading'**
+  String get tafsirShowInReading;
+
+  /// No description provided for @tafsirNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No tafsir is downloaded yet. Download one in Quran data.'**
+  String get tafsirNone;
+
+  /// No description provided for @tafsirYourAyah.
+  ///
+  /// In en, this message translates to:
+  /// **'The ayah you opened'**
+  String get tafsirYourAyah;
+
+  /// No description provided for @pageRukuBeginsOne.
+  ///
+  /// In en, this message translates to:
+  /// **'{ruku} begins here'**
+  String pageRukuBeginsOne(String ruku);
+
+  /// No description provided for @pageRukuBeginsMany.
+  ///
+  /// In en, this message translates to:
+  /// **'{rukus} begin here'**
+  String pageRukuBeginsMany(String rukus);
+
+  /// No description provided for @todayReadRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Read this range'**
+  String get todayReadRange;
+
+  /// No description provided for @goToThisRange.
+  ///
+  /// In en, this message translates to:
+  /// **'This range'**
+  String get goToThisRange;
+
+  /// No description provided for @browseJuzCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} juz'**
+  String browseJuzCount(int count);
 }
 
 class _AppLocalizationsDelegate

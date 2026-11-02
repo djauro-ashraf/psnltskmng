@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/domain/models/day.dart';
+import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/features/browse/domain/browse_data.dart';
 import 'package:personaltskmng/features/browse/domain/browse_index.dart';
 import 'package:personaltskmng/features/browse/presentation/providers/browse_providers.dart';
+import 'package:personaltskmng/features/browse/presentation/browse_texts.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/surah_labels.dart';
+import 'package:personaltskmng/quran_data/controller/quran_providers.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
+import 'package:personaltskmng/shared/widgets/division_labels.dart';
 import 'package:personaltskmng/shared/widgets/page_state_widgets.dart';
 
 /// The tinted panel the info of a unit sits in (same surface as the Overview's
@@ -62,9 +66,15 @@ class PageInfoCard extends ConsumerWidget {
     // loaded.
     final index = BrowseIndex.instance;
     return _WithHeader(
-      header: PageSurahCard(
-        first: index.firstSOfPage(page),
-        last: index.lastSOfPage(page),
+      header: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          PageSurahCard(
+            first: index.firstSOfPage(page),
+            last: index.lastSOfPage(page),
+          ),
+          _PageDivisionsLine(page: page),
+        ],
       ),
       child: record == null
           ? const _Unavailable()
@@ -80,6 +90,119 @@ class PageInfoCard extends ConsumerWidget {
                 ),
               ],
             ),
+    );
+  }
+}
+
+/// `Juz 15 · Hizb 29` and, when a ruku begins on the page, `Ruku 2 begins here`
+/// (`Rukus 2–3 begin here`), under the names of the s. Nothing until the page
+/// lines of the print are read (and nothing without them), so the card does not
+/// jump when they arrive.
+class _PageDivisionsLine extends ConsumerWidget {
+  const _PageDivisionsLine({required this.page});
+
+  final int page;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final divisions = ref.watch(pageDivisionsProvider(page)).value;
+    if (divisions == null) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final style = theme.textTheme.bodyMedium?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    final rukus = rukusBeginText(context.l10n, divisions.rukus);
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(divisions.juzHizbText, style: style),
+          if (rukus != null) Text(rukus, style: style),
+        ],
+      ),
+    );
+  }
+}
+
+/// The info of a juz, like an s's: its range (ayahs and pages), and whether its
+/// pages are complete, their worst state, and whether all are at least D3. The
+/// pages are those of the print the reader chose; a page the juz shares with the
+/// juz before is the earlier juz's for the state (the rule of a ch). A juz has no
+/// notes of its own.
+class JuzInfoCard extends ConsumerWidget {
+  const JuzInfoCard({super.key, required this.juz});
+
+  final int juz;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final data = ref.watch(browseDataProvider);
+    final ranges = ref.watch(juzPagesProvider).value;
+    final pages = ranges == null || juz > ranges.length
+        ? null
+        : ranges[juz - 1];
+    final summary = pages == null
+        ? null
+        : data.pagesSummary(pages.ownedFirst, pages.last);
+
+    final header = DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppRadius.panel),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.75),
+          width: 1.2,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              ayahRangeText(QuranDivisions.juzRange(juz)),
+              style: theme.textTheme.titleMedium,
+            ),
+            if (pages != null)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.xs),
+                child: Text(
+                  l10n.browseTrail(
+                    pagesLabel(l10n, pages.first, pages.last),
+                    l10n.browsePageCount(pages.pageCount),
+                  ),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (summary == null) {
+      return _WithHeader(header: header, child: const _Unavailable());
+    }
+    String yesNo(bool value) => value ? l10n.infoYes : l10n.infoNo;
+    return _WithHeader(
+      header: header,
+      child: _InfoPanel(
+        children: [
+          _Row(label: l10n.infoComplete, value: Text(yesNo(summary.complete))),
+          _Row(
+            label: l10n.infoWorstState,
+            value: StateBadge(state: summary.worstState),
+          ),
+          _Row(
+            label: l10n.infoAllAtLeastD3,
+            value: Text(yesNo(summary.allAtLeastD3)),
+          ),
+        ],
+      ),
     );
   }
 }

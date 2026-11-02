@@ -775,6 +775,21 @@ class _OpRow extends StatelessWidget {
                     ),
                   ),
                 ],
+                // Opens the range straight in reading, limited to it. Nothing is
+                // logged: reading does not count as revision, and the plan is
+                // not touched.
+                IconButton(
+                  tooltip: l10n.todayReadRange,
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.menu_book_outlined),
+                  // The path is spelled out here, not taken from the browse
+                  // feature: browse reads the plan, so the plan must not import
+                  // browse (see `BrowsePaths.readRange`).
+                  onPressed: () => context.go(
+                    '${AppRoutes.browse}/read/range/'
+                    '${op.range.start}/${op.range.end}',
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: AppSpacing.md),

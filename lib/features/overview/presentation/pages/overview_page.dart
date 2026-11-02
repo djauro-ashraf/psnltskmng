@@ -17,6 +17,7 @@ import 'package:personaltskmng/features/daily_plan/presentation/viewmodels/plann
 import 'package:personaltskmng/features/daily_plan/presentation/viewmodels/today_view_model.dart';
 import 'package:personaltskmng/features/daily_plan/presentation/widgets/plan_texts.dart';
 import 'package:personaltskmng/planning/controller/planning_controller.dart';
+import 'package:personaltskmng/quran_data/controller/quran_providers.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 import 'package:personaltskmng/shared/widgets/empty_state.dart';
 import 'package:personaltskmng/shared/widgets/page_state_widgets.dart';
@@ -313,7 +314,7 @@ class _Cell extends StatelessWidget {
   }
 }
 
-class _ChRow extends StatelessWidget {
+class _ChRow extends ConsumerWidget {
   const _ChRow({
     required this.ch,
     required this.pages,
@@ -329,11 +330,18 @@ class _ChRow extends StatelessWidget {
   final int lMonthDays;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final merged = q.mergedCh.contains(ch);
+    // Where a juz begins, in the print the reader chose (display only: it needs
+    // the page lines, and without them there are simply no dividers). Under the
+    // 1421 print a juz can begin a page later than in the planner's tables.
+    final juzPages = ref.watch(juzPagesProvider).value;
+    final juzAt = <int, int>{
+      if (juzPages != null) for (final j in juzPages) j.first: j.juz,
+    };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -394,8 +402,10 @@ class _ChRow extends StatelessWidget {
                     spacing: 3,
                     runSpacing: 3,
                     children: [
-                      for (final page in pages)
+                      for (final page in pages) ...[
+                        if (juzAt[page] != null) _JuzMark(juz: juzAt[page]!),
                         _Cell(state: q.page(page).state),
+                      ],
                     ],
                   ),
                 ),
@@ -419,6 +429,41 @@ class _ChRow extends StatelessWidget {
         q: q,
         day: day,
         lMonthDays: lMonthDays,
+      ),
+    );
+  }
+}
+
+/// A thin divider with `J15` where a juz begins, between the page cells.
+class _JuzMark extends StatelessWidget {
+  const _JuzMark({required this.juz});
+
+  final int juz;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Semantics(
+      label: 'Juz $juz',
+      excludeSemantics: true,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 1.5,
+            height: 14,
+            color: scheme.outline.withValues(alpha: 0.7),
+          ),
+          const SizedBox(width: 2),
+          Text(
+            'J$juz',
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontSize: 9,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       ),
     );
   }

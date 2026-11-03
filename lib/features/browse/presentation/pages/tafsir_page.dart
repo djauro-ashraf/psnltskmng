@@ -18,12 +18,9 @@ import 'package:personaltskmng/shared/widgets/division_labels.dart';
 
 /// The tafsir of an ayah, on a screen of its own (never a popup).
 ///
-/// BUILT AGAINST [TafsirContent] ONLY. No tafsir data exists yet
-/// (`NoTafsirContent` answers nothing), so this screen is reached only once a
-/// tafsir is downloaded (the Tafsir buttons do not show before). When the data
-/// side exists it is given to `tafsirContentProvider` in `app/dependencies.dart`
-/// and nothing here changes. Each tafsir's licence must be checked before it
-/// ships.
+/// BUILT AGAINST [TafsirContent] ONLY. Reads downloaded tafsir packs from
+/// [tafsirContentProvider]. When no tafsir is downloaded, the Tafsir buttons do
+/// not show before. Each tafsir's licence must be checked before it ships.
 ///
 /// What it does, from the reader's list:
 /// - A passage covers one ayah or several (`2:6–7`): the header says which, the

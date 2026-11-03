@@ -49,11 +49,10 @@ final class TafsirLookup {
   final bool exact;
 }
 
-/// What the app reads of the downloaded tafsirs. The data side is not built yet:
-/// this is the interface the screens are written against, and `NoTafsirContent`
-/// (nothing downloaded) is what the app uses until it is. When a pack format is
-/// chosen (and its licence checked), one class implements this and is provided
-/// by `tafsirContentProvider` in `app/dependencies.dart`; no screen changes.
+/// What the app reads of the downloaded tafsirs: this is the interface the
+/// screens are written against (`StorageTafsirContent` implements it over the
+/// Quran folder, and `NoTafsirContent` is the fallback when nothing is
+/// downloaded). Provided by `tafsirContentProvider`.
 abstract interface class TafsirContent {
   /// The tafsirs that are downloaded, in the order the reader sees them.
   Future<List<TafsirSource>> installed();

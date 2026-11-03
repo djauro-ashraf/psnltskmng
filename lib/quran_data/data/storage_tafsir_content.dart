@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/quran_data/data/pack_storage.dart';
 import 'package:personaltskmng/quran_data/models/quran_pack.dart';
@@ -11,7 +12,7 @@ class StorageTafsirContent implements TafsirContent {
   StorageTafsirContent(this.storage);
 
   final DirectoryPackStorage storage;
-  final Map<String, _SourceData> _cache = {};
+  final Map<String, Future<_SourceData?>> _cache = {};
 
   @override
   Future<List<TafsirSource>> installed() async {
@@ -47,10 +48,20 @@ class StorageTafsirContent implements TafsirContent {
     return source?.previous(from);
   }
 
-  Future<_SourceData?> _load(String sourceId) async {
-    final cached = _cache[sourceId];
-    if (cached != null) return cached;
+  Future<_SourceData?> _load(String sourceId) {
+    final existing = _cache[sourceId];
+    if (existing != null) return existing;
+    final future = _read(sourceId);
+    _cache[sourceId] = future;
+    future.then((result) {
+      if (result == null) {
+        _cache.remove(sourceId);
+      }
+    });
+    return future;
+  }
 
+  Future<_SourceData?> _read(String sourceId) async {
     List<int>? bytes;
     for (final path in [
       '$sourceId.json',
@@ -70,11 +81,18 @@ class StorageTafsirContent implements TafsirContent {
     if (bytes == null) return null;
 
     try {
+      final decoded = await compute(_decodeJsonBytes, bytes);
+      if (decoded == null) return null;
+      return _SourceData.parse(sourceId, decoded);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Map<String, dynamic>? _decodeJsonBytes(List<int> bytes) {
+    try {
       final decoded = jsonDecode(utf8.decode(bytes));
-      if (decoded is! Map<String, dynamic>) return null;
-      final source = _SourceData.parse(sourceId, decoded);
-      _cache[sourceId] = source;
-      return source;
+      return decoded is Map<String, dynamic> ? decoded : null;
     } catch (_) {
       return null;
     }

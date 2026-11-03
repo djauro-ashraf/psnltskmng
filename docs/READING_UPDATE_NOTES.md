@@ -102,9 +102,9 @@ the old page (`_releaseMushafLimit` now also updates the page and refreshes the 
 - Today did not already open ranges into reading. I added a "Read this range" button on each
   operation row (`today_view.dart`), which opens `/browse/read/range/:from/:to`.
 - Tafsir: the screen exists and works against `TafsirContent` (`quran_data/models/tafsir.dart`).
-  There is no data side: `tafsirContentProvider` returns `NoTafsirContent`, so no Tafsir button
-  shows anywhere until you plug an implementation in `app/dependencies.dart`. Tappable ayah
-  references inside a tafsir are a commented TODO in `tafsir_page.dart`.
+  Downloaded packs are read by `StorageTafsirContent` (`quran_data/data/storage_tafsir_content.dart`)
+  via `tafsirContentProvider`. When no tafsir is downloaded, no Tafsir button shows anywhere.
+  Tappable ayah references inside a tafsir are a commented TODO in `tafsir_page.dart`.
 
 ## Licences to check before the app goes to anyone else
 

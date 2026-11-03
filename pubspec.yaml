@@ -1,7 +1,7 @@
 name: personaltskmng
 description: QRM Intelligent Planner - decides what to do each day to keep every page of Q healthy and progressing.
 publish_to: 'none'
-version: 0.2.0+3
+version: 0.3.0+4
 
 environment:
   sdk: ^3.13.3

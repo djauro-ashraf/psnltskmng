@@ -2557,6 +2557,468 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} juz'**
   String browseJuzCount(int count);
+
+  /// No description provided for @copySheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy {range}'**
+  String copySheetTitle(String range);
+
+  /// No description provided for @copyArabic.
+  ///
+  /// In en, this message translates to:
+  /// **'Arabic'**
+  String get copyArabic;
+
+  /// No description provided for @copyTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation'**
+  String get copyTranslation;
+
+  /// No description provided for @copyWords.
+  ///
+  /// In en, this message translates to:
+  /// **'Word by word'**
+  String get copyWords;
+
+  /// No description provided for @copyTafsir.
+  ///
+  /// In en, this message translates to:
+  /// **'Tafsir'**
+  String get copyTafsir;
+
+  /// No description provided for @copyReference.
+  ///
+  /// In en, this message translates to:
+  /// **'Reference ({ref})'**
+  String copyReference(String ref);
+
+  /// No description provided for @copyPresets.
+  ///
+  /// In en, this message translates to:
+  /// **'Presets:'**
+  String get copyPresets;
+
+  /// No description provided for @copyPresetArabicOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Arabic only'**
+  String get copyPresetArabicOnly;
+
+  /// No description provided for @copyPresetArabicTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'Arabic + translation'**
+  String get copyPresetArabicTranslation;
+
+  /// No description provided for @copyPresetEverything.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything'**
+  String get copyPresetEverything;
+
+  /// No description provided for @copyExtendTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Extend to…'**
+  String get copyExtendTo;
+
+  /// No description provided for @copyExtendPlusOne.
+  ///
+  /// In en, this message translates to:
+  /// **'+1 ayah'**
+  String get copyExtendPlusOne;
+
+  /// No description provided for @copyExtendPage.
+  ///
+  /// In en, this message translates to:
+  /// **'To end of page'**
+  String get copyExtendPage;
+
+  /// No description provided for @copyExtendRuku.
+  ///
+  /// In en, this message translates to:
+  /// **'To end of ruku'**
+  String get copyExtendRuku;
+
+  /// No description provided for @copyResetRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get copyResetRange;
+
+  /// No description provided for @copyItemWithRef.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy with ref'**
+  String get copyItemWithRef;
+
+  /// No description provided for @copyItemAskAi.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask AI'**
+  String get copyItemAskAi;
+
+  /// No description provided for @copyForAi.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy for AI'**
+  String get copyForAi;
+
+  /// No description provided for @copyExplainSimply.
+  ///
+  /// In en, this message translates to:
+  /// **'Explain simply'**
+  String get copyExplainSimply;
+
+  /// No description provided for @copySimplifyTafsir.
+  ///
+  /// In en, this message translates to:
+  /// **'Simplify tafsir'**
+  String get copySimplifyTafsir;
+
+  /// No description provided for @copyCustomPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom prompt…'**
+  String get copyCustomPrompt;
+
+  /// No description provided for @copyCustomPromptDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom AI Prompt'**
+  String get copyCustomPromptDialogTitle;
+
+  /// No description provided for @copyTruncatedNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied the first part (max size reached)'**
+  String get copyTruncatedNotice;
+
+  /// No description provided for @copyNoTafsir.
+  ///
+  /// In en, this message translates to:
+  /// **'No tafsir downloaded'**
+  String get copyNoTafsir;
+
+  /// No description provided for @unitEdgesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'At the end of a unit'**
+  String get unitEdgesTitle;
+
+  /// No description provided for @unitEdgeFlow.
+  ///
+  /// In en, this message translates to:
+  /// **'Flow'**
+  String get unitEdgeFlow;
+
+  /// No description provided for @unitEdgeGate.
+  ///
+  /// In en, this message translates to:
+  /// **'Gate'**
+  String get unitEdgeGate;
+
+  /// No description provided for @unitEdgeLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked'**
+  String get unitEdgeLocked;
+
+  /// No description provided for @unitEdgeFlowHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Flow: smooth continuation, the next unit is more rows.'**
+  String get unitEdgeFlowHint;
+
+  /// No description provided for @unitEdgeGateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Gate: stops at the end. Pull again to go on.'**
+  String get unitEdgeGateHint;
+
+  /// No description provided for @unitEdgeLockedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked: stops at the end. Use buttons or swipe to continue.'**
+  String get unitEdgeLockedHint;
+
+  /// No description provided for @unitEdgesShared.
+  ///
+  /// In en, this message translates to:
+  /// **'Same for every unit'**
+  String get unitEdgesShared;
+
+  /// No description provided for @unitEdgeNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next: {unit}'**
+  String unitEdgeNext(String unit);
+
+  /// No description provided for @unitEdgePullAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull again to continue'**
+  String get unitEdgePullAgain;
+
+  /// No description provided for @askAiTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask AI'**
+  String get askAiTitle;
+
+  /// No description provided for @askAiExplainAyah.
+  ///
+  /// In en, this message translates to:
+  /// **'Explain this ayah in simple words for a beginner.'**
+  String get askAiExplainAyah;
+
+  /// No description provided for @askAiSimplifyTafsir.
+  ///
+  /// In en, this message translates to:
+  /// **'Rewrite this tafsir in simple language, keeping all main points.'**
+  String get askAiSimplifyTafsir;
+
+  /// No description provided for @askAiDefaultCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Explain the key lessons and context of this ayah.'**
+  String get askAiDefaultCustom;
+
+  /// No description provided for @askChatsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Chats'**
+  String get askChatsTitle;
+
+  /// No description provided for @askNewChat.
+  ///
+  /// In en, this message translates to:
+  /// **'New chat'**
+  String get askNewChat;
+
+  /// No description provided for @askSearchPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Search your chats…'**
+  String get askSearchPlaceholder;
+
+  /// No description provided for @askEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No chats yet'**
+  String get askEmptyTitle;
+
+  /// No description provided for @askEmptyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask questions about any ayah, explore word meanings, and study classical tafsir.'**
+  String get askEmptyMessage;
+
+  /// No description provided for @askAboutAnAyah.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask about an ayah'**
+  String get askAboutAnAyah;
+
+  /// No description provided for @askInputPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask something…'**
+  String get askInputPlaceholder;
+
+  /// No description provided for @askDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'AI can make mistakes. Verify important points with a qualified scholar or tafsir.'**
+  String get askDisclaimer;
+
+  /// No description provided for @askPinnedContext.
+  ///
+  /// In en, this message translates to:
+  /// **'Context'**
+  String get askPinnedContext;
+
+  /// No description provided for @askAttachAyah.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach an ayah'**
+  String get askAttachAyah;
+
+  /// No description provided for @askMaxAttachments.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum 3 attachments per chat'**
+  String get askMaxAttachments;
+
+  /// No description provided for @askRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get askRename;
+
+  /// No description provided for @askRenameTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename chat'**
+  String get askRenameTitle;
+
+  /// No description provided for @askDeleteChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete chat'**
+  String get askDeleteChat;
+
+  /// No description provided for @askDeleteAllChats.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete all chats'**
+  String get askDeleteAllChats;
+
+  /// No description provided for @askDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this chat permanently?'**
+  String get askDeleteConfirm;
+
+  /// No description provided for @askDeleteAllConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete all saved chats permanently?'**
+  String get askDeleteAllConfirm;
+
+  /// No description provided for @askCopyChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy chat'**
+  String get askCopyChat;
+
+  /// No description provided for @askCopiedChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat copied to clipboard'**
+  String get askCopiedChat;
+
+  /// No description provided for @askRegenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Regenerate'**
+  String get askRegenerate;
+
+  /// No description provided for @askCopyAyahAndAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy + ayah'**
+  String get askCopyAyahAndAnswer;
+
+  /// No description provided for @askPresetExplainSimply.
+  ///
+  /// In en, this message translates to:
+  /// **'Explain simply'**
+  String get askPresetExplainSimply;
+
+  /// No description provided for @askPresetExplainDeeper.
+  ///
+  /// In en, this message translates to:
+  /// **'Explain deeper'**
+  String get askPresetExplainDeeper;
+
+  /// No description provided for @askPresetSimplifyTafsir.
+  ///
+  /// In en, this message translates to:
+  /// **'Simplify tafsir'**
+  String get askPresetSimplifyTafsir;
+
+  /// No description provided for @askPresetWordsGrammar.
+  ///
+  /// In en, this message translates to:
+  /// **'Words & grammar'**
+  String get askPresetWordsGrammar;
+
+  /// No description provided for @askPresetLessons.
+  ///
+  /// In en, this message translates to:
+  /// **'Lessons'**
+  String get askPresetLessons;
+
+  /// No description provided for @askPresetHelpRemember.
+  ///
+  /// In en, this message translates to:
+  /// **'Help me remember'**
+  String get askPresetHelpRemember;
+
+  /// No description provided for @askFollowUpShorter.
+  ///
+  /// In en, this message translates to:
+  /// **'Shorter'**
+  String get askFollowUpShorter;
+
+  /// No description provided for @askFollowUpMoreDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'More detail'**
+  String get askFollowUpMoreDetail;
+
+  /// No description provided for @askFollowUpExample.
+  ///
+  /// In en, this message translates to:
+  /// **'Give an example'**
+  String get askFollowUpExample;
+
+  /// No description provided for @askFollowUpFrench.
+  ///
+  /// In en, this message translates to:
+  /// **'Say it in French'**
+  String get askFollowUpFrench;
+
+  /// No description provided for @askFollowUpArabic.
+  ///
+  /// In en, this message translates to:
+  /// **'Say it in Arabic'**
+  String get askFollowUpArabic;
+
+  /// No description provided for @askNoKeyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'No API key configured for {provider}. Add a key in AI settings.'**
+  String askNoKeyMessage(String provider);
+
+  /// No description provided for @askSettingsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'AI settings'**
+  String get askSettingsAction;
+
+  /// No description provided for @autoReadTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-read'**
+  String get autoReadTitle;
+
+  /// No description provided for @autoReadPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Start auto-read'**
+  String get autoReadPlay;
+
+  /// No description provided for @autoReadPause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause auto-read'**
+  String get autoReadPause;
+
+  /// No description provided for @autoReadSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading speed'**
+  String get autoReadSpeed;
+
+  /// No description provided for @autoReadPaceSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{wpm} WPM · {pace}'**
+  String autoReadPaceSummary(int wpm, String pace);
 }
 
 class _AppLocalizationsDelegate

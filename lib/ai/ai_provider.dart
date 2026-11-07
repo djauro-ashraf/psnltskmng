@@ -7,7 +7,7 @@ final class AiMessage {
   final String text;
 }
 
-enum AiErrorKind { missingKey, network, timeout, http, emptyResponse }
+enum AiErrorKind { missingKey, network, timeout, http, emptyResponse, rateLimited, blocked }
 
 final class AiProviderException implements Exception {
   const AiProviderException(this.kind, this.message, {this.statusCode});

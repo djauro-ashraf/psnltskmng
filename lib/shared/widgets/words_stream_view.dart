@@ -3,15 +3,20 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/domain/reference/ch_table.dart';
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/ayah_copy_sheet.dart';
 import 'package:personaltskmng/mushaf/controller/mushaf_providers.dart';
+import 'package:personaltskmng/quran_data/controller/auto_read_provider.dart';
 import 'package:personaltskmng/quran_data/controller/quran_prefs.dart';
 import 'package:personaltskmng/quran_data/controller/quran_providers.dart';
 import 'package:personaltskmng/quran_data/controller/tafsir_providers.dart';
 import 'package:personaltskmng/quran_data/models/page_content.dart';
+import 'package:personaltskmng/quran_data/models/unit_edges.dart';
 import 'package:personaltskmng/quran_data/models/words_model.dart';
 import 'package:personaltskmng/quran_data/models/words_stream.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
@@ -66,6 +71,8 @@ class WordsStreamView extends ConsumerStatefulWidget {
     required this.onTop,
     required this.onOpenInfo,
     required this.onTafsir,
+    this.onAskAi,
+    this.onStepUnit,
     this.stop,
     this.onReleaseStop,
   });
@@ -86,6 +93,12 @@ class WordsStreamView extends ConsumerStatefulWidget {
   /// The Tafsir button of an ayah card was tapped.
   final void Function(AyahRef ayah) onTafsir;
 
+  /// Ask AI about this ayah, with optional selected focus text.
+  final void Function(AyahRef ayah, String? prompt)? onAskAi;
+
+  /// Next/previous unit action when locked tile is tapped.
+  final void Function(bool forward)? onStepUnit;
+
   /// The reader tapped "Keep reading": the limit is gone.
   final VoidCallback? onReleaseStop;
 
@@ -98,7 +111,8 @@ class _WordsMissing implements Exception {
   const _WordsMissing();
 }
 
-class _WordsStreamViewState extends ConsumerState<WordsStreamView> {
+class _WordsStreamViewState extends ConsumerState<WordsStreamView>
+    with SingleTickerProviderStateMixin {
   /// How many rows before the end of a list the next step is asked for.
   static const int _prefetch = 18;
 
@@ -111,6 +125,21 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView> {
 
   WordsModel? _model;
   int _generation = 0;
+
+  // Gate attempts (dots on tile) and overscroll tracking.
+  int _forwardAttempts = 0;
+  int _backwardAttempts = 0;
+  double _forwardOverscrollAccum = 0;
+  double _backwardOverscrollAccum = 0;
+  Timer? _attemptsResetTimer;
+
+  // Auto-read state and ticker
+  Ticker? _autoReadTicker;
+  Duration _lastTick = Duration.zero;
+  bool _isAutoScrolling = false;
+  bool _touchActive = false;
+  Timer? _touchResumeTimer;
+  double _pixelsPerWord = 16.0;
 
   // Changes only when a new stream is shown, so a rebuild while the next one is
   // being made never restarts the scroll view under the reader.
@@ -139,6 +168,11 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView> {
   void initState() {
     super.initState();
     _open(widget.jump.ayah, highlight: widget.jump.highlight);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && ref.read(autoReadProvider).playing) {
+        _updateAutoReadTicker(true);
+      }
+    });
   }
 
   @override
@@ -154,6 +188,9 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView> {
   @override
   void dispose() {
     _generation++;
+    _autoReadTicker?.dispose();
+    _touchResumeTimer?.cancel();
+    _attemptsResetTimer?.cancel();
     _highlightTimer?.cancel();
     _topTimer?.cancel();
     _fraction.dispose();
@@ -211,12 +248,19 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView> {
     String? translationId;
     try {
       translationId = await ref.read(selectedTranslationIdProvider.future);
+      final edgeMode = ref.read(unitEdgesProvider).modeFor(widget.unit);
       model = WordsModel(
         unit: widget.unit,
         locator: locator,
         ready: (surah) => _ready(surah, translationId),
         stop: widget.stop,
+        edgeMode: edgeMode,
       );
+      _forwardAttempts = 0;
+      _backwardAttempts = 0;
+      _forwardOverscrollAccum = 0;
+      _backwardOverscrollAccum = 0;
+      _attemptsResetTimer?.cancel();
       if (!await model.start(anchor)) {
         if (!mounted || generation != _generation) return;
         setState(() {
@@ -329,9 +373,187 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView> {
     _extend(forward: forward);
   }
 
+  void _registerGateAttempt({required bool forward}) {
+    _attemptsResetTimer?.cancel();
+    _attemptsResetTimer = Timer(const Duration(seconds: 6), () {
+      if (mounted) {
+        setState(() {
+          _forwardAttempts = 0;
+          _backwardAttempts = 0;
+        });
+      }
+    });
+
+    final current = forward ? _forwardAttempts : _backwardAttempts;
+    final nextAttempts = current + 1;
+    if (nextAttempts >= 2) {
+      unawaited(_passGate(forward: forward));
+    } else {
+      try {
+        unawaited(HapticFeedback.lightImpact());
+      } catch (_) {}
+      setState(() {
+        if (forward) {
+          _forwardAttempts = nextAttempts;
+        } else {
+          _backwardAttempts = nextAttempts;
+        }
+      });
+    }
+  }
+
+  Future<void> _passGate({required bool forward}) async {
+    final model = _model;
+    if (model == null) return;
+    try {
+      unawaited(HapticFeedback.mediumImpact());
+    } catch (_) {}
+    _attemptsResetTimer?.cancel();
+    setState(() {
+      if (forward) {
+        _forwardAttempts = 0;
+      } else {
+        _backwardAttempts = 0;
+      }
+    });
+    if (forward) {
+      await model.passForward();
+      if (mounted) {
+        setState(() {});
+        _extend(forward: true);
+      }
+    } else {
+      await model.passBackward();
+      if (mounted) {
+        setState(() {});
+        _extend(forward: false);
+      }
+    }
+  }
+
+  // -- auto-read ------------------------------------------------------------
+
+  void _updateAutoReadTicker(bool playing) {
+    if (playing) {
+      if (_autoReadTicker == null) {
+        _lastTick = Duration.zero;
+        _autoReadTicker = createTicker(_onAutoReadTick)..start();
+      } else if (!_autoReadTicker!.isTicking) {
+        _lastTick = Duration.zero;
+        _autoReadTicker!.start();
+      }
+    } else {
+      _autoReadTicker?.stop();
+      _lastTick = Duration.zero;
+    }
+  }
+
+  void _onAutoReadTick(Duration elapsed) {
+    if (!mounted) return;
+    if (_lastTick == Duration.zero) {
+      _lastTick = elapsed;
+      return;
+    }
+    final dt = (elapsed - _lastTick).inMicroseconds / 1000000.0;
+    _lastTick = elapsed;
+
+    // Clamp dt to at most 50ms (0.050s)
+    final clampedDt = dt.clamp(0.0, 0.050);
+    if (clampedDt <= 0.0) return;
+
+    final autoRead = ref.read(autoReadProvider);
+    if (!autoRead.playing) {
+      _updateAutoReadTicker(false);
+      return;
+    }
+
+    if (_touchActive) return; // User is touching screen
+
+    final model = _model;
+    if (model == null || !_scroll.hasClients) return;
+
+    final currentOffset = _scroll.offset;
+    final maxScroll = _scroll.position.maxScrollExtent;
+
+    if (currentOffset >= maxScroll && model.forwardDone) {
+      ref.read(autoReadProvider.notifier).pause();
+      return;
+    }
+
+    // Check if an EdgeItem (Gate, Locked, limit, end of Quran) is reached
+    if (model.forwardDone && model.forward.isNotEmpty) {
+      final lastItem = model.forward.last;
+      if (lastItem is EdgeItem &&
+          (lastItem.kind == EdgeKind.unitEndForward ||
+              lastItem.kind == EdgeKind.keepReadingForward ||
+              lastItem.kind == EdgeKind.endOfQuran)) {
+        if (currentOffset >= maxScroll - 60) {
+          // Pause at edge tile
+          ref.read(autoReadProvider.notifier).pause();
+          return;
+        }
+      }
+    }
+
+    _measurePixelsPerWord();
+
+    final speed = autoRead.pacer.pixelsPerSecond(_pixelsPerWord);
+    if (speed <= 0) return;
+
+    final targetOffset = currentOffset + speed * clampedDt;
+    _isAutoScrolling = true;
+    try {
+      _scroll.jumpTo(targetOffset);
+    } finally {
+      _isAutoScrolling = false;
+    }
+  }
+
+  void _measurePixelsPerWord() {
+    final render = _forwardKey.currentContext?.findRenderObject();
+    if (render is! RenderSliverMultiBoxAdaptor) return;
+
+    double totalHeight = 0;
+    int totalWords = 0;
+    final list = _model?.forward;
+    if (list == null || list.isEmpty) return;
+
+    RenderBox? child = render.firstChild;
+    while (child != null) {
+      final data = child.parentData;
+      if (data is SliverMultiBoxAdaptorParentData) {
+        final idx = data.index;
+        if (idx != null && idx < list.length) {
+          final item = list[idx];
+          if (item is AyahItem) {
+            final at = item.at;
+            final wordsList = ref.read(surahWordsProvider(at.surah)).value;
+            final ayahWords = wordsList != null && at.ayah <= wordsList.length
+                ? wordsList[at.ayah - 1]
+                : null;
+            final wCount = ayahWords?.words.length ?? 0;
+            if (wCount > 0) {
+              totalHeight += child.size.height;
+              totalWords += wCount;
+            }
+          }
+        }
+      }
+      child = render.childAfter(child);
+    }
+
+    if (totalWords > 0 && totalHeight > 0) {
+      final measuredRatio = totalHeight / totalWords;
+      _pixelsPerWord = _pixelsPerWord * 0.95 + measuredRatio * 0.05;
+    }
+  }
+
   // -- the ayah at the top ---------------------------------------------------
 
   bool _onScroll(ScrollNotification notification) {
+    if (_isAutoScrolling) {
+      return false;
+    }
     if (notification is ScrollUpdateNotification ||
         notification is ScrollEndNotification) {
       _topTimer ??= Timer(const Duration(milliseconds: 120), () {
@@ -339,6 +561,50 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView> {
         if (mounted) _checkTop();
       });
     }
+
+    final model = _model;
+    if (model != null && model.edgeMode == UnitEdge.gate) {
+      if (notification is OverscrollNotification) {
+        if (notification.overscroll > 0) {
+          _forwardOverscrollAccum += notification.overscroll;
+        } else if (notification.overscroll < 0) {
+          _backwardOverscrollAccum += -notification.overscroll;
+        }
+      } else if (notification is ScrollUpdateNotification) {
+        final metrics = notification.metrics;
+        if (metrics.outOfRange) {
+          if (metrics.pixels > metrics.maxScrollExtent) {
+            _forwardOverscrollAccum += metrics.pixels - metrics.maxScrollExtent;
+          } else if (metrics.pixels < metrics.minScrollExtent) {
+            _backwardOverscrollAccum += metrics.minScrollExtent - metrics.pixels;
+          }
+        } else {
+          if (metrics.pixels < metrics.maxScrollExtent - 40) {
+            _forwardOverscrollAccum = 0;
+          }
+          if (metrics.pixels > metrics.minScrollExtent + 40) {
+            _backwardOverscrollAccum = 0;
+          }
+        }
+      } else if (notification is ScrollEndNotification) {
+        if (_forwardOverscrollAccum >= 24 &&
+            model.forwardDone &&
+            model.forward.any((i) =>
+                i is EdgeItem && i.kind == EdgeKind.unitEndForward)) {
+          _registerGateAttempt(forward: true);
+        }
+        _forwardOverscrollAccum = 0;
+
+        if (_backwardOverscrollAccum >= 24 &&
+            model.backwardDone &&
+            model.backward.any((i) =>
+                i is EdgeItem && i.kind == EdgeKind.unitStartBack)) {
+          _registerGateAttempt(forward: false);
+        }
+        _backwardOverscrollAccum = 0;
+      }
+    }
+
     return false;
   }
 
@@ -482,6 +748,9 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView> {
     ref.listen(textSizeProvider, (previous, next) {
       if (_model != null && QuranTextSize.factor(next) != _scale) _reopen();
     });
+    ref.listen(unitEdgesProvider, (previous, next) {
+      if (_model != null && previous != next) _reopen();
+    });
 
     if (_missing) return QuranNotice(message: l10n.wordsNotInstalled);
     if (_problem != null) return QuranNotice(message: l10n.mushafBroken);
@@ -492,6 +761,81 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView> {
     final tafsirOn = ref.watch(
       tafsirSourcesProvider.select((v) => v.value?.isNotEmpty ?? false),
     );
+
+    Widget buildEdge(EdgeItem item) {
+      return switch (item.kind) {
+        EdgeKind.startOfQuran => StreamEdge(title: l10n.readerStartOfQuran),
+        EdgeKind.endOfQuran => StreamEdge(
+          title: l10n.readerEndOfQuran,
+          actionLabel: l10n.readerBackToStart,
+          onAction: () => _open(const AyahRef(1, 1)),
+        ),
+        EdgeKind.keepReadingForward => StreamEdge(
+          actionLabel: l10n.readerKeepReading,
+          onAction: () => _release(forward: true),
+        ),
+        EdgeKind.keepReadingBack => StreamEdge(
+          actionLabel: l10n.readerKeepReading,
+          onAction: () => _release(forward: false),
+        ),
+        EdgeKind.unitEndForward => GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: item.edgeMode == UnitEdge.gate
+              ? () => _registerGateAttempt(forward: true)
+              : null,
+          child: StreamEdge(
+            title: item.unitLabel,
+            attempts: item.edgeMode == UnitEdge.gate ? _forwardAttempts : 0,
+            maxAttempts: 2,
+            hint: item.edgeMode == UnitEdge.gate
+                ? (_forwardAttempts > 0
+                    ? 'Tap again or pull down to continue'
+                    : 'Pull or tap twice to continue')
+                : null,
+            actionLabel: item.unitLabel != null
+                ? 'Continue to ${item.unitLabel}'
+                : l10n.readerKeepReading,
+            onAction: () {
+              if (item.edgeMode == UnitEdge.gate) {
+                _registerGateAttempt(forward: true);
+              } else if (widget.onStepUnit != null) {
+                widget.onStepUnit!(true);
+              } else {
+                _passGate(forward: true);
+              }
+            },
+          ),
+        ),
+        EdgeKind.unitStartBack => GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: item.edgeMode == UnitEdge.gate
+              ? () => _registerGateAttempt(forward: false)
+              : null,
+          child: StreamEdge(
+            title: item.unitLabel,
+            attempts: item.edgeMode == UnitEdge.gate ? _backwardAttempts : 0,
+            maxAttempts: 2,
+            hint: item.edgeMode == UnitEdge.gate
+                ? (_backwardAttempts > 0
+                    ? 'Tap again or pull up to continue'
+                    : 'Pull or tap twice to continue')
+                : null,
+            actionLabel: item.unitLabel != null
+                ? 'Previous (${item.unitLabel})'
+                : 'Previous',
+            onAction: () {
+              if (item.edgeMode == UnitEdge.gate) {
+                _registerGateAttempt(forward: false);
+              } else if (widget.onStepUnit != null) {
+                widget.onStepUnit!(false);
+              } else {
+                _passGate(forward: false);
+              }
+            },
+          ),
+        ),
+      };
+    }
 
     Widget row(StreamItem item) => switch (item) {
       BannerItem(:final banner) => StreamBanner(
@@ -508,23 +852,9 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView> {
         tafsirOn: tafsirOn,
         highlighted: _highlight == ayahItem.at,
         onTafsir: widget.onTafsir,
+        onAskAi: widget.onAskAi,
       ),
-      EdgeItem(:final kind) => switch (kind) {
-        EdgeKind.startOfQuran => StreamEdge(title: l10n.readerStartOfQuran),
-        EdgeKind.endOfQuran => StreamEdge(
-          title: l10n.readerEndOfQuran,
-          actionLabel: l10n.readerBackToStart,
-          onAction: () => _open(const AyahRef(1, 1)),
-        ),
-        EdgeKind.keepReadingForward => StreamEdge(
-          actionLabel: l10n.readerKeepReading,
-          onAction: () => _release(forward: true),
-        ),
-        EdgeKind.keepReadingBack => StreamEdge(
-          actionLabel: l10n.readerKeepReading,
-          onAction: () => _release(forward: false),
-        ),
-      },
+      final EdgeItem edgeItem => buildEdge(edgeItem),
     };
 
     Widget buildAt(List<StreamItem> list, int index, {required bool forward}) {
@@ -539,37 +869,58 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView> {
       return r;
     }
 
+    ref.listen<bool>(
+      autoReadProvider.select((s) => s.playing),
+      (prev, next) => _updateAutoReadTicker(next),
+    );
+
     return Stack(
       children: [
         NotificationListener<ScrollNotification>(
           onNotification: _onScroll,
-          child: CustomScrollView(
-            key: ValueKey(_shown),
-            controller: _scroll,
-            center: _forwardKey,
-            scrollCacheExtent: const ScrollCacheExtent.viewport(1.2),
-            slivers: [
-              SliverList(
-                key: _backwardKey,
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) =>
-                      buildAt(model.backward, index, forward: false),
-                  childCount:
-                      model.backward.length + (model.backwardDone ? 0 : 1),
-                  addAutomaticKeepAlives: false,
+          child: Listener(
+            onPointerDown: (_) {
+              _touchActive = true;
+              _touchResumeTimer?.cancel();
+            },
+            onPointerUp: (_) {
+              _touchResumeTimer?.cancel();
+              _touchResumeTimer =
+                  Timer(const Duration(milliseconds: 1500), () {
+                if (mounted) _touchActive = false;
+              });
+            },
+            onPointerCancel: (_) {
+              _touchActive = false;
+            },
+            child: CustomScrollView(
+              key: ValueKey(_shown),
+              controller: _scroll,
+              center: _forwardKey,
+              scrollCacheExtent: const ScrollCacheExtent.viewport(1.2),
+              slivers: [
+                SliverList(
+                  key: _backwardKey,
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) =>
+                        buildAt(model.backward, index, forward: false),
+                    childCount:
+                        model.backward.length + (model.backwardDone ? 0 : 1),
+                    addAutomaticKeepAlives: false,
+                  ),
                 ),
-              ),
-              SliverList(
-                key: _forwardKey,
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) =>
-                      buildAt(model.forward, index, forward: true),
-                  childCount:
-                      model.forward.length + (model.forwardDone ? 0 : 1),
-                  addAutomaticKeepAlives: false,
+                SliverList(
+                  key: _forwardKey,
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) =>
+                        buildAt(model.forward, index, forward: true),
+                    childCount:
+                        model.forward.length + (model.forwardDone ? 0 : 1),
+                    addAutomaticKeepAlives: false,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         PositionedDirectional(
@@ -600,6 +951,7 @@ class _AyahRow extends ConsumerWidget {
     required this.tafsirOn,
     required this.highlighted,
     required this.onTafsir,
+    this.onAskAi,
   });
 
   final AyahItem item;
@@ -609,6 +961,7 @@ class _AyahRow extends ConsumerWidget {
   final bool tafsirOn;
   final bool highlighted;
   final void Function(AyahRef ayah) onTafsir;
+  final void Function(AyahRef ayah, String? prompt)? onAskAi;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -648,6 +1001,12 @@ class _AyahRow extends ConsumerWidget {
       continuesOnPage: item.continuesOnPage,
       tafsirLabel: tafsirLabel,
       onTafsir: () => onTafsir(at),
+      onCopy: () => showAyahCopySheet(
+        context,
+        ayah: at,
+        onAskAi: onAskAi,
+      ),
+      onAskAi: onAskAi,
       highlighted: highlighted,
     );
   }

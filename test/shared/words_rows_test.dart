@@ -322,6 +322,45 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('ARABIC FIRST'), findsOneWidget);
     });
+
+    testWidgets('tapping ayah key / copy header triggers onCopy', (
+      tester,
+    ) async {
+      var copied = false;
+      await tester.pumpWidget(
+        _host(
+          AyahCard(
+            ayah: _ayah,
+            translation: const TranslationText('Some text'),
+            fontFamily: null,
+            onCopy: () => copied = true,
+          ),
+        ),
+      );
+      expect(find.text(_ayah.key), findsOneWidget);
+      expect(find.byIcon(Icons.copy_rounded), findsOneWidget);
+      await tester.tap(find.text(_ayah.key));
+      await tester.pump();
+      expect(copied, isTrue);
+    });
+
+    testWidgets('Arabic and translation are SelectionArea and words are disabled', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          const AyahCard(
+            ayah: _ayah,
+            translation: TranslationText('Some translation'),
+            fontFamily: null,
+          ),
+        ),
+      );
+      // Both Arabic and Translation have a SelectionArea
+      expect(find.byType(SelectionArea), findsNWidgets(2));
+      // Word-by-word is wrapped in SelectionContainer.disabled
+      expect(find.byType(SelectionContainer), findsWidgets);
+    });
   });
 
   group('StreamBanner', () {

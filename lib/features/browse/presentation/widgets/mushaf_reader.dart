@@ -2,14 +2,20 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/core/theme/app_theme.dart';
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/ayah_copy_sheet.dart';
+import 'package:personaltskmng/mushaf/controller/mushaf_providers.dart';
+import 'package:personaltskmng/mushaf/data/mushaf_source.dart';
 import 'package:personaltskmng/mushaf/models/mushaf_page.dart';
+import 'package:personaltskmng/quran_data/controller/auto_read_provider.dart';
 import 'package:personaltskmng/quran_data/controller/quran_providers.dart';
 import 'package:personaltskmng/quran_data/controller/tafsir_providers.dart';
+import 'package:personaltskmng/quran_data/models/ayah_copy.dart';
 import 'package:personaltskmng/quran_data/models/reader_entry.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 import 'package:personaltskmng/shared/widgets/app_snackbar.dart';
@@ -48,6 +54,7 @@ class MushafReader extends ConsumerStatefulWidget {
     required this.onPage,
     required this.onOpenWords,
     required this.onTafsir,
+    this.onAskAi,
     required this.onReleaseLimit,
     required this.onToggleBar,
   });
@@ -64,6 +71,9 @@ class MushafReader extends ConsumerStatefulWidget {
   /// "Tafsir" in the selection bar.
   final void Function(AyahRef ayah) onTafsir;
 
+  /// "Ask AI" in the selection bar.
+  final void Function(AyahRef ayah)? onAskAi;
+
   /// The end card was tapped: the limit is gone, go on at [nextPage].
   final void Function(int nextPage) onReleaseLimit;
 
@@ -73,12 +83,19 @@ class MushafReader extends ConsumerStatefulWidget {
   ConsumerState<MushafReader> createState() => _MushafReaderState();
 }
 
-class _MushafReaderState extends ConsumerState<MushafReader> {
+class _MushafReaderState extends ConsumerState<MushafReader>
+    with SingleTickerProviderStateMixin {
   late PageController _controller;
   late int _page;
   String? _selected;
   String? _highlight;
   Timer? _highlightTimer;
+
+  Ticker? _autoReadTicker;
+  Duration _lastTick = Duration.zero;
+  Duration _dwellElapsed = Duration.zero;
+  double _dwellProgress = 0.0;
+  bool _nextPagePreloaded = false;
 
   int get _first => widget.limit?.firstPage ?? 1;
   int get _count => widget.limit == null
@@ -95,6 +112,11 @@ class _MushafReaderState extends ConsumerState<MushafReader> {
     _page = widget.jump.page;
     _controller = PageController(initialPage: _indexOf(_page, widget.limit));
     _startHighlight(widget.jump.ayah);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && ref.read(autoReadProvider).playing) {
+        _updateAutoReadTicker(true);
+      }
+    });
   }
 
   @override
@@ -109,9 +131,11 @@ class _MushafReaderState extends ConsumerState<MushafReader> {
       if (jumped) _page = widget.jump.page;
       _controller = PageController(initialPage: _indexOf(_page, widget.limit));
       _selected = null;
+      _resetDwell();
     } else if (jumped) {
       _page = widget.jump.page;
       _selected = null;
+      _resetDwell();
       final index = _indexOf(_page, widget.limit);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_controller.hasClients) _controller.jumpToPage(index);
@@ -122,9 +146,100 @@ class _MushafReaderState extends ConsumerState<MushafReader> {
 
   @override
   void dispose() {
+    _autoReadTicker?.dispose();
     _highlightTimer?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _resetDwell() {
+    _dwellElapsed = Duration.zero;
+    _dwellProgress = 0.0;
+    _nextPagePreloaded = false;
+  }
+
+  int _wordCountForPage(int page) {
+    final pageData = ref.read(mushafPageProvider(page)).value;
+    if (pageData is MushafReady) {
+      var count = 0;
+      for (final line in pageData.page.lines) {
+        count += line.words.length;
+      }
+      return count > 0 ? count : 128;
+    }
+    return 128;
+  }
+
+  void _updateAutoReadTicker(bool playing) {
+    if (playing) {
+      if (_autoReadTicker == null) {
+        _lastTick = Duration.zero;
+        _autoReadTicker = createTicker(_onAutoReadTick)..start();
+      } else if (!_autoReadTicker!.isTicking) {
+        _lastTick = Duration.zero;
+        _autoReadTicker!.start();
+      }
+    } else {
+      _autoReadTicker?.stop();
+      _lastTick = Duration.zero;
+      if (_dwellProgress != 0.0 && mounted) {
+        setState(() => _dwellProgress = 0.0);
+      }
+    }
+  }
+
+  void _onAutoReadTick(Duration elapsed) {
+    if (!mounted) return;
+    if (_lastTick == Duration.zero) {
+      _lastTick = elapsed;
+      return;
+    }
+    final dt = elapsed - _lastTick;
+    _lastTick = elapsed;
+
+    final clampedDtMs = math.min(100, dt.inMilliseconds);
+    if (clampedDtMs <= 0) return;
+
+    final autoRead = ref.read(autoReadProvider);
+    if (!autoRead.playing) {
+      _updateAutoReadTicker(false);
+      return;
+    }
+
+    final words = _wordCountForPage(_page);
+    final totalDwell = autoRead.pacer.pageDwell(words);
+
+    _dwellElapsed += Duration(milliseconds: clampedDtMs);
+    final progress =
+        (_dwellElapsed.inMilliseconds / totalDwell.inMilliseconds).clamp(0.0, 1.0);
+
+    if (progress >= 0.8 && !_nextPagePreloaded) {
+      _nextPagePreloaded = true;
+      if (_page < MushafPage.pageCount) {
+        unawaited(ref.read(mushafPageProvider(_page + 1).future));
+      }
+    }
+
+    if (progress >= 1.0) {
+      _dwellElapsed = Duration.zero;
+      _nextPagePreloaded = false;
+      final limit = widget.limit;
+      if (_page >= MushafPage.pageCount ||
+          (limit != null && _page >= limit.lastPage)) {
+        ref.read(autoReadProvider.notifier).pause();
+        setState(() => _dwellProgress = 0.0);
+      } else {
+        if (_controller.hasClients) {
+          _controller.nextPage(
+            duration: const Duration(milliseconds: 450),
+            curve: Curves.easeInOut,
+          );
+        }
+        setState(() => _dwellProgress = 0.0);
+      }
+    } else {
+      setState(() => _dwellProgress = progress);
+    }
   }
 
   void _startHighlight(String? ayah) {
@@ -137,6 +252,7 @@ class _MushafReaderState extends ConsumerState<MushafReader> {
   }
 
   void _onPageChanged(int index) {
+    _resetDwell();
     if (index >= _count) {
       // The end card.
       setState(() => _selected = null);
@@ -162,7 +278,9 @@ class _MushafReaderState extends ConsumerState<MushafReader> {
       final words = await ref.read(surahWordsProvider(ayah.surah).future);
       final text = words == null || ayah.ayah > words.length
           ? ayah.key
-          : '${words[ayah.ayah - 1].arabic} (${ayah.key})';
+          : AyahCopy.build([
+              AyahCopyInput(ayah: words[ayah.ayah - 1]),
+            ], CopyRecipe.arabicOnly).text;
       await Clipboard.setData(ClipboardData(text: text));
       if (mounted) showAppSnackBar(context, l10n.readerCopied);
     } catch (_) {
@@ -172,6 +290,11 @@ class _MushafReaderState extends ConsumerState<MushafReader> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<bool>(
+      autoReadProvider.select((s) => s.playing),
+      (prev, next) => _updateAutoReadTicker(next),
+    );
+
     final limit = widget.limit;
     final tafsirOn = ref.watch(
       tafsirSourcesProvider.select((v) => v.value?.isNotEmpty ?? false),
@@ -204,11 +327,30 @@ class _MushafReaderState extends ConsumerState<MushafReader> {
                 page: page,
                 selectedAyah: _selected,
                 highlightAyah: _highlight,
-                onAyahTap: (ayah) => setState(() => _selected = ayah),
+                onAyahTap: (ayah) {
+                  ref.read(autoReadProvider.notifier).pause();
+                  setState(() => _selected = ayah);
+                },
               ),
             );
           },
         ),
+        if (_dwellProgress > 0)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SizedBox(
+              height: 3,
+              child: LinearProgressIndicator(
+                value: _dwellProgress,
+                backgroundColor: Colors.transparent,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
+                ),
+              ),
+            ),
+          ),
         if (selected != null)
           Align(
             alignment: Alignment.bottomCenter,
@@ -218,7 +360,11 @@ class _MushafReaderState extends ConsumerState<MushafReader> {
                 ayah: selected,
                 tafsir: tafsirOn ? () => widget.onTafsir(selected) : null,
                 onWords: () => widget.onOpenWords(selected),
-                onCopy: () => _copy(selected),
+                onCopy: () => unawaited(_copy(selected)),
+                onCopySheet: () => showAyahCopySheet(context, ayah: selected),
+                onAskAi: widget.onAskAi != null
+                    ? () => widget.onAskAi!(selected)
+                    : null,
               ),
             ),
           ),
@@ -235,12 +381,16 @@ class _SelectionBar extends StatelessWidget {
     required this.tafsir,
     required this.onWords,
     required this.onCopy,
+    this.onCopySheet,
+    this.onAskAi,
   });
 
   final AyahRef ayah;
   final VoidCallback? tafsir;
   final VoidCallback onWords;
   final VoidCallback onCopy;
+  final VoidCallback? onCopySheet;
+  final VoidCallback? onAskAi;
 
   @override
   Widget build(BuildContext context) {
@@ -284,8 +434,15 @@ class _SelectionBar extends StatelessWidget {
             TextButton(
               style: style,
               onPressed: onCopy,
+              onLongPress: onCopySheet,
               child: Text(l10n.readerCopy),
             ),
+            if (onAskAi != null)
+              TextButton(
+                style: style,
+                onPressed: onAskAi,
+                child: Text(l10n.copyItemAskAi),
+              ),
           ],
         ),
       ),

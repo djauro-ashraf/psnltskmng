@@ -1,3 +1,5 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 /// Where provider API keys live. Never shared_preferences.
 abstract interface class ApiKeyStore {
   Future<String?> read(String providerId);
@@ -24,3 +26,7 @@ final class InMemoryApiKeyStore implements ApiKeyStore {
     _keys.remove(providerId);
   }
 }
+
+final aiKeyStoreProvider = Provider<ApiKeyStore>(
+  (ref) => InMemoryApiKeyStore(),
+);

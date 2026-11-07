@@ -30,6 +30,13 @@ Future<Object?> postJson({
   }
 
   if (response.statusCode < 200 || response.statusCode >= 300) {
+    if (response.statusCode == 429) {
+      throw const AiProviderException(
+        AiErrorKind.rateLimited,
+        'Rate limit reached. Please wait a moment before trying again.',
+        statusCode: 429,
+      );
+    }
     final text = response.body;
     final short = text.length > 200 ? text.substring(0, 200) : text;
     throw AiProviderException(

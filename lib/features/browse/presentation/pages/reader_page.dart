@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:personaltskmng/ask/controller/ask_providers.dart';
 import 'package:personaltskmng/core/constants/app_breakpoints.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
@@ -10,13 +11,16 @@ import 'package:personaltskmng/features/browse/domain/reader_request.dart';
 import 'package:personaltskmng/features/browse/presentation/browse_paths.dart';
 import 'package:personaltskmng/features/browse/presentation/pages/browse_not_found_page.dart';
 import 'package:personaltskmng/features/browse/presentation/providers/browse_providers.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/auto_read_pill.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/context_line_bar.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/go_to_sheet.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/mushaf_reader.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/reader_bar.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/reading_options_sheet.dart';
 import 'package:personaltskmng/mushaf/controller/mushaf_edition.dart';
 import 'package:personaltskmng/mushaf/models/mushaf_edition.dart';
 import 'package:personaltskmng/mushaf/models/mushaf_page.dart';
+import 'package:personaltskmng/quran_data/controller/auto_read_provider.dart';
 import 'package:personaltskmng/quran_data/controller/quran_prefs.dart';
 import 'package:personaltskmng/quran_data/controller/quran_providers.dart';
 import 'package:personaltskmng/quran_data/controller/screen_wake.dart';
@@ -93,8 +97,18 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     _wake = ref.read(screenWakeProvider);
     ref.listenManual<bool>(
       keepAwakeProvider,
-      (previous, next) => unawaited(_wake.set(on: next)),
+      (previous, next) {
+        final autoReading = ref.read(autoReadProvider).playing;
+        unawaited(_wake.set(on: next || autoReading));
+      },
       fireImmediately: true,
+    );
+    ref.listenManual<AutoReadState>(
+      autoReadProvider,
+      (previous, next) {
+        final keepAwake = ref.read(keepAwakeProvider);
+        unawaited(_wake.set(on: keepAwake || next.playing));
+      },
     );
     unawaited(_resolve());
   }
@@ -113,6 +127,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_wake.set(on: false));
+    if (_containerSet) {
+      Future<void>.microtask(() {
+        try {
+          _container.read(autoReadProvider.notifier).pause();
+        } catch (_) {}
+      });
+    }
     // Not now: a provider must not change while the tree is being torn down.
     Future<void>.microtask(_saveLastRead);
     _page.dispose();
@@ -125,6 +146,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
       _saveLastRead();
+      if (_containerSet) {
+        try {
+          _container.read(autoReadProvider.notifier).pause();
+        } catch (_) {}
+      }
     }
   }
 
@@ -378,6 +404,42 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     if (shown != null && mounted) await _jumpToAyah(shown, null);
   }
 
+  Future<void> _openAskAi(AyahRef ayah, [String? prompt, String? focus]) async {
+    final existing = await ref.read(chatsForAyahProvider(ayah).future);
+    if (!mounted) return;
+    if (existing.isNotEmpty) {
+      final choice = await showModalBottomSheet<String>(
+        context: context,
+        builder: (context) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.chat_outlined),
+                title: Text('Continue chat (${existing.length})'),
+                subtitle: Text(existing.first.title),
+                onTap: () => Navigator.pop(context, existing.first.id),
+              ),
+              ListTile(
+                leading: const Icon(Icons.add_comment_outlined),
+                title: const Text('Start new chat'),
+                onTap: () => Navigator.pop(context, 'new'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (!mounted || choice == null) return;
+      if (choice == 'new') {
+        context.push(BrowsePaths.askNew(ayah: ayah, prompt: prompt, focus: focus));
+      } else {
+        context.push(BrowsePaths.askChat(choice));
+      }
+    } else {
+      context.push(BrowsePaths.askNew(ayah: ayah, prompt: prompt, focus: focus));
+    }
+  }
+
   // -- one step: a unit in Words, a page in Mushaf (wide screens) -------------
 
   WordsUnit _effectiveUnit() {
@@ -493,6 +555,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
                 ],
                 Expanded(
                   child: Stack(
+                    fit: StackFit.expand,
                     children: [
                       Positioned.fill(
                         child: words
@@ -505,6 +568,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
                                 onTop: _onWordsTop,
                                 onOpenInfo: _openUnitInfo,
                                 onTafsir: (ayah) => unawaited(_openTafsir(ayah)),
+                                onAskAi: (ayah, prompt) =>
+                                    unawaited(_openAskAi(ayah, prompt)),
+                                onStepUnit: (forward) =>
+                                    unawaited(_stepUnit(forward: forward)),
                                 onReleaseStop: _releaseWordsLimit,
                               )
                             : MushafReader(
@@ -513,6 +580,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
                                 onPage: _onMushafPage,
                                 onOpenWords: _openWordsAt,
                                 onTafsir: (ayah) => unawaited(_openTafsir(ayah)),
+                                onAskAi: (ayah) => unawaited(_openAskAi(ayah)),
                                 onReleaseLimit: _releaseMushafLimit,
                                 onToggleBar: () =>
                                     setState(() => _barHidden = !_barHidden),
@@ -527,6 +595,26 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
                           valueListenable: _page,
                           builder: (context, page, _) =>
                               _NotesBadge(page: page, onTap: _openInfo),
+                        ),
+                      ),
+                      // Auto-read floating pill
+                      Positioned(
+                        bottom: AppSpacing.lg,
+                        left: 0,
+                        right: 0,
+                        child: Consumer(
+                          builder: (context, ref, _) {
+                            final playing = ref.watch(
+                              autoReadProvider.select((s) => s.playing),
+                            );
+                            if (!playing) return const SizedBox.shrink();
+                            return Center(
+                              child: AutoReadPill(
+                                onTapPace: () =>
+                                    unawaited(showReadingOptions(context)),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ],

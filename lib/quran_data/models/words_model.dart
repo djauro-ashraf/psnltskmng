@@ -1,6 +1,7 @@
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/quran_data/models/page_locator.dart';
 import 'package:personaltskmng/quran_data/models/reading_banners.dart';
+import 'package:personaltskmng/quran_data/models/unit_edges.dart';
 import 'package:personaltskmng/quran_data/models/words_stream.dart';
 
 /// One row of the Words stream.
@@ -49,12 +50,28 @@ enum EdgeKind {
 
   /// Before the first ayah of a part or a range: "Keep reading" (backwards).
   keepReadingBack,
+
+  /// At the end of a unit in Gate or Locked mode.
+  unitEndForward,
+
+  /// Before the start of a unit in Gate or Locked mode.
+  unitStartBack,
 }
 
 final class EdgeItem extends StreamItem {
-  const EdgeItem(this.kind);
+  const EdgeItem(
+    this.kind, {
+    this.unitLabel,
+    this.edgeMode,
+  });
 
   final EdgeKind kind;
+
+  /// Label of the next/previous unit (e.g. "Juz 4", "Ruku 35").
+  final String? unitLabel;
+
+  /// Mode (gate or locked) that placed this tile.
+  final UnitEdge? edgeMode;
 
   @override
   AyahRef? get ayah => null;
@@ -86,6 +103,7 @@ final class WordsModel {
     required this.locator,
     required this.ready,
     this.stop,
+    this.edgeMode = UnitEdge.flow,
   });
 
   final WordsUnit unit;
@@ -98,6 +116,9 @@ final class WordsModel {
   /// The run of ayahs the stream does not go out of (until released); null: the
   /// whole Quran.
   AyahRange? stop;
+
+  /// What happens at unit boundaries: Flow, Gate, or Locked.
+  final UnitEdge edgeMode;
 
   final List<StreamItem> forward = [];
   final List<StreamItem> backward = [];
@@ -113,7 +134,11 @@ final class WordsModel {
   AyahRef? _forwardNext;
   AyahRef? _backwardNext;
 
-  // Where a released stop goes on from.
+  // The active unit boundaries (fences) in Gate or Locked mode.
+  AyahRange? _forwardFence;
+  AyahRange? _backwardFence;
+
+  // Where a released stop or fence goes on from.
   AyahRef? _heldForward;
   AyahRef? _heldBackward;
 
@@ -134,6 +159,8 @@ final class WordsModel {
     }
     _forwardChunk = chunk;
     _backwardChunk = chunk;
+    _forwardFence = chunk.range;
+    _backwardFence = chunk.range;
     _forwardNext = anchor;
     final previous = QuranDivisions.previous(anchor);
     _backwardNext = previous;
@@ -144,12 +171,46 @@ final class WordsModel {
       backward.add(const EdgeItem(EdgeKind.keepReadingBack));
       _heldBackward = previous;
       backwardDone = true;
+    } else if (_beforeFence(previous)) {
+      final prevChunk = await WordsStream.containing(unit, previous, locator);
+      final label = prevChunk != null ? _unitLabel(prevChunk) : null;
+      backward.add(
+        EdgeItem(
+          EdgeKind.unitStartBack,
+          unitLabel: label,
+          edgeMode: edgeMode,
+        ),
+      );
+      _heldBackward = previous;
+      backwardDone = true;
     }
     return true;
   }
 
   bool _beforeStop(AyahRef ayah) => stop != null && ayah < stop!.first;
   bool _afterStop(AyahRef ayah) => stop != null && ayah > stop!.last;
+
+  bool _beforeFence(AyahRef ayah) =>
+      edgeMode != UnitEdge.flow &&
+      unit != WordsUnit.quran &&
+      _backwardFence != null &&
+      ayah < _backwardFence!.first;
+
+  bool _afterFence(AyahRef ayah) =>
+      edgeMode != UnitEdge.flow &&
+      unit != WordsUnit.quran &&
+      _forwardFence != null &&
+      ayah > _forwardFence!.last;
+
+  String _unitLabel(WordsChunk chunk) => switch (chunk.unit) {
+        WordsUnit.page => 'p ${chunk.number}',
+        WordsUnit.ruku => 'Ruku ${chunk.number}',
+        WordsUnit.hizb => 'Hizb ${chunk.number}',
+        WordsUnit.juz => 'Juz ${chunk.number}',
+        WordsUnit.surah => 'Surah ${chunk.number}',
+        WordsUnit.ch => 'Ch ${chunk.number}',
+        WordsUnit.quran => 'Quran',
+      };
 
   /// Makes about [count] more ayahs below the last row. Only one runs at a
   /// time; a second call gets the one that is running.
@@ -197,6 +258,18 @@ final class WordsModel {
         forwardDone = true;
       } else if (_afterStop(next)) {
         forward.add(const EdgeItem(EdgeKind.keepReadingForward));
+        _heldForward = next;
+        forwardDone = true;
+      } else if (_afterFence(next)) {
+        final nextChunk = await WordsStream.containing(unit, next, locator);
+        final label = nextChunk != null ? _unitLabel(nextChunk) : null;
+        forward.add(
+          EdgeItem(
+            EdgeKind.unitEndForward,
+            unitLabel: label,
+            edgeMode: edgeMode,
+          ),
+        );
         _heldForward = next;
         forwardDone = true;
       }
@@ -249,8 +322,48 @@ final class WordsModel {
         backward.add(const EdgeItem(EdgeKind.keepReadingBack));
         _heldBackward = previous;
         backwardDone = true;
+      } else if (_beforeFence(previous)) {
+        final prevChunk = await WordsStream.containing(unit, previous, locator);
+        final label = prevChunk != null ? _unitLabel(prevChunk) : null;
+        backward.add(
+          EdgeItem(
+            EdgeKind.unitStartBack,
+            unitLabel: label,
+            edgeMode: edgeMode,
+          ),
+        );
+        _heldBackward = previous;
+        backwardDone = true;
       }
     }
+  }
+
+  /// Passes the unit edge tile forward, advancing the fence by one unit.
+  Future<void> passForward() async {
+    if (_heldForward == null) return;
+    final nextAyah = _heldForward!;
+    final nextChunk = await WordsStream.containing(unit, nextAyah, locator);
+    if (nextChunk == null) return;
+    forward.removeWhere(
+      (item) => item is EdgeItem && item.kind == EdgeKind.unitEndForward,
+    );
+    forwardDone = false;
+    _forwardFence = nextChunk.range;
+    _heldForward = null;
+  }
+
+  /// Passes the unit edge tile backward, advancing the fence by one unit.
+  Future<void> passBackward() async {
+    if (_heldBackward == null) return;
+    final prevAyah = _heldBackward!;
+    final prevChunk = await WordsStream.containing(unit, prevAyah, locator);
+    if (prevChunk == null) return;
+    backward.removeWhere(
+      (item) => item is EdgeItem && item.kind == EdgeKind.unitStartBack,
+    );
+    backwardDone = false;
+    _backwardFence = prevChunk.range;
+    _heldBackward = null;
   }
 
   /// The reader tapped "Keep reading" at the end: the stop is gone below, and

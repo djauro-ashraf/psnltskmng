@@ -50,6 +50,7 @@ abstract final class BrowsePaths {
   static const String info = '$root/info';
   static const String read = '$root/read';
   static const String tafsir = '$root/tafsir';
+  static const String ask = '$root/ask';
 
   static String readPage(int page) => '$read/p/$page';
   static String readSurah(int s) => '$read/s/$s';
@@ -65,6 +66,18 @@ abstract final class BrowsePaths {
 
   static String tafsirOf(AyahRef ayah) =>
       '$tafsir/${ayah.surah}/${ayah.ayah}';
+
+  static String askNew({AyahRef? ayah, String? prompt, String? focus}) {
+    final params = <String, String>{};
+    if (ayah != null) params['ayah'] = ayah.key;
+    if (prompt != null) params['prompt'] = prompt;
+    if (focus != null) params['focus'] = focus;
+    if (params.isEmpty) return '$ask/new';
+    final query = params.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&');
+    return '$ask/new?$query';
+  }
+
+  static String askChat(String id) => '$ask/$id';
 
   static final RegExp _pageScreen = RegExp(
     '^${RegExp.escape(root)}/(?:.*/)?ps/\\d+/?\$',
@@ -85,7 +98,7 @@ abstract final class BrowsePaths {
   static bool isScopeScreen(String location) => _scopeScreen.hasMatch(location);
 
   static final RegExp _readingScreen = RegExp(
-    '^${RegExp.escape(read)}/|^${RegExp.escape(tafsir)}/',
+    '^${RegExp.escape(read)}/|^${RegExp.escape(tafsir)}/|^${RegExp.escape(ask)}',
   );
 
   /// The reader and the tafsir screen are for reading: on a phone the bottom

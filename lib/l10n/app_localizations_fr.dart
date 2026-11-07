@@ -1454,4 +1454,255 @@ class AppLocalizationsFr extends AppLocalizations {
   String browseJuzCount(int count) {
     return '$count juz';
   }
+
+  @override
+  String copySheetTitle(String range) {
+    return 'Copier $range';
+  }
+
+  @override
+  String get copyArabic => 'Arabe';
+
+  @override
+  String get copyTranslation => 'Traduction';
+
+  @override
+  String get copyWords => 'Mot à mot';
+
+  @override
+  String get copyTafsir => 'Tafsir';
+
+  @override
+  String copyReference(String ref) {
+    return 'Référence ($ref)';
+  }
+
+  @override
+  String get copyPresets => 'Préréglages :';
+
+  @override
+  String get copyPresetArabicOnly => 'Arabe seulement';
+
+  @override
+  String get copyPresetArabicTranslation => 'Arabe + traduction';
+
+  @override
+  String get copyPresetEverything => 'Tout';
+
+  @override
+  String get copyExtendTo => 'Étendre à…';
+
+  @override
+  String get copyExtendPlusOne => '+1 verset';
+
+  @override
+  String get copyExtendPage => 'Jusqu\'au bout de la page';
+
+  @override
+  String get copyExtendRuku => 'Jusqu\'au bout du ruku';
+
+  @override
+  String get copyResetRange => 'Réinitialiser';
+
+  @override
+  String get copyItemWithRef => 'Copier avec réf.';
+
+  @override
+  String get copyItemAskAi => 'Demander à l\'IA';
+
+  @override
+  String get copyForAi => 'Copier pour l\'IA';
+
+  @override
+  String get copyExplainSimply => 'Expliquer simplement';
+
+  @override
+  String get copySimplifyTafsir => 'Simplifier ce tafsir';
+
+  @override
+  String get copyCustomPrompt => 'Consigne personnalisée…';
+
+  @override
+  String get copyCustomPromptDialogTitle => 'Consigne personnalisée pour l\'IA';
+
+  @override
+  String get copyTruncatedNotice =>
+      'Première partie copiée (taille limite atteinte)';
+
+  @override
+  String get copyNoTafsir => 'Aucun tafsir téléchargé';
+
+  @override
+  String get unitEdgesTitle => 'À la fin d\'une unité';
+
+  @override
+  String get unitEdgeFlow => 'Fluide';
+
+  @override
+  String get unitEdgeGate => 'Porte';
+
+  @override
+  String get unitEdgeLocked => 'Verrouillé';
+
+  @override
+  String get unitEdgeFlowHint =>
+      'Fluide : suite continue, l\'unité suivante s\'enchaîne.';
+
+  @override
+  String get unitEdgeGateHint =>
+      'Porte : s\'arrête à la fin. Tirer à nouveau pour continuer.';
+
+  @override
+  String get unitEdgeLockedHint =>
+      'Verrouillé : s\'arrête à la fin. Utiliser les boutons ou glisser pour continuer.';
+
+  @override
+  String get unitEdgesShared => 'Identique pour chaque unité';
+
+  @override
+  String unitEdgeNext(String unit) {
+    return 'Suivant : $unit';
+  }
+
+  @override
+  String get unitEdgePullAgain => 'Tirer à nouveau pour continuer';
+
+  @override
+  String get askAiTitle => 'Assistant IA';
+
+  @override
+  String get askAiExplainAyah =>
+      'Explique ce verset simplement pour un débutant.';
+
+  @override
+  String get askAiSimplifyTafsir =>
+      'Reformule ce tafsir dans un langage simple en gardant tous les points principaux.';
+
+  @override
+  String get askAiDefaultCustom =>
+      'Explique les leçons clés et le contexte de ce verset.';
+
+  @override
+  String get askChatsTitle => 'Discussions';
+
+  @override
+  String get askNewChat => 'Nouvelle discussion';
+
+  @override
+  String get askSearchPlaceholder => 'Rechercher dans les discussions…';
+
+  @override
+  String get askEmptyTitle => 'Aucune discussion';
+
+  @override
+  String get askEmptyMessage =>
+      'Posez des questions sur n\'importe quel verset, explorez le sens des mots et étudiez le tafsir classique.';
+
+  @override
+  String get askAboutAnAyah => 'Poser une question sur un verset';
+
+  @override
+  String get askInputPlaceholder => 'Posez une question…';
+
+  @override
+  String get askDisclaimer =>
+      'L\'IA peut faire des erreurs. Vérifiez les points importants auprès d\'un savant ou d\'un tafsir.';
+
+  @override
+  String get askPinnedContext => 'Contexte';
+
+  @override
+  String get askAttachAyah => 'Joindre un verset';
+
+  @override
+  String get askMaxAttachments => '3 pièces jointes maximum par discussion';
+
+  @override
+  String get askRename => 'Renommer';
+
+  @override
+  String get askRenameTitle => 'Renommer la discussion';
+
+  @override
+  String get askDeleteChat => 'Supprimer la discussion';
+
+  @override
+  String get askDeleteAllChats => 'Supprimer toutes les discussions';
+
+  @override
+  String get askDeleteConfirm => 'Supprimer définitivement cette discussion ?';
+
+  @override
+  String get askDeleteAllConfirm =>
+      'Supprimer définitivement toutes les discussions ?';
+
+  @override
+  String get askCopyChat => 'Copier la discussion';
+
+  @override
+  String get askCopiedChat => 'Discussion copiée dans le presse-papiers';
+
+  @override
+  String get askRegenerate => 'Régénérer';
+
+  @override
+  String get askCopyAyahAndAnswer => 'Copier + verset';
+
+  @override
+  String get askPresetExplainSimply => 'Expliquer simplement';
+
+  @override
+  String get askPresetExplainDeeper => 'Approfondir';
+
+  @override
+  String get askPresetSimplifyTafsir => 'Simplifier le tafsir';
+
+  @override
+  String get askPresetWordsGrammar => 'Mots & grammaire';
+
+  @override
+  String get askPresetLessons => 'Leçons';
+
+  @override
+  String get askPresetHelpRemember => 'Aide-mémoire';
+
+  @override
+  String get askFollowUpShorter => 'Plus court';
+
+  @override
+  String get askFollowUpMoreDetail => 'Plus de détails';
+
+  @override
+  String get askFollowUpExample => 'Donner un exemple';
+
+  @override
+  String get askFollowUpFrench => 'Dire en français';
+
+  @override
+  String get askFollowUpArabic => 'Dire en arabe';
+
+  @override
+  String askNoKeyMessage(String provider) {
+    return 'Aucune clé API configurée pour $provider. Ajoutez une clé dans les paramètres IA.';
+  }
+
+  @override
+  String get askSettingsAction => 'Paramètres IA';
+
+  @override
+  String get autoReadTitle => 'Lecture auto';
+
+  @override
+  String get autoReadPlay => 'Démarrer la lecture auto';
+
+  @override
+  String get autoReadPause => 'Mettre en pause';
+
+  @override
+  String get autoReadSpeed => 'Vitesse de lecture';
+
+  @override
+  String autoReadPaceSummary(int wpm, String pace) {
+    return '$wpm MPM · $pace';
+  }
 }

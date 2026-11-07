@@ -1443,4 +1443,252 @@ class AppLocalizationsEn extends AppLocalizations {
   String browseJuzCount(int count) {
     return '$count juz';
   }
+
+  @override
+  String copySheetTitle(String range) {
+    return 'Copy $range';
+  }
+
+  @override
+  String get copyArabic => 'Arabic';
+
+  @override
+  String get copyTranslation => 'Translation';
+
+  @override
+  String get copyWords => 'Word by word';
+
+  @override
+  String get copyTafsir => 'Tafsir';
+
+  @override
+  String copyReference(String ref) {
+    return 'Reference ($ref)';
+  }
+
+  @override
+  String get copyPresets => 'Presets:';
+
+  @override
+  String get copyPresetArabicOnly => 'Arabic only';
+
+  @override
+  String get copyPresetArabicTranslation => 'Arabic + translation';
+
+  @override
+  String get copyPresetEverything => 'Everything';
+
+  @override
+  String get copyExtendTo => 'Extend to…';
+
+  @override
+  String get copyExtendPlusOne => '+1 ayah';
+
+  @override
+  String get copyExtendPage => 'To end of page';
+
+  @override
+  String get copyExtendRuku => 'To end of ruku';
+
+  @override
+  String get copyResetRange => 'Reset';
+
+  @override
+  String get copyItemWithRef => 'Copy with ref';
+
+  @override
+  String get copyItemAskAi => 'Ask AI';
+
+  @override
+  String get copyForAi => 'Copy for AI';
+
+  @override
+  String get copyExplainSimply => 'Explain simply';
+
+  @override
+  String get copySimplifyTafsir => 'Simplify tafsir';
+
+  @override
+  String get copyCustomPrompt => 'Custom prompt…';
+
+  @override
+  String get copyCustomPromptDialogTitle => 'Custom AI Prompt';
+
+  @override
+  String get copyTruncatedNotice => 'Copied the first part (max size reached)';
+
+  @override
+  String get copyNoTafsir => 'No tafsir downloaded';
+
+  @override
+  String get unitEdgesTitle => 'At the end of a unit';
+
+  @override
+  String get unitEdgeFlow => 'Flow';
+
+  @override
+  String get unitEdgeGate => 'Gate';
+
+  @override
+  String get unitEdgeLocked => 'Locked';
+
+  @override
+  String get unitEdgeFlowHint =>
+      'Flow: smooth continuation, the next unit is more rows.';
+
+  @override
+  String get unitEdgeGateHint => 'Gate: stops at the end. Pull again to go on.';
+
+  @override
+  String get unitEdgeLockedHint =>
+      'Locked: stops at the end. Use buttons or swipe to continue.';
+
+  @override
+  String get unitEdgesShared => 'Same for every unit';
+
+  @override
+  String unitEdgeNext(String unit) {
+    return 'Next: $unit';
+  }
+
+  @override
+  String get unitEdgePullAgain => 'Pull again to continue';
+
+  @override
+  String get askAiTitle => 'Ask AI';
+
+  @override
+  String get askAiExplainAyah =>
+      'Explain this ayah in simple words for a beginner.';
+
+  @override
+  String get askAiSimplifyTafsir =>
+      'Rewrite this tafsir in simple language, keeping all main points.';
+
+  @override
+  String get askAiDefaultCustom =>
+      'Explain the key lessons and context of this ayah.';
+
+  @override
+  String get askChatsTitle => 'Chats';
+
+  @override
+  String get askNewChat => 'New chat';
+
+  @override
+  String get askSearchPlaceholder => 'Search your chats…';
+
+  @override
+  String get askEmptyTitle => 'No chats yet';
+
+  @override
+  String get askEmptyMessage =>
+      'Ask questions about any ayah, explore word meanings, and study classical tafsir.';
+
+  @override
+  String get askAboutAnAyah => 'Ask about an ayah';
+
+  @override
+  String get askInputPlaceholder => 'Ask something…';
+
+  @override
+  String get askDisclaimer =>
+      'AI can make mistakes. Verify important points with a qualified scholar or tafsir.';
+
+  @override
+  String get askPinnedContext => 'Context';
+
+  @override
+  String get askAttachAyah => 'Attach an ayah';
+
+  @override
+  String get askMaxAttachments => 'Maximum 3 attachments per chat';
+
+  @override
+  String get askRename => 'Rename';
+
+  @override
+  String get askRenameTitle => 'Rename chat';
+
+  @override
+  String get askDeleteChat => 'Delete chat';
+
+  @override
+  String get askDeleteAllChats => 'Delete all chats';
+
+  @override
+  String get askDeleteConfirm => 'Delete this chat permanently?';
+
+  @override
+  String get askDeleteAllConfirm => 'Delete all saved chats permanently?';
+
+  @override
+  String get askCopyChat => 'Copy chat';
+
+  @override
+  String get askCopiedChat => 'Chat copied to clipboard';
+
+  @override
+  String get askRegenerate => 'Regenerate';
+
+  @override
+  String get askCopyAyahAndAnswer => 'Copy + ayah';
+
+  @override
+  String get askPresetExplainSimply => 'Explain simply';
+
+  @override
+  String get askPresetExplainDeeper => 'Explain deeper';
+
+  @override
+  String get askPresetSimplifyTafsir => 'Simplify tafsir';
+
+  @override
+  String get askPresetWordsGrammar => 'Words & grammar';
+
+  @override
+  String get askPresetLessons => 'Lessons';
+
+  @override
+  String get askPresetHelpRemember => 'Help me remember';
+
+  @override
+  String get askFollowUpShorter => 'Shorter';
+
+  @override
+  String get askFollowUpMoreDetail => 'More detail';
+
+  @override
+  String get askFollowUpExample => 'Give an example';
+
+  @override
+  String get askFollowUpFrench => 'Say it in French';
+
+  @override
+  String get askFollowUpArabic => 'Say it in Arabic';
+
+  @override
+  String askNoKeyMessage(String provider) {
+    return 'No API key configured for $provider. Add a key in AI settings.';
+  }
+
+  @override
+  String get askSettingsAction => 'AI settings';
+
+  @override
+  String get autoReadTitle => 'Auto-read';
+
+  @override
+  String get autoReadPlay => 'Start auto-read';
+
+  @override
+  String get autoReadPause => 'Pause auto-read';
+
+  @override
+  String get autoReadSpeed => 'Reading speed';
+
+  @override
+  String autoReadPaceSummary(int wpm, String pace) {
+    return '$wpm WPM · $pace';
+  }
 }

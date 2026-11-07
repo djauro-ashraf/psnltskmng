@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:personaltskmng/core/constants/app_breakpoints.dart';
@@ -14,6 +15,7 @@ import 'package:personaltskmng/quran_data/controller/tafsir_providers.dart';
 import 'package:personaltskmng/quran_data/models/footnote_text.dart';
 import 'package:personaltskmng/quran_data/models/tafsir.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
+import 'package:personaltskmng/shared/widgets/app_snackbar.dart';
 import 'package:personaltskmng/shared/widgets/division_labels.dart';
 
 /// The tafsir of an ayah, on a screen of its own (never a popup).
@@ -68,6 +70,25 @@ class _TafsirPageState extends ConsumerState<TafsirPage> {
   bool _hasPrevious = false;
   bool _hasNext = false;
   bool _showAyahs = false;
+  String _selectedText = '';
+
+  Future<void> _copyWithRef(
+    String text,
+    AyahRange range,
+    String? sourceTitle,
+  ) async {
+    final clean = text.trim();
+    if (clean.isEmpty) return;
+    final rangeText = range.first == range.last
+        ? range.first.key
+        : (range.first.surah == range.last.surah
+            ? '${range.first.key}–${range.last.ayah}'
+            : '${range.first.key}–${range.last.key}');
+    final title = sourceTitle ?? 'Tafsir';
+    final formatted = '$clean\n\n— $title ($rangeText)';
+    await Clipboard.setData(ClipboardData(text: formatted));
+    if (mounted) showAppSnackBar(context, context.l10n.readerCopied);
+  }
 
   /// Throws away the answer of a request that was overtaken by a newer one.
   int _request = 0;
@@ -90,7 +111,11 @@ class _TafsirPageState extends ConsumerState<TafsirPage> {
       });
       return;
     }
-    await _load(sources.first.id, widget.ayah);
+    final savedSource = ref.read(tafsirSourceProvider);
+    final initial = sources.any((s) => s.id == savedSource)
+        ? savedSource!
+        : sources.first.id;
+    await _load(initial, widget.ayah);
   }
 
   Future<void> _load(String sourceId, AyahRef ayah) async {
@@ -100,6 +125,7 @@ class _TafsirPageState extends ConsumerState<TafsirPage> {
       _loading = true;
       _sourceId = sourceId;
     });
+    unawaited(ref.read(tafsirSourceProvider.notifier).set(sourceId));
     final found = await content.lookup(sourceId, ayah);
     if (!mounted || token != _request) return;
     _apply(found?.passage, exact: found?.exact ?? false, focus: ayah);
@@ -230,6 +256,31 @@ class _TafsirPageState extends ConsumerState<TafsirPage> {
           child: passage == null || range == null
               ? _Message(text: _loading ? '' : l10n.tafsirNone)
               : SelectionArea(
+                  onSelectionChanged: (content) =>
+                      _selectedText = content?.plainText ?? '',
+                  contextMenuBuilder: (context, state) =>
+                      AdaptiveTextSelectionToolbar.buttonItems(
+                    anchors: state.contextMenuAnchors,
+                    buttonItems: [
+                      ...state.contextMenuButtonItems,
+                      ContextMenuButtonItem(
+                        label: l10n.copyItemWithRef,
+                        onPressed: () {
+                          state.hideToolbar();
+                          _copyWithRef(_selectedText, range, source?.title);
+                        },
+                      ),
+                      ContextMenuButtonItem(
+                        label: l10n.copyItemAskAi,
+                        onPressed: () {
+                          state.hideToolbar();
+                          context.push(
+                            '/browse/ask/new?ayah=${range.first.key}&focus=${Uri.encodeComponent(_selectedText)}',
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                   child: CustomScrollView(
                     slivers: [
                       SliverPadding(

@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:personaltskmng/quran_data/models/ayah_copy.dart';
 import 'package:personaltskmng/quran_data/models/quran_view.dart';
+import 'package:personaltskmng/quran_data/models/unit_edges.dart';
 import 'package:personaltskmng/quran_data/models/reader_entry.dart';
 import 'package:personaltskmng/quran_data/models/words_stream.dart';
 import 'package:personaltskmng/quran_data/quran_data_config.dart';
@@ -57,6 +59,21 @@ abstract final class QuranPrefKeys {
 
   /// The last ayah read and the view it was read in (see [LastRead.encode]).
   static const String lastRead = 'quran.lastRead';
+
+  /// The parts and reference flag last used when copying an ayah.
+  static const String copyRecipe = 'quran.copyRecipe';
+
+  /// The id of the tafsir last chosen by the reader.
+  static const String tafsirSource = 'quran.tafsirSource';
+
+  /// The custom prompt text for "Copy for AI".
+  static const String aiCopyInstruction = 'quran.aiCopyInstruction';
+
+  /// What happens at the end/start of a unit in Words view (Flow / Gate / Locked).
+  static const String unitEdges = 'quran.unitEdges';
+
+  /// The reading speed in words per minute for auto-read.
+  static const String wordsPerMinute = 'quran.wpm';
 }
 
 /// The value of the translation choice that means "no translation". It is not
@@ -235,3 +252,91 @@ class LastReadNotifier extends Notifier<LastRead?> {
 final lastReadProvider = NotifierProvider<LastReadNotifier, LastRead?>(
   LastReadNotifier.new,
 );
+
+/// The remembered choice of copy recipe.
+class CopyRecipeNotifier extends Notifier<CopyRecipe> {
+  @override
+  CopyRecipe build() => CopyRecipe.decode(
+    ref.watch(quranPrefsStoreProvider).get(QuranPrefKeys.copyRecipe),
+  );
+
+  Future<void> set(CopyRecipe recipe) async {
+    if (recipe == state) return;
+    state = recipe;
+    await _save(ref, QuranPrefKeys.copyRecipe, recipe.encode());
+  }
+}
+
+final copyRecipeProvider = NotifierProvider<CopyRecipeNotifier, CopyRecipe>(
+  CopyRecipeNotifier.new,
+);
+
+/// The tafsir chosen for reading, copy, and AI.
+class TafsirSourceChoiceNotifier extends Notifier<String?> {
+  @override
+  String? build() =>
+      ref.watch(quranPrefsStoreProvider).get(QuranPrefKeys.tafsirSource);
+
+  Future<void> set(String? sourceId) async {
+    if (sourceId == state) return;
+    state = sourceId;
+    await _save(ref, QuranPrefKeys.tafsirSource, sourceId);
+  }
+}
+
+final tafsirSourceProvider =
+    NotifierProvider<TafsirSourceChoiceNotifier, String?>(
+      TafsirSourceChoiceNotifier.new,
+    );
+
+/// The user's custom instruction for "Copy for AI".
+class AiCopyInstructionNotifier extends Notifier<String> {
+  @override
+  String build() =>
+      ref.watch(quranPrefsStoreProvider).get(QuranPrefKeys.aiCopyInstruction) ??
+      AiCopyInstructions.defaultCustom;
+
+  Future<void> set(String instruction) async {
+    final trimmed = instruction.trim();
+    if (trimmed == state) return;
+    state = trimmed;
+    await _save(ref, QuranPrefKeys.aiCopyInstruction, trimmed);
+  }
+}
+
+final aiCopyInstructionProvider =
+    NotifierProvider<AiCopyInstructionNotifier, String>(
+      AiCopyInstructionNotifier.new,
+    );
+
+/// Behavior at the ends of units in Words view.
+class UnitEdgesNotifier extends Notifier<UnitEdges> {
+  @override
+  UnitEdges build() => UnitEdges.decode(
+        ref.watch(quranPrefsStoreProvider).get(QuranPrefKeys.unitEdges),
+      );
+
+  Future<void> set(UnitEdges edges) async {
+    if (edges == state) return;
+    state = edges;
+    await _save(ref, QuranPrefKeys.unitEdges, edges.encode());
+  }
+
+  Future<void> setShared(bool shared) async {
+    await set(state.withShared(shared));
+  }
+
+  Future<void> setAll(UnitEdge all) async {
+    await set(state.withAll(all));
+  }
+
+  Future<void> setUnit(WordsUnit unit, UnitEdge mode) async {
+    await set(state.withUnit(unit, mode));
+  }
+}
+
+final unitEdgesProvider = NotifierProvider<UnitEdgesNotifier, UnitEdges>(
+  UnitEdgesNotifier.new,
+);
+
+

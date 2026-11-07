@@ -4,8 +4,10 @@ import 'package:personaltskmng/core/constants/app_routes.dart';
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/features/browse/domain/browse_index.dart';
 import 'package:personaltskmng/features/browse/domain/reader_request.dart';
+import 'package:personaltskmng/features/browse/presentation/pages/ask_chat_page.dart';
 import 'package:personaltskmng/features/browse/presentation/pages/browse_not_found_page.dart';
 import 'package:personaltskmng/features/browse/presentation/pages/browse_page.dart';
+import 'package:personaltskmng/features/browse/presentation/pages/chats_list_page.dart';
 import 'package:personaltskmng/features/browse/presentation/pages/children_page.dart';
 import 'package:personaltskmng/features/browse/presentation/pages/juz_detail_page.dart';
 import 'package:personaltskmng/features/browse/presentation/pages/juz_pages_page.dart';
@@ -171,6 +173,33 @@ GoRoute browseRoute() => GoRoute(
             ? const BrowseNotFoundPage()
             : TafsirPage(ayah: ayah);
       },
+    ),
+    GoRoute(
+      path: 'ask',
+      builder: (context, state) => const ChatsListPage(),
+      routes: [
+        GoRoute(
+          path: 'new',
+          builder: (context, state) {
+            final rawAyah = state.uri.queryParameters['ayah'];
+            final ayah = rawAyah != null ? AyahRef.tryParse(rawAyah) : null;
+            final prompt = state.uri.queryParameters['prompt'];
+            final focus = state.uri.queryParameters['focus'];
+            return AskChatPage(
+              initialAyah: ayah,
+              initialPrompt: prompt,
+              initialFocusText: focus,
+            );
+          },
+        ),
+        GoRoute(
+          path: ':id',
+          builder: (context, state) {
+            final id = state.pathParameters['id'] ?? '';
+            return AskChatPage(chatId: id);
+          },
+        ),
+      ],
     ),
   ],
 );

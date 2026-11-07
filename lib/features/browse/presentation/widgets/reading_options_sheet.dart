@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/mushaf/controller/mushaf_edition.dart';
 import 'package:personaltskmng/mushaf/models/mushaf_edition.dart';
+import 'package:personaltskmng/quran_data/controller/auto_read_provider.dart';
 import 'package:personaltskmng/quran_data/controller/quran_prefs.dart';
 import 'package:personaltskmng/quran_data/controller/quran_providers.dart';
+import 'package:personaltskmng/quran_data/models/reading_pacer.dart';
+import 'package:personaltskmng/quran_data/models/unit_edges.dart';
 import 'package:personaltskmng/quran_data/models/words_stream.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 
@@ -119,6 +122,13 @@ class ReadingOptionsSheet extends ConsumerWidget {
               ),
           ],
 
+          // -- unit edges -----------------------------------------------------
+          _UnitEdgesSection(
+            heading: heading,
+            unit: unit,
+            unitLabel: _unitLabel,
+          ),
+
           // -- translation ----------------------------------------------------
           heading(l10n.wordsTranslation),
           if (installed.isEmpty)
@@ -179,6 +189,10 @@ class ReadingOptionsSheet extends ConsumerWidget {
           ),
 
           // -- switches ---------------------------------------------------------
+          // -- auto-read -------------------------------------------------------
+          heading(l10n.autoReadTitle),
+          const _AutoReadSection(),
+
           const SizedBox(height: AppSpacing.sm),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
@@ -199,3 +213,197 @@ class ReadingOptionsSheet extends ConsumerWidget {
     );
   }
 }
+
+
+/// The "At the end of a unit" section: a 3-way segmented button (Flow · Gate ·
+/// Locked) with a hint line, and a "Same for every unit" switch. When the switch
+/// is off, per-unit rows appear for each unit type.
+class _UnitEdgesSection extends ConsumerWidget {
+  const _UnitEdgesSection({
+    required this.heading,
+    required this.unit,
+    required this.unitLabel,
+  });
+
+  final Widget Function(String text) heading;
+  final WordsUnit unit;
+  final String Function(BuildContext context, WordsUnit unit) unitLabel;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final edges = ref.watch(unitEdgesProvider);
+    final mode = edges.modeFor(unit);
+
+    String edgeLabel(UnitEdge e) => switch (e) {
+      UnitEdge.flow => l10n.unitEdgeFlow,
+      UnitEdge.gate => l10n.unitEdgeGate,
+      UnitEdge.locked => l10n.unitEdgeLocked,
+    };
+
+    String hintFor(UnitEdge e) => switch (e) {
+      UnitEdge.flow => l10n.unitEdgeFlowHint,
+      UnitEdge.gate => l10n.unitEdgeGateHint,
+      UnitEdge.locked => l10n.unitEdgeLockedHint,
+    };
+
+    Widget segmentedRow(UnitEdge selected, ValueChanged<UnitEdge> onChanged) =>
+        SegmentedButton<UnitEdge>(
+          segments: [
+            for (final e in UnitEdge.values)
+              ButtonSegment(value: e, label: Text(edgeLabel(e))),
+          ],
+          selected: {selected},
+          onSelectionChanged: (s) => onChanged(s.first),
+          showSelectedIcon: false,
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        heading(l10n.unitEdgesTitle),
+        segmentedRow(
+          edges.shared ? edges.all : mode,
+          (e) {
+            if (edges.shared) {
+              ref.read(unitEdgesProvider.notifier).setAll(e);
+            } else {
+              ref.read(unitEdgesProvider.notifier).setUnit(unit, e);
+            }
+          },
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          hintFor(edges.shared ? edges.all : mode),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(l10n.unitEdgesShared),
+          value: edges.shared,
+          onChanged: (value) =>
+              ref.read(unitEdgesProvider.notifier).setShared(value),
+        ),
+        if (!edges.shared)
+          for (final u in WordsUnit.values)
+            if (u != WordsUnit.quran)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 56,
+                      child: Text(
+                        unitLabel(context, u),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: segmentedRow(
+                        edges.byUnit[u] ?? edges.all,
+                        (e) => ref
+                            .read(unitEdgesProvider.notifier)
+                            .setUnit(u, e),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+      ],
+    );
+  }
+}
+
+/// The "Auto-read" section with play/pause button, words-per-minute slider, and
+/// human-readable page dwell estimate.
+class _AutoReadSection extends ConsumerWidget {
+  const _AutoReadSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final autoRead = ref.watch(autoReadProvider);
+    final pacer = autoRead.pacer;
+    final wpm = autoRead.wordsPerMinute.round();
+    final paceDesc = pacer.pageDwellDescription();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            FilledButton.tonalIcon(
+              onPressed: () =>
+                  ref.read(autoReadProvider.notifier).togglePlaying(),
+              icon: Icon(
+                autoRead.playing
+                    ? Icons.pause_rounded
+                    : Icons.play_arrow_rounded,
+              ),
+              label: Text(
+                autoRead.playing ? l10n.autoReadPause : l10n.autoReadPlay,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text(
+                l10n.autoReadPaceSummary(wpm, paceDesc),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.remove_rounded),
+              tooltip: '-10 WPM',
+              onPressed: autoRead.wordsPerMinute <= ReadingPacer.minWpm
+                  ? null
+                  : () => ref
+                      .read(autoReadProvider.notifier)
+                      .adjustWpm(-ReadingPacer.stepWpm),
+            ),
+            Expanded(
+              child: Slider(
+                value: autoRead.wordsPerMinute,
+                min: ReadingPacer.minWpm,
+                max: ReadingPacer.maxWpm,
+                divisions: ((ReadingPacer.maxWpm - ReadingPacer.minWpm) /
+                        ReadingPacer.stepWpm)
+                    .round(),
+                label: '$wpm WPM',
+                onChanged: (val) => ref
+                    .read(autoReadProvider.notifier)
+                    .setWordsPerMinute(val),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.add_rounded),
+              tooltip: '+10 WPM',
+              onPressed: autoRead.wordsPerMinute >= ReadingPacer.maxWpm
+                  ? null
+                  : () => ref
+                      .read(autoReadProvider.notifier)
+                      .adjustWpm(ReadingPacer.stepWpm),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+

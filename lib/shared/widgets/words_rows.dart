@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/core/theme/app_theme.dart';
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
@@ -8,6 +9,7 @@ import 'package:personaltskmng/quran_data/models/footnote_text.dart';
 import 'package:personaltskmng/quran_data/models/page_content.dart';
 import 'package:personaltskmng/quran_data/models/reading_banners.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
+import 'package:personaltskmng/shared/widgets/app_snackbar.dart';
 import 'package:personaltskmng/shared/widgets/division_labels.dart';
 import 'package:personaltskmng/shared/widgets/mushaf_page_view.dart';
 import 'package:personaltskmng/shared/widgets/surah_arabic_text.dart';
@@ -30,12 +32,12 @@ const EdgeInsets _rowPadding = EdgeInsets.fromLTRB(
 /// it, the translation (its footnote markers open the footnote), and
 /// "continues on p 44" when the ayah goes on over the next page.
 ///
-/// A plain widget with its data given: the stream makes sure the data is there
+/// A widget with its data given: the stream makes sure the data is there
 /// before the card is built, so a card never changes height after it was laid
 /// out. [scale] is the reader's text size step (the Arabic, the glossed words
 /// and the translation); the phone's own text size still counts on top, through
 /// the text scaler.
-class AyahCard extends StatelessWidget {
+class AyahCard extends StatefulWidget {
   const AyahCard({
     super.key,
     required this.ayah,
@@ -45,6 +47,9 @@ class AyahCard extends StatelessWidget {
     this.continuesOnPage,
     this.tafsirLabel,
     this.onTafsir,
+    this.onCopy,
+    this.onAskAi,
+    this.onSelecting,
     this.highlighted = false,
   });
 
@@ -65,6 +70,15 @@ class AyahCard extends StatelessWidget {
   final String? tafsirLabel;
   final VoidCallback? onTafsir;
 
+  /// Open copy sheet for this ayah.
+  final VoidCallback? onCopy;
+
+  /// Ask AI about this ayah, with optional selected focus text.
+  final void Function(AyahRef ayah, String? prompt)? onAskAi;
+
+  /// Notifies when user is making or changing a text selection.
+  final ValueChanged<bool>? onSelecting;
+
   /// The jump just landed here: the card is tinted and the tint fades.
   final bool highlighted;
 
@@ -72,13 +86,42 @@ class AyahCard extends StatelessWidget {
   static const Duration highlightDuration = Duration(milliseconds: 1500);
 
   @override
+  State<AyahCard> createState() => _AyahCardState();
+}
+
+class _AyahCardState extends State<AyahCard> {
+  String _selectedArabic = '';
+  String _selectedTranslation = '';
+
+  void _checkSelection() {
+    final hasSelection = _selectedArabic.trim().isNotEmpty ||
+        _selectedTranslation.trim().isNotEmpty;
+    widget.onSelecting?.call(hasSelection);
+  }
+
+  Future<void> _copyWithRef(BuildContext context, String text) async {
+    final clean = text.trim();
+    if (clean.isEmpty) return;
+    final l10n = context.l10n;
+    final formatted = '$clean (${widget.ayah.key})';
+    await Clipboard.setData(ClipboardData(text: formatted));
+    if (context.mounted) {
+      showAppSnackBar(context, l10n.readerCopied);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final l10n = context.l10n;
-    final continues = continuesOnPage;
-    final tafsirLabel = this.tafsirLabel;
-    final translation = this.translation;
+    final continues = widget.continuesOnPage;
+    final tafsirLabel = widget.tafsirLabel;
+    final translation = widget.translation;
+    final ayah = widget.ayah;
+    final fontFamily = widget.fontFamily;
+    final scale = widget.scale;
+    final highlighted = widget.highlighted;
 
     Widget card(double tint) => DecoratedBox(
       decoration: BoxDecoration(
@@ -101,17 +144,38 @@ class AyahCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  ayah.key,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: scheme.primary,
-                    fontWeight: FontWeight.w700,
+                InkWell(
+                  onTap: widget.onCopy,
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xs,
+                      vertical: 2,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          ayah.key,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Icon(
+                          Icons.copy_rounded,
+                          size: 14,
+                          color: scheme.primary.withValues(alpha: 0.7),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 if (tafsirLabel != null)
                   Flexible(
                     child: TextButton(
-                      onPressed: onTafsir,
+                      onPressed: widget.onTafsir,
                       style: TextButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                         minimumSize: const Size(48, 40),
@@ -126,32 +190,96 @@ class AyahCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.xs),
-            // The whole ayah, as it is read.
-            Text(
-              ayah.arabic,
-              textDirection: TextDirection.rtl,
-              locale: const Locale('ar'),
-              style: TextStyle(
-                fontFamily: fontFamily,
-                fontSize: 26 * scale,
-                height: 1.9,
-                color: scheme.onSurface,
+            // The whole ayah, as it is read (selectable)
+            SelectionArea(
+              onSelectionChanged: (content) {
+                _selectedArabic = content?.plainText ?? '';
+                _checkSelection();
+              },
+              contextMenuBuilder: (context, selectableRegionState) =>
+                  AdaptiveTextSelectionToolbar.buttonItems(
+                anchors: selectableRegionState.contextMenuAnchors,
+                buttonItems: [
+                  ...selectableRegionState.contextMenuButtonItems,
+                  ContextMenuButtonItem(
+                    label: l10n.copyItemWithRef,
+                    onPressed: () {
+                      selectableRegionState.hideToolbar();
+                      _copyWithRef(context, _selectedArabic);
+                    },
+                  ),
+                  if (widget.onAskAi != null)
+                    ContextMenuButtonItem(
+                      label: l10n.copyItemAskAi,
+                      onPressed: () {
+                        selectableRegionState.hideToolbar();
+                        final ref = AyahRef.tryParse(widget.ayah.key);
+                        if (ref != null) {
+                          widget.onAskAi!(ref, _selectedArabic.trim());
+                        }
+                      },
+                    ),
+                ],
+              ),
+              child: Text(
+                ayah.arabic,
+                textDirection: TextDirection.rtl,
+                locale: const Locale('ar'),
+                style: TextStyle(
+                  fontFamily: fontFamily,
+                  fontSize: 26 * scale,
+                  height: 1.9,
+                  color: scheme.onSurface,
+                ),
               ),
             ),
             const Divider(height: AppSpacing.xl),
-            // Word by word: the Arabic, and under it what it means.
-            Wrap(
-              textDirection: TextDirection.rtl,
-              spacing: AppSpacing.md,
-              runSpacing: AppSpacing.md,
-              children: [
-                for (final word in ayah.words)
-                  _WordCell(word: word, fontFamily: fontFamily, scale: scale),
-              ],
+            // Word by word: disabled from selection
+            SelectionContainer.disabled(
+              child: Wrap(
+                textDirection: TextDirection.rtl,
+                spacing: AppSpacing.md,
+                runSpacing: AppSpacing.md,
+                children: [
+                  for (final word in ayah.words)
+                    _WordCell(word: word, fontFamily: fontFamily, scale: scale),
+                ],
+              ),
             ),
             if (translation != null && translation.text.isNotEmpty) ...[
               const Divider(height: AppSpacing.xl),
-              _TranslationBody(translation: translation, scale: scale),
+              SelectionArea(
+                onSelectionChanged: (content) {
+                  _selectedTranslation = content?.plainText ?? '';
+                  _checkSelection();
+                },
+                contextMenuBuilder: (context, selectableRegionState) =>
+                    AdaptiveTextSelectionToolbar.buttonItems(
+                  anchors: selectableRegionState.contextMenuAnchors,
+                  buttonItems: [
+                    ...selectableRegionState.contextMenuButtonItems,
+                    ContextMenuButtonItem(
+                      label: l10n.copyItemWithRef,
+                      onPressed: () {
+                        selectableRegionState.hideToolbar();
+                        _copyWithRef(context, _selectedTranslation);
+                      },
+                    ),
+                    if (widget.onAskAi != null)
+                      ContextMenuButtonItem(
+                        label: l10n.copyItemAskAi,
+                        onPressed: () {
+                          selectableRegionState.hideToolbar();
+                          final ref = AyahRef.tryParse(widget.ayah.key);
+                          if (ref != null) {
+                            widget.onAskAi!(ref, _selectedTranslation.trim());
+                          }
+                        },
+                      ),
+                  ],
+                ),
+                child: _TranslationBody(translation: translation, scale: scale),
+              ),
             ],
             if (continues != null) ...[
               const SizedBox(height: AppSpacing.md),
@@ -841,22 +969,30 @@ class _Hairline extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 /// What the stream puts at an end: "Start of the Quran", "End of the Quran"
-/// with "Back to the start", or "Keep reading" (the end of a part or a range).
+/// with "Back to the start", "Keep reading" (limit), or a unit boundary tile
+/// (Gate with attempt dots and pull hint, or Locked).
 class StreamEdge extends StatelessWidget {
   const StreamEdge({
     super.key,
     this.title,
     this.actionLabel,
     this.onAction,
+    this.hint,
+    this.attempts = 0,
+    this.maxAttempts = 2,
   });
 
   final String? title;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final String? hint;
+  final int attempts;
+  final int maxAttempts;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
@@ -875,13 +1011,47 @@ class StreamEdge extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontFamily: AppTheme.serif,
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color: scheme.onSurfaceVariant,
                 ),
               ),
             ),
+          if (attempts > 0) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < maxAttempts; i++)
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: i < attempts
+                          ? scheme.primary
+                          : scheme.outlineVariant,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          if (hint != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              hint!,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
           if (actionLabel != null) ...[
-            if (title != null) const SizedBox(height: AppSpacing.md),
-            FilledButton.tonal(onPressed: onAction, child: Text(actionLabel!)),
+            const SizedBox(height: AppSpacing.md),
+            FilledButton.tonal(
+              onPressed: onAction,
+              child: Text(actionLabel!),
+            ),
           ],
         ],
       ),

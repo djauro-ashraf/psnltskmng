@@ -1,3 +1,5 @@
+import 'dart:io' show Directory;
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:http/http.dart' as http;
@@ -5,6 +7,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:personaltskmng/ai/ai_runtime.dart';
 import 'package:personaltskmng/ai/api_key_store.dart';
 import 'package:personaltskmng/ai/secure_api_key_store.dart';
+import 'package:personaltskmng/ask/controller/ask_providers.dart';
+import 'package:personaltskmng/ask/data/chat_store.dart';
+import 'package:personaltskmng/ask/data/file_chat_store.dart';
+import 'package:personaltskmng/ask/data/in_memory_chat_store.dart';
 import 'package:personaltskmng/features/backup/presentation/providers/backup_providers.dart';
 import 'package:personaltskmng/features/backup/services/backup_service.dart';
 import 'package:personaltskmng/features/backup/services/drive_auth.dart';
@@ -55,16 +61,19 @@ Future<List<Override>> buildOverrides() async {
   final AppStateStore appState;
   final DayRecordStore dayRecords;
   final NoteStore noteStore;
+  final ChatStore chatStore;
   if (kIsWeb) {
     appState = PreferencesAppStateStore(prefs);
     dayRecords = PreferencesDayRecordStore(prefs);
     noteStore = PreferencesNoteStore(prefs);
+    chatStore = InMemoryChatStore();
   } else {
     final documents = await getApplicationDocumentsDirectory();
     final fileState = FileAppStateStore(documents);
     appState = fileState;
     dayRecords = JsonDirDayRecordStore(fileState.daysDirectory);
     noteStore = FileNoteStore(documents);
+    chatStore = FileChatStore(Directory('${documents.path}/ask'));
   }
 
   // AI planner: the switch, provider and model come from the app's own
@@ -122,6 +131,8 @@ Future<List<Override>> buildOverrides() async {
     planningControllerProvider.overrideWithValue(planning),
     notesControllerProvider.overrideWithValue(notes),
     apiKeyStoreProvider.overrideWithValue(keyStore),
+    aiKeyStoreProvider.overrideWithValue(keyStore),
+    chatStoreProvider.overrideWithValue(chatStore),
     aiRuntimeProvider.overrideWithValue(aiRuntime),
     dayRecordStoreProvider.overrideWithValue(dayRecords),
     driveBackupServiceProvider.overrideWithValue(driveService),

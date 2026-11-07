@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:personaltskmng/features/browse/domain/browse_groups.dart';
 import 'package:personaltskmng/features/browse/presentation/browse_paths.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/browse_header.dart';
@@ -35,7 +36,16 @@ class BrowsePage extends ConsumerWidget {
     return DefaultTabController(
       length: 4,
       child: Scaffold(
-        appBar: AppBar(title: Text(l10n.browseTitle)),
+        appBar: AppBar(
+          title: Text(l10n.browseTitle),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.chat_outlined),
+              tooltip: l10n.askChatsTitle,
+              onPressed: () => context.push(BrowsePaths.ask),
+            ),
+          ],
+        ),
         body: Column(
           children: [
             const BrowseReadingHeader(),

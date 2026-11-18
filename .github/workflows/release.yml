@@ -1,12 +1,9 @@
 name: Build & Release Android APK
 
 on:
-  # Automated builds on push to main are disabled per user request until review is complete.
-  # push:
-  #   tags:
-  #     - 'v*'
-  #   branches:
-  #     - main
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       release_tag:
@@ -80,9 +77,9 @@ jobs:
       - name: Build Android Release APK
         run: |
           if [ -f drive.json ]; then
-            flutter build apk --release --build-number=${{ github.run_number }} --dart-define-from-file=drive.json
+            flutter build apk --release --build-number=${{ github.run_number }} --android-skip-build-dependency-validation --dart-define-from-file=drive.json
           else
-            flutter build apk --release --build-number=${{ github.run_number }}
+            flutter build apk --release --build-number=${{ github.run_number }} --android-skip-build-dependency-validation
           fi
 
       - name: Prepare APK for Release

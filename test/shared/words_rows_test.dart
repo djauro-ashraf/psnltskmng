@@ -4,6 +4,7 @@ import 'package:personaltskmng/core/theme/app_theme.dart';
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/domain/reference/surah_names.dart';
 import 'package:personaltskmng/l10n/app_localizations.dart';
+import 'package:personaltskmng/quran_data/models/ayah_sections.dart';
 import 'package:personaltskmng/quran_data/models/page_content.dart';
 import 'package:personaltskmng/quran_data/models/reading_banners.dart';
 import 'package:personaltskmng/quran_data/models/words_stream.dart';
@@ -225,6 +226,215 @@ void main() {
       await tester.pump(AyahCard.highlightDuration * 2);
       expect(_cardColor(tester), tinted);
       expect(find.byType(TweenAnimationBuilder<double>), findsNothing);
+    });
+
+    group('the sections', () {
+      const translated = TranslationText('The translation');
+
+      Widget card({
+        AyahSections sections = AyahSections.allOpen,
+        void Function(AyahSection section)? onToggle,
+        TranslationText? translation = translated,
+        double textScale = 1,
+      }) => _host(
+        AyahCard(
+          ayah: _ayah,
+          translation: translation,
+          fontFamily: null,
+          sections: sections,
+          onToggleSection: onToggle,
+        ),
+        textScale: textScale,
+      );
+
+      testWidgets('each has a title: Arabic, Word by word, Translation', (
+        tester,
+      ) async {
+        useWindow(tester, const Size(800, 1000));
+        await tester.pumpWidget(card());
+        for (final title in ['Arabic', 'Word by word', 'Translation']) {
+          expect(find.text(title), findsOneWidget, reason: title);
+        }
+        // All open: everything is there.
+        for (final text in ['ARABIC FIRST', 'wordone', 'The translation']) {
+          expect(find.text(text), findsOneWidget, reason: text);
+        }
+      });
+
+      testWidgets('the titles are in the order of the card', (tester) async {
+        useWindow(tester, const Size(800, 1000));
+        await tester.pumpWidget(card());
+        final arabic = tester.getTopLeft(find.text('Arabic')).dy;
+        final words = tester.getTopLeft(find.text('Word by word')).dy;
+        final translation = tester.getTopLeft(find.text('Translation')).dy;
+        expect(arabic, lessThan(words));
+        expect(words, lessThan(translation));
+      });
+
+      testWidgets('no translation, no Translation section', (tester) async {
+        useWindow(tester, const Size(800, 1000));
+        await tester.pumpWidget(card(translation: null));
+        expect(find.text('Translation'), findsNothing);
+        expect(find.text('Arabic'), findsOneWidget);
+        expect(find.text('Word by word'), findsOneWidget);
+
+        await tester.pumpWidget(card(translation: const TranslationText('')));
+        expect(find.text('Translation'), findsNothing);
+      });
+
+      testWidgets('a closed section is only its title', (tester) async {
+        useWindow(tester, const Size(800, 1000));
+
+        await tester.pumpWidget(
+          card(sections: AyahSections.closing([AyahSection.translation])),
+        );
+        expect(find.text('Translation'), findsOneWidget);
+        expect(find.text('The translation'), findsNothing);
+        expect(find.text('ARABIC FIRST'), findsOneWidget);
+        expect(find.text('wordone'), findsOneWidget);
+
+        await tester.pumpWidget(
+          card(sections: AyahSections.closing([AyahSection.words])),
+        );
+        expect(find.text('Word by word'), findsOneWidget);
+        expect(find.text('wordone'), findsNothing);
+        expect(find.text('gloss one'), findsNothing);
+        expect(find.text('ARABIC FIRST'), findsOneWidget);
+        expect(find.text('The translation'), findsOneWidget);
+
+        await tester.pumpWidget(
+          card(sections: AyahSections.closing([AyahSection.arabic])),
+        );
+        expect(find.text('Arabic'), findsOneWidget);
+        expect(find.text('ARABIC FIRST'), findsNothing);
+        expect(find.text('wordone'), findsOneWidget);
+        expect(find.text('The translation'), findsOneWidget);
+      });
+
+      testWidgets('with everything closed the card is its number and three titles', (
+        tester,
+      ) async {
+        useWindow(tester, const Size(800, 1000));
+        await tester.pumpWidget(
+          card(sections: AyahSections.closing(AyahSection.values)),
+        );
+        for (final text in ['5:1', 'Arabic', 'Word by word', 'Translation']) {
+          expect(find.text(text), findsOneWidget, reason: text);
+        }
+        for (final text in ['ARABIC FIRST', 'wordone', 'gloss one', 'The translation']) {
+          expect(find.text(text), findsNothing, reason: text);
+        }
+      });
+
+      testWidgets('closing sections makes the card shorter', (tester) async {
+        useWindow(tester, const Size(800, 1000));
+        await tester.pumpWidget(card());
+        final open = tester.getSize(find.byType(AyahCard)).height;
+        await tester.pumpWidget(
+          card(sections: AyahSections.closing(AyahSection.values)),
+        );
+        final closed = tester.getSize(find.byType(AyahCard)).height;
+        expect(closed, lessThan(open));
+      });
+
+      testWidgets('a tap on a title says which section, and does nothing else', (
+        tester,
+      ) async {
+        useWindow(tester, const Size(800, 1000));
+        final taps = <AyahSection>[];
+        await tester.pumpWidget(card(onToggle: taps.add));
+
+        await tester.tap(find.text('Translation'));
+        await tester.tap(find.text('Arabic'));
+        await tester.tap(find.text('Word by word'));
+        expect(taps, [
+          AyahSection.translation,
+          AyahSection.arabic,
+          AyahSection.words,
+        ]);
+        // The card is given its sections: a tap alone changes nothing on it.
+        expect(find.text('ARABIC FIRST'), findsOneWidget);
+      });
+
+      testWidgets('a closed section is opened by the same tap', (tester) async {
+        useWindow(tester, const Size(800, 1000));
+        final taps = <AyahSection>[];
+        await tester.pumpWidget(
+          card(
+            sections: AyahSections.closing([AyahSection.translation]),
+            onToggle: taps.add,
+          ),
+        );
+        await tester.tap(find.text('Translation'));
+        expect(taps, [AyahSection.translation]);
+      });
+
+      testWidgets('the chevron says which way a title goes', (tester) async {
+        useWindow(tester, const Size(800, 1000));
+        await tester.pumpWidget(
+          card(
+            sections: AyahSections.closing([AyahSection.translation]),
+            onToggle: (_) {},
+          ),
+        );
+        // Two open ones can be closed, the closed one can be opened.
+        expect(find.byIcon(Icons.expand_less), findsNWidgets(2));
+        expect(find.byIcon(Icons.expand_more), findsOneWidget);
+      });
+
+      testWidgets('without a handler the titles are plain text, not buttons', (
+        tester,
+      ) async {
+        useWindow(tester, const Size(800, 1000));
+        await tester.pumpWidget(card());
+        expect(find.byType(InkWell), findsNothing);
+        expect(find.byIcon(Icons.expand_less), findsNothing);
+        expect(find.byIcon(Icons.expand_more), findsNothing);
+      });
+
+      testWidgets('a title is at least 40 high', (tester) async {
+        useWindow(tester, const Size(800, 1000));
+        await tester.pumpWidget(card(onToggle: (_) {}));
+        for (final title in ['Arabic', 'Word by word', 'Translation']) {
+          final row = find.ancestor(
+            of: find.text(title),
+            matching: find.byType(InkWell),
+          );
+          expect(
+            tester.getSize(row).height,
+            greaterThanOrEqualTo(40),
+            reason: title,
+          );
+        }
+      });
+
+      testWidgets('open or closed, it fits at 320px and 2x text', (tester) async {
+        useWindow(tester, const Size(320, 568));
+        for (final sections in [
+          AyahSections.allOpen,
+          AyahSections.closing([AyahSection.words, AyahSection.translation]),
+          AyahSections.closing(AyahSection.values),
+        ]) {
+          await tester.pumpWidget(
+            _host(
+              AyahCard(
+                ayah: _ayah,
+                translation: const TranslationText(
+                  'A long translation of the ayah that goes over several '
+                  'lines when the room is narrow and the text is big',
+                ),
+                fontFamily: null,
+                sections: sections,
+                onToggleSection: (_) {},
+                continuesOnPage: 44,
+                tafsirLabel: 'Tafsir · 5:1–2',
+              ),
+              textScale: 2,
+            ),
+          );
+          expect(tester.takeException(), isNull, reason: '$sections');
+        }
+      });
     });
 
     group('footnotes', () {
@@ -513,6 +723,107 @@ void main() {
       );
       final pages = ReadingBanners.chPages(1);
       expect(find.text('ch 1 · p ${pages.first}–${pages.last}'), findsOneWidget);
+    });
+
+    testWidgets('a page that starts alone is a slim p label', (tester) async {
+      useWindow(tester, const Size(800, 1000));
+      await tester.pumpWidget(
+        banner(ReadingBanners.at(const AyahRef(2, 17), pageStart: 4)!),
+      );
+      expect(find.text('p 4'), findsOneWidget);
+    });
+
+    testWidgets('a page that starts with a surah or a juz is a chip on its banner', (
+      tester,
+    ) async {
+      useWindow(tester, const Size(800, 1000));
+      await tester.pumpWidget(
+        banner(ReadingBanners.at(const AyahRef(3, 1), pageStart: 50)!),
+      );
+      expect(find.text('p 50'), findsOneWidget);
+      expect(find.text(SurahNames.of(3).arabic), findsOneWidget);
+
+      await tester.pumpWidget(
+        banner(ReadingBanners.at(const AyahRef(2, 142), pageStart: 22)!),
+      );
+      expect(find.text('p 22'), findsOneWidget);
+      expect(find.text('Juz 2'), findsOneWidget);
+    });
+
+    testWidgets('a page that starts with a hizb or a ruku is said on the same line', (
+      tester,
+    ) async {
+      useWindow(tester, const Size(800, 1000));
+      await tester.pumpWidget(
+        banner(ReadingBanners.at(const AyahRef(2, 75), pageStart: 10)!),
+      );
+      expect(
+        find.text('Hizb 2 · second half of Juz 1 · p 10'),
+        findsOneWidget,
+      );
+
+      await tester.pumpWidget(
+        banner(ReadingBanners.at(const AyahRef(2, 30), pageStart: 6)!),
+      );
+      expect(
+        find.text('${_rukuText(const AyahRef(2, 30))} · p 6'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a ruku with no page starting says no page', (tester) async {
+      useWindow(tester, const Size(800, 1000));
+      await tester.pumpWidget(banner(ReadingBanners.at(const AyahRef(2, 30))!));
+      expect(find.text(_rukuText(const AyahRef(2, 30))), findsOneWidget);
+      expect(find.textContaining('p 6'), findsNothing);
+    });
+
+    testWidgets('a ch that starts on a page does not say that page twice', (
+      tester,
+    ) async {
+      useWindow(tester, const Size(800, 1000));
+      final ch = _chunk(
+        WordsUnit.ch,
+        1,
+        const AyahRef(2, 1),
+        const AyahRef(2, 5),
+      );
+      final first = ReadingBanners.chPages(1).first;
+
+      // The ch label already begins at that page: no chip for it.
+      await tester.pumpWidget(
+        banner(ReadingBanners.at(const AyahRef(2, 1), unitStart: ch, pageStart: first)!),
+      );
+      expect(find.text('p $first'), findsNothing);
+      expect(find.textContaining('ch 1 · p $first–'), findsOneWidget);
+
+      // Another page that starts here is still said.
+      await tester.pumpWidget(
+        banner(
+          ReadingBanners.at(const AyahRef(2, 1), unitStart: ch, pageStart: first + 1)!,
+        ),
+      );
+      expect(find.text('p ${first + 1}'), findsOneWidget);
+    });
+
+    testWidgets('a page on every kind of banner fits at 320px and 2x text', (
+      tester,
+    ) async {
+      useWindow(tester, const Size(320, 568));
+      for (final at in [
+        const AyahRef(1, 1),
+        const AyahRef(2, 1),
+        const AyahRef(17, 1),
+        const AyahRef(2, 142),
+        const AyahRef(2, 75),
+        const AyahRef(2, 8),
+        const AyahRef(2, 17),
+      ]) {
+        await tester.pumpWidget(
+          banner(ReadingBanners.at(at, pageStart: 604)!, textScale: 2),
+        );
+        expect(tester.takeException(), isNull, reason: '$at');
+      }
     });
 
     testWidgets('every kind fits at 320px and 2x text', (tester) async {

@@ -5,6 +5,7 @@ import 'package:personaltskmng/core/theme/app_theme.dart';
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/domain/reference/surah_names.dart';
 import 'package:personaltskmng/l10n/app_localizations.dart';
+import 'package:personaltskmng/quran_data/models/ayah_sections.dart';
 import 'package:personaltskmng/quran_data/models/footnote_text.dart';
 import 'package:personaltskmng/quran_data/models/page_content.dart';
 import 'package:personaltskmng/quran_data/models/reading_banners.dart';
@@ -28,15 +29,23 @@ const EdgeInsets _rowPadding = EdgeInsets.fromLTRB(
 // ---------------------------------------------------------------------------
 
 /// One ayah of the Words stream: its number (and, once a tafsir is downloaded,
-/// the Tafsir button), the whole Arabic text, each word with its English under
-/// it, the translation (its footnote markers open the footnote), and
-/// "continues on p 44" when the ayah goes on over the next page.
+/// the Tafsir button), then three sections (see [AyahSection]): the whole Arabic
+/// text, each word with its English under it, and the translation (its footnote
+/// markers open the footnote); and "continues on p 44" when the ayah goes on
+/// over the next page.
+///
+/// Each section has a title row that opens and closes it ([onToggleSection]);
+/// which sections are open is [sections], the same for every card of the stream,
+/// so what the reader closes stays closed on all of them. A closed section keeps
+/// its title row (that is how it is opened again) and nothing else. Without
+/// [onToggleSection] the titles are just titles.
 ///
 /// A widget with its data given: the stream makes sure the data is there
 /// before the card is built, so a card never changes height after it was laid
-/// out. [scale] is the reader's text size step (the Arabic, the glossed words
-/// and the translation); the phone's own text size still counts on top, through
-/// the text scaler.
+/// out (opening or closing a section makes a new stream instead, see
+/// `WordsStreamView`). [scale] is the reader's text size step (the Arabic, the
+/// glossed words and the translation); the phone's own text size still counts
+/// on top, through the text scaler.
 class AyahCard extends StatefulWidget {
   const AyahCard({
     super.key,
@@ -44,6 +53,8 @@ class AyahCard extends StatefulWidget {
     required this.translation,
     required this.fontFamily,
     this.scale = 1,
+    this.sections = AyahSections.allOpen,
+    this.onToggleSection,
     this.continuesOnPage,
     this.tafsirLabel,
     this.onTafsir,
@@ -55,6 +66,13 @@ class AyahCard extends StatefulWidget {
 
   final AyahWords ayah;
   final TranslationText? translation;
+
+  /// Which sections are open (all of them until the reader closes one).
+  final AyahSections sections;
+
+  /// A title row was tapped: open the section if it is closed, close it if it
+  /// is open. Null: the titles do nothing.
+  final void Function(AyahSection section)? onToggleSection;
 
   /// The Unicode Arabic font, null for the platform's.
   final String? fontFamily;
@@ -93,14 +111,38 @@ class _AyahCardState extends State<AyahCard> {
   String _selectedArabic = '';
   String _selectedTranslation = '';
 
+  /// What was last told to [AyahCard.onSelecting] (so it is told only changes,
+  /// and so a card that goes away with a selection can take it back).
+  bool _reported = false;
+
+  /// The text of a selection as the reader means it: the object mark that a
+  /// footnote number leaves in the text is not a letter, and is dropped.
+  static String _plain(String text) =>
+      text.replaceAll('\uFFFC', '').trim();
+
   void _checkSelection() {
-    final hasSelection = _selectedArabic.trim().isNotEmpty ||
-        _selectedTranslation.trim().isNotEmpty;
-    widget.onSelecting?.call(hasSelection);
+    final has =
+        _plain(_selectedArabic).isNotEmpty ||
+        _plain(_selectedTranslation).isNotEmpty;
+    if (has == _reported) return;
+    _reported = has;
+    widget.onSelecting?.call(has);
+  }
+
+  @override
+  void dispose() {
+    // A card that is disposed with text selected (it scrolled far away, or the
+    // stream was made again) would leave "selecting" on for ever: say it is
+    // over, after this frame (the tree is locked while it is being taken down).
+    final callback = widget.onSelecting;
+    if (_reported && callback != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => callback(false));
+    }
+    super.dispose();
   }
 
   Future<void> _copyWithRef(BuildContext context, String text) async {
-    final clean = text.trim();
+    final clean = _plain(text);
     if (clean.isEmpty) return;
     final l10n = context.l10n;
     final formatted = '$clean (${widget.ayah.key})';
@@ -108,6 +150,47 @@ class _AyahCardState extends State<AyahCard> {
     if (context.mounted) {
       showAppSnackBar(context, l10n.readerCopied);
     }
+  }
+
+  /// [child] with a selection of its own (a long press selects) and the toolbar
+  /// of the card: the usual items, *Copy with ref* and, when the reader can ask
+  /// the AI, *Ask AI* about the selected words.
+  Widget _selectable({
+    required AppLocalizations l10n,
+    required String Function() selected,
+    required ValueChanged<String> onChanged,
+    required Widget child,
+  }) {
+    return SelectionArea(
+      onSelectionChanged: (content) => onChanged(content?.plainText ?? ''),
+      contextMenuBuilder: (context, state) =>
+          AdaptiveTextSelectionToolbar.buttonItems(
+            anchors: state.contextMenuAnchors,
+            buttonItems: [
+              ...state.contextMenuButtonItems,
+              ContextMenuButtonItem(
+                label: l10n.copyItemWithRef,
+                onPressed: () {
+                  state.hideToolbar();
+                  _copyWithRef(context, selected());
+                },
+              ),
+              if (widget.onAskAi != null)
+                ContextMenuButtonItem(
+                  label: l10n.copyItemAskAi,
+                  onPressed: () {
+                    state.hideToolbar();
+                    final ref = AyahRef.tryParse(widget.ayah.key);
+                    final focus = _plain(selected());
+                    if (ref != null) {
+                      widget.onAskAi!(ref, focus.isEmpty ? null : focus);
+                    }
+                  },
+                ),
+            ],
+          ),
+      child: child,
+    );
   }
 
   @override
@@ -122,6 +205,14 @@ class _AyahCardState extends State<AyahCard> {
     final fontFamily = widget.fontFamily;
     final scale = widget.scale;
     final highlighted = widget.highlighted;
+    final toggle = widget.onToggleSection;
+
+    Widget section(AyahSection kind, Widget body) => _Section(
+      label: ayahSectionLabel(l10n, kind),
+      open: widget.sections.isOpen(kind),
+      onToggle: toggle == null ? null : () => toggle(kind),
+      child: body,
+    );
 
     Widget card(double tint) => DecoratedBox(
       decoration: BoxDecoration(
@@ -190,97 +281,68 @@ class _AyahCardState extends State<AyahCard> {
               ],
             ),
             const SizedBox(height: AppSpacing.xs),
-            // The whole ayah, as it is read (selectable)
-            SelectionArea(
-              onSelectionChanged: (content) {
-                _selectedArabic = content?.plainText ?? '';
-                _checkSelection();
-              },
-              contextMenuBuilder: (context, selectableRegionState) =>
-                  AdaptiveTextSelectionToolbar.buttonItems(
-                anchors: selectableRegionState.contextMenuAnchors,
-                buttonItems: [
-                  ...selectableRegionState.contextMenuButtonItems,
-                  ContextMenuButtonItem(
-                    label: l10n.copyItemWithRef,
-                    onPressed: () {
-                      selectableRegionState.hideToolbar();
-                      _copyWithRef(context, _selectedArabic);
-                    },
+            // The whole ayah, as it is read (selectable).
+            section(
+              AyahSection.arabic,
+              _selectable(
+                l10n: l10n,
+                selected: () => _selectedArabic,
+                onChanged: (text) {
+                  _selectedArabic = text;
+                  _checkSelection();
+                },
+                child: Text(
+                  ayah.arabic,
+                  textDirection: TextDirection.rtl,
+                  locale: const Locale('ar'),
+                  style: TextStyle(
+                    fontFamily: fontFamily,
+                    fontSize: 26 * scale,
+                    height: 1.9,
+                    color: scheme.onSurface,
                   ),
-                  if (widget.onAskAi != null)
-                    ContextMenuButtonItem(
-                      label: l10n.copyItemAskAi,
-                      onPressed: () {
-                        selectableRegionState.hideToolbar();
-                        final ref = AyahRef.tryParse(widget.ayah.key);
-                        if (ref != null) {
-                          widget.onAskAi!(ref, _selectedArabic.trim());
-                        }
-                      },
-                    ),
-                ],
-              ),
-              child: Text(
-                ayah.arabic,
-                textDirection: TextDirection.rtl,
-                locale: const Locale('ar'),
-                style: TextStyle(
-                  fontFamily: fontFamily,
-                  fontSize: 26 * scale,
-                  height: 1.9,
-                  color: scheme.onSurface,
                 ),
               ),
             ),
-            const Divider(height: AppSpacing.xl),
-            // Word by word: disabled from selection
-            SelectionContainer.disabled(
-              child: Wrap(
-                textDirection: TextDirection.rtl,
-                spacing: AppSpacing.md,
-                runSpacing: AppSpacing.md,
-                children: [
-                  for (final word in ayah.words)
-                    _WordCell(word: word, fontFamily: fontFamily, scale: scale),
-                ],
-              ),
-            ),
-            if (translation != null && translation.text.isNotEmpty) ...[
-              const Divider(height: AppSpacing.xl),
-              SelectionArea(
-                onSelectionChanged: (content) {
-                  _selectedTranslation = content?.plainText ?? '';
-                  _checkSelection();
-                },
-                contextMenuBuilder: (context, selectableRegionState) =>
-                    AdaptiveTextSelectionToolbar.buttonItems(
-                  anchors: selectableRegionState.contextMenuAnchors,
-                  buttonItems: [
-                    ...selectableRegionState.contextMenuButtonItems,
-                    ContextMenuButtonItem(
-                      label: l10n.copyItemWithRef,
-                      onPressed: () {
-                        selectableRegionState.hideToolbar();
-                        _copyWithRef(context, _selectedTranslation);
-                      },
-                    ),
-                    if (widget.onAskAi != null)
-                      ContextMenuButtonItem(
-                        label: l10n.copyItemAskAi,
-                        onPressed: () {
-                          selectableRegionState.hideToolbar();
-                          final ref = AyahRef.tryParse(widget.ayah.key);
-                          if (ref != null) {
-                            widget.onAskAi!(ref, _selectedTranslation.trim());
-                          }
-                        },
+            // Word by word: the Arabic, and under it what it means. Not
+            // selectable (a grid of cells copies as a jumble); the copy sheet
+            // has the words.
+            section(
+              AyahSection.words,
+              SelectionContainer.disabled(
+                child: Wrap(
+                  textDirection: TextDirection.rtl,
+                  spacing: AppSpacing.md,
+                  runSpacing: AppSpacing.md,
+                  children: [
+                    for (final word in ayah.words)
+                      _WordCell(
+                        word: word,
+                        fontFamily: fontFamily,
+                        scale: scale,
                       ),
                   ],
                 ),
-                child: _TranslationBody(translation: translation, scale: scale),
               ),
-            ],
+            ),
+            // No translation chosen (or none for this ayah): no section, so
+            // there is no title to open on nothing.
+            if (translation != null && translation.text.isNotEmpty)
+              section(
+                AyahSection.translation,
+                _selectable(
+                  l10n: l10n,
+                  selected: () => _selectedTranslation,
+                  onChanged: (text) {
+                    _selectedTranslation = text;
+                    _checkSelection();
+                  },
+                  child: _TranslationBody(
+                    translation: translation,
+                    scale: scale,
+                  ),
+                ),
+              ),
             if (continues != null) ...[
               const SizedBox(height: AppSpacing.md),
               Align(
@@ -325,6 +387,103 @@ class _Highlight extends StatelessWidget {
       duration: AyahCard.highlightDuration,
       curve: Curves.easeInCubic,
       builder: (context, tint, _) => builder(tint),
+    );
+  }
+}
+
+/// One section of the card: a hairline, a title row and, while it is open, its
+/// body. A closed section is only the title row.
+class _Section extends StatelessWidget {
+  const _Section({
+    required this.label,
+    required this.open,
+    required this.onToggle,
+    required this.child,
+  });
+
+  final String label;
+  final bool open;
+
+  /// Null: the title is not a button.
+  final VoidCallback? onToggle;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Divider(height: 1),
+        _SectionTitle(label: label, open: open, onTap: onToggle),
+        if (open) ...[
+          const SizedBox(height: AppSpacing.xs),
+          child,
+          const SizedBox(height: AppSpacing.sm),
+        ],
+      ],
+    );
+  }
+}
+
+/// The title row of a section: its name, and a chevron that says it opens or
+/// closes. The whole row is the button; it is at least 40 high and never wider
+/// than the card, whatever the text size.
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({
+    required this.label,
+    required this.open,
+    required this.onTap,
+  });
+
+  /// The row is never lower than this (the Tafsir button of the card is as high).
+  static const double minHeight = 40;
+
+  final String label;
+  final bool open;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final row = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: minHeight),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          if (onTap != null)
+            Icon(
+              open ? Icons.expand_less : Icons.expand_more,
+              size: 22,
+              color: scheme.onSurfaceVariant,
+            ),
+        ],
+      ),
+    );
+    if (onTap == null) return row;
+    return Semantics(
+      button: true,
+      expanded: open,
+      child: Material(
+        // Its own ink layer: the card is painted over the Material of the screen
+        // and would hide the ripple.
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.chip),
+          onTap: onTap,
+          child: row,
+        ),
+      ),
     );
   }
 }
@@ -496,8 +655,11 @@ class _FootnoteMark extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 /// The element in front of an ayah of the Words stream (see [ReadingBanner]):
-/// one element per start position, never two stacked. A surah or a juz banner
-/// opens that unit's info when tapped ([onOpenInfo]); the others do nothing.
+/// one element per start position, never two stacked. A page that starts at the
+/// same ayah is a chip on a surah, juz or hizb banner, `p 43` at the end of the
+/// ruku line, or a slim `p 43` divider when nothing else starts there. A surah
+/// or a juz banner opens that unit's info when tapped ([onOpenInfo]); the others
+/// do nothing.
 /// Every banner is a heading for a screen reader, grows with the text size and
 /// never cuts anything off (no fixed heights).
 class StreamBanner extends StatelessWidget {
@@ -554,7 +716,11 @@ class StreamBanner extends StatelessWidget {
         semantics: _semantics(l10n, banner),
       ),
       BannerKind.ruku => _Hairline(
-        label: rukuLabel(l10n, banner.ruku!),
+        // A page that starts here is said on the same line.
+        label: [
+          rukuLabel(l10n, banner.ruku!),
+          ?_pageLabel(banner),
+        ].join(' · '),
         semantics: _semantics(l10n, banner),
       ),
       BannerKind.unit => _FullBanner(
@@ -578,6 +744,17 @@ class StreamBanner extends StatelessWidget {
     return 'ch $ch · p ${pages.first}–${pages.last}';
   }
 
+  /// `p 43`: the page that starts here, null when none does. Left out when the
+  /// ch label on the same banner already begins at that page (`ch 13 · p
+  /// 106–115` says `p 106`).
+  static String? _pageLabel(ReadingBanner banner) {
+    final page = banner.page;
+    if (page == null) return null;
+    final ch = banner.ch;
+    if (ch != null && ReadingBanners.chPages(ch).first == page) return null;
+    return 'p $page';
+  }
+
   /// The small chips of what else starts here: a juz, a hizb, the reader's ch
   /// or page.
   static List<String> _chips(
@@ -589,7 +766,7 @@ class StreamBanner extends StatelessWidget {
     if (!skipJuz && banner.juz != null) 'Juz ${banner.juz}',
     if (!skipHizb && banner.hizb != null) 'Hizb ${banner.hizb}',
     if (banner.ch != null) _chLabel(banner.ch!),
-    if (banner.page != null) 'p ${banner.page}',
+    ?_pageLabel(banner),
   ];
 
   /// What a screen reader says: the same words, in one phrase.
@@ -601,7 +778,7 @@ class StreamBanner extends StatelessWidget {
       if (banner.hizb != null) 'Hizb ${banner.hizb}',
       if (banner.ruku != null) rukuLabel(l10n, banner.ruku!),
       if (banner.ch != null) _chLabel(banner.ch!),
-      if (banner.page != null) 'p ${banner.page}',
+      ?_pageLabel(banner),
     ];
     return parts.join(', ');
   }

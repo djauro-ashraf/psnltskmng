@@ -1,11 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personaltskmng/quran_data/models/ayah_copy.dart';
+import 'package:personaltskmng/quran_data/models/ayah_sections.dart';
 import 'package:personaltskmng/quran_data/models/quran_view.dart';
 import 'package:personaltskmng/quran_data/models/unit_edges.dart';
 import 'package:personaltskmng/quran_data/models/reader_entry.dart';
 import 'package:personaltskmng/quran_data/models/words_stream.dart';
 import 'package:personaltskmng/quran_data/quran_data_config.dart';
 
+export 'package:personaltskmng/quran_data/models/ayah_sections.dart';
 export 'package:personaltskmng/quran_data/models/quran_view.dart';
 
 /// Where the small Quran choices are kept (view preferences, not settings: not
@@ -50,6 +52,10 @@ abstract final class QuranPrefKeys {
 
   /// The text size step, 0 to 3 (see [QuranTextSize]).
   static const String textSize = 'quran.textSize';
+
+  /// The sections of the ayah card that are closed, by name (see
+  /// [AyahSections.encode]); nothing is kept while all of them are open.
+  static const String closedSections = 'quran.closedSections';
 
   /// 'true' while the screen is kept on during reading.
   static const String keepAwake = 'quran.keepAwake';
@@ -199,6 +205,40 @@ class TextSizeNotifier extends Notifier<int> {
 final textSizeProvider = NotifierProvider<TextSizeNotifier, int>(
   TextSizeNotifier.new,
 );
+
+/// Which sections of the ayah card of the Words view are open: the Arabic, the
+/// word by word and the translation. One choice for every ayah (closing the
+/// translation on one card closes it on all of them), kept for the next session.
+/// All open until the reader closes one.
+class AyahSectionsNotifier extends Notifier<AyahSections> {
+  @override
+  AyahSections build() => AyahSections.decode(
+    ref.watch(quranPrefsStoreProvider).get(QuranPrefKeys.closedSections),
+  );
+
+  /// Opens [section] if it is closed, closes it if it is open.
+  Future<void> toggle(AyahSection section) => _set(state.toggled(section));
+
+  /// Opens ([open] true) or closes [section].
+  Future<void> setOpen(AyahSection section, bool open) =>
+      _set(state.withOpen(section, open));
+
+  Future<void> _set(AyahSections next) async {
+    if (next == state) return;
+    state = next;
+    // With everything open nothing is kept: the default is "all open".
+    await _save(
+      ref,
+      QuranPrefKeys.closedSections,
+      next.isAllOpen ? null : next.encode(),
+    );
+  }
+}
+
+final ayahSectionsProvider =
+    NotifierProvider<AyahSectionsNotifier, AyahSections>(
+      AyahSectionsNotifier.new,
+    );
 
 /// A yes/no choice kept as 'true' / 'false'.
 abstract class _FlagNotifier extends Notifier<bool> {

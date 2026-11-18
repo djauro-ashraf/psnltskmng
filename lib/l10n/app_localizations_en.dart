@@ -1113,6 +1113,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wordsTranslation => 'Translation';
 
   @override
+  String get wordsSectionArabic => 'Arabic';
+
+  @override
+  String get wordsSectionWords => 'Word by word';
+
+  @override
   String get quranDataOpen => 'Download the Quran';
 
   @override
@@ -1244,6 +1250,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get readerTranslationOff => 'Off';
+
+  @override
+  String get readerSections => 'Ayah sections';
+
+  @override
+  String get readerSectionsHint =>
+      'Tap the title of a section on any ayah to open or close it on every ayah.';
 
   @override
   String get readerTextSize => 'Text size';
@@ -1691,4 +1704,110 @@ class AppLocalizationsEn extends AppLocalizations {
   String autoReadPaceSummary(int wpm, String pace) {
     return '$wpm WPM · $pace';
   }
+
+  @override
+  String unitEdgePrevious(String unit) {
+    return 'Previous: $unit';
+  }
+
+  @override
+  String get unitEdgeGateTile => 'Scroll again or tap twice to go on';
+
+  @override
+  String get unitEdgeLockedTile => 'Use the button, the arrows or a swipe to go on';
+
+  @override
+  String get askRetry => 'Retry';
+
+  @override
+  String get askStop => 'Stop';
+
+  @override
+  String get askInterrupted => '(Interrupted)';
+
+  @override
+  String get askRoleYou => 'You';
+
+  @override
+  String get askRoleAssistant => 'Assistant';
+
+  @override
+  String get askReadAyah => 'Open in the reader';
+
+  @override
+  String askFocusLabel(String text) {
+    return 'Focus: “$text”';
+  }
+
+  @override
+  String askAyahTitle(String ayah) {
+    return 'Ayah $ayah';
+  }
+
+  @override
+  String get askToday => 'Today';
+
+  @override
+  String get askYesterday => 'Yesterday';
+
+  @override
+  String get askUndo => 'Undo';
+
+  @override
+  String askContinueChat(int count) {
+    return 'Continue chat ($count)';
+  }
+
+  @override
+  String get askStartNewChat => 'Start a new chat';
+
+  @override
+  String get askSettingsTitle => 'Quran assistant';
+
+  @override
+  String get askEnable => 'Use the Quran assistant';
+
+  @override
+  String get askLanguageLabel => 'Answer language';
+
+  @override
+  String get askLanguageAuto => 'Same as the question';
+
+  @override
+  String get askLengthLabel => 'Answer length';
+
+  @override
+  String get askLengthNormal => 'Normal';
+
+  @override
+  String get askLengthShort => 'Short';
+
+  @override
+  String askStorageSummary(int count, String size) {
+    return '$count chats · $size';
+  }
+
+  @override
+  String get askNeedsKey => 'Save a key for this provider to use the assistant.';
+
+  @override
+  String get askPrivacy => 'A question sends your message and what you attached (ayah text, translation, word glosses, tafsir) to the provider. Chats stay on this device and are not in backups.';
+
+  @override
+  String get autoReadSlower => 'Slower';
+
+  @override
+  String get autoReadFaster => 'Faster';
+
+  @override
+  String get autoReadStop => 'Close auto-read';
+
+  @override
+  String get askNoMatches => 'No chat matches your search';
+
+  @override
+  String get copyNoTafsirHere => 'Copied, but the tafsir source has nothing on this ayah';
+
+  @override
+  String get copyAskOneAyah => 'Ask AI works on one ayah at a time';
 }

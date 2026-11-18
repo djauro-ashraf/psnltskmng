@@ -189,6 +189,7 @@ GoRoute browseRoute() => GoRoute(
               initialAyah: ayah,
               initialPrompt: prompt,
               initialFocusText: focus,
+              initialTafsirSourceId: state.uri.queryParameters['tafsir'],
             );
           },
         ),
@@ -196,7 +197,11 @@ GoRoute browseRoute() => GoRoute(
           path: ':id',
           builder: (context, state) {
             final id = state.pathParameters['id'] ?? '';
-            return AskChatPage(chatId: id);
+            return AskChatPage(
+              chatId: id,
+              initialPrompt: state.uri.queryParameters['prompt'],
+              initialFocusText: state.uri.queryParameters['focus'],
+            );
           },
         ),
       ],

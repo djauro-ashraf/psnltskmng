@@ -12,7 +12,8 @@ import 'package:personaltskmng/quran_data/models/words_stream.dart';
 import '../../support/reader_harness.dart';
 
 /// The Reading options sheet: the unit of Words, the translation (or none), the
-/// text size, keep the screen on and the ruku ticks. What is chosen is kept like
+/// sections of the ayah card that are open, the text size, keep the screen on and
+/// the ruku ticks. What is chosen is kept like
 /// the view and the translation are (a view preference).
 ///
 /// The sheet is opened from a button the way the context line opens it
@@ -79,6 +80,13 @@ Finder _switch(String label) => find.widgetWithText(SwitchListTile, label);
 bool _on(WidgetTester tester, String label) =>
     tester.widget<SwitchListTile>(_switch(label)).value;
 
+/// The chip of a section of the ayah card (`Arabic`, `Word by word`,
+/// `Translation`).
+Finder _sectionChip(String label) => find.widgetWithText(FilterChip, label);
+
+bool _sectionOpen(WidgetTester tester, String label) =>
+    tester.widget<FilterChip>(_sectionChip(label)).selected;
+
 void main() {
   // What each unit is called on its chip (never translated, like p, s and ch).
   const unitLabels = <WordsUnit, String>{
@@ -97,7 +105,10 @@ void main() {
 
       expect(find.text('Reading options'), findsOneWidget);
       expect(find.text('Unit'), findsOneWidget);
-      expect(find.text('Translation'), findsOneWidget);
+      // The heading of the translation choice, and the chip of the translation
+      // section of the ayah card.
+      expect(find.text('Translation'), findsNWidgets(2));
+      expect(find.text('Ayah sections'), findsOneWidget);
       expect(find.text('Text size'), findsOneWidget);
       expect(find.text('Keep screen on while reading'), findsOneWidget);
       expect(find.text('Show ruku ticks'), findsOneWidget);
@@ -284,6 +295,79 @@ void main() {
         findsOneWidget,
       );
       expect(_chip('Off'), findsNothing);
+    });
+  });
+
+  group('The sections of the ayah card', () {
+    const labels = ['Arabic', 'Word by word', 'Translation'];
+
+    testReader('a chip for each section, in the order of the card, all open', (
+      tester,
+    ) async {
+      await _open(tester);
+
+      var left = -1.0;
+      var top = -1.0;
+      for (final label in labels) {
+        expect(_sectionChip(label), findsOneWidget, reason: label);
+        expect(_sectionOpen(tester, label), isTrue, reason: label);
+        final at = tester.getTopLeft(_sectionChip(label));
+        expect(at.dy > top || at.dx > left, isTrue, reason: label);
+        left = at.dx;
+        top = at.dy;
+      }
+      expect(
+        find.text(
+          'Tap the title of a section on any ayah to open or close it on every ayah.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testReader('a tap closes a section, and the next one opens it; it is kept', (
+      tester,
+    ) async {
+      final prefs = MemoryQuranPrefsStore();
+      final container = await _open(tester, prefs: prefs);
+
+      await tester.tap(_sectionChip('Translation'));
+      await tester.pumpAndSettle();
+      expect(_sectionOpen(tester, 'Translation'), isFalse);
+      expect(_sectionOpen(tester, 'Arabic'), isTrue);
+      expect(_sectionOpen(tester, 'Word by word'), isTrue);
+      expect(
+        container.read(ayahSectionsProvider).isClosed(AyahSection.translation),
+        isTrue,
+      );
+      expect(prefs.get(QuranPrefKeys.closedSections), 'translation');
+
+      await tester.tap(_sectionChip('Word by word'));
+      await tester.pumpAndSettle();
+      expect(prefs.get(QuranPrefKeys.closedSections), 'words,translation');
+
+      await tester.tap(_sectionChip('Translation'));
+      await tester.tap(_sectionChip('Word by word'));
+      await tester.pumpAndSettle();
+      for (final label in labels) {
+        expect(_sectionOpen(tester, label), isTrue, reason: label);
+      }
+      // All open is the default: nothing is kept for it.
+      expect(prefs.get(QuranPrefKeys.closedSections), isNull);
+    });
+
+    testReader('what was closed before is closed when the sheet opens', (
+      tester,
+    ) async {
+      await _open(
+        tester,
+        prefs: MemoryQuranPrefsStore({
+          QuranPrefKeys.closedSections: 'arabic,translation',
+        }),
+      );
+
+      expect(_sectionOpen(tester, 'Arabic'), isFalse);
+      expect(_sectionOpen(tester, 'Word by word'), isTrue);
+      expect(_sectionOpen(tester, 'Translation'), isFalse);
     });
   });
 

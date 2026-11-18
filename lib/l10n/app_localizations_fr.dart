@@ -1124,6 +1124,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get wordsTranslation => 'Traduction';
 
   @override
+  String get wordsSectionArabic => 'Arabe';
+
+  @override
+  String get wordsSectionWords => 'Mot à mot';
+
+  @override
   String get quranDataOpen => 'Télécharger le Coran';
 
   @override
@@ -1255,6 +1261,13 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get readerTranslationOff => 'Désactivée';
+
+  @override
+  String get readerSections => 'Sections du verset';
+
+  @override
+  String get readerSectionsHint =>
+      'Touche le titre d’une section sur n’importe quel verset pour l’ouvrir ou la fermer sur tous les versets.';
 
   @override
   String get readerTextSize => 'Taille du texte';
@@ -1705,4 +1718,110 @@ class AppLocalizationsFr extends AppLocalizations {
   String autoReadPaceSummary(int wpm, String pace) {
     return '$wpm MPM · $pace';
   }
+
+  @override
+  String unitEdgePrevious(String unit) {
+    return 'Précédent : $unit';
+  }
+
+  @override
+  String get unitEdgeGateTile => 'Faites défiler encore ou touchez deux fois pour continuer';
+
+  @override
+  String get unitEdgeLockedTile => 'Utilisez le bouton, les flèches ou un balayage pour continuer';
+
+  @override
+  String get askRetry => 'Réessayer';
+
+  @override
+  String get askStop => 'Arrêter';
+
+  @override
+  String get askInterrupted => '(Interrompu)';
+
+  @override
+  String get askRoleYou => 'Vous';
+
+  @override
+  String get askRoleAssistant => 'Assistant';
+
+  @override
+  String get askReadAyah => 'Ouvrir dans le lecteur';
+
+  @override
+  String askFocusLabel(String text) {
+    return 'Passage choisi : « $text »';
+  }
+
+  @override
+  String askAyahTitle(String ayah) {
+    return 'Verset $ayah';
+  }
+
+  @override
+  String get askToday => 'Aujourd’hui';
+
+  @override
+  String get askYesterday => 'Hier';
+
+  @override
+  String get askUndo => 'Annuler';
+
+  @override
+  String askContinueChat(int count) {
+    return 'Reprendre la discussion ($count)';
+  }
+
+  @override
+  String get askStartNewChat => 'Nouvelle discussion';
+
+  @override
+  String get askSettingsTitle => 'Assistant du Coran';
+
+  @override
+  String get askEnable => 'Utiliser l’assistant du Coran';
+
+  @override
+  String get askLanguageLabel => 'Langue des réponses';
+
+  @override
+  String get askLanguageAuto => 'Comme la question';
+
+  @override
+  String get askLengthLabel => 'Longueur des réponses';
+
+  @override
+  String get askLengthNormal => 'Normale';
+
+  @override
+  String get askLengthShort => 'Courte';
+
+  @override
+  String askStorageSummary(int count, String size) {
+    return '$count discussions · $size';
+  }
+
+  @override
+  String get askNeedsKey => 'Enregistrez une clé pour ce fournisseur pour utiliser l’assistant.';
+
+  @override
+  String get askPrivacy => 'Une question envoie votre message et ce que vous avez joint (texte du verset, traduction, mots, tafsir) au fournisseur. Les discussions restent sur cet appareil et ne sont pas dans les sauvegardes.';
+
+  @override
+  String get autoReadSlower => 'Plus lent';
+
+  @override
+  String get autoReadFaster => 'Plus rapide';
+
+  @override
+  String get autoReadStop => 'Fermer la lecture automatique';
+
+  @override
+  String get askNoMatches => 'Aucune conversation ne correspond à votre recherche';
+
+  @override
+  String get copyNoTafsirHere => 'Copié, mais la source de tafsir n\'a rien sur ce verset';
+
+  @override
+  String get copyAskOneAyah => 'L\'IA répond sur un verset à la fois';
 }

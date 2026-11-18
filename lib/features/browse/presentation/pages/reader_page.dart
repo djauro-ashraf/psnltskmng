@@ -17,6 +17,7 @@ import 'package:personaltskmng/features/browse/presentation/widgets/go_to_sheet.
 import 'package:personaltskmng/features/browse/presentation/widgets/mushaf_reader.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/reader_bar.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/reading_options_sheet.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/unit_swipe.dart';
 import 'package:personaltskmng/mushaf/controller/mushaf_edition.dart';
 import 'package:personaltskmng/mushaf/models/mushaf_edition.dart';
 import 'package:personaltskmng/mushaf/models/mushaf_page.dart';
@@ -46,6 +47,9 @@ import 'package:personaltskmng/shared/widgets/words_stream_view.dart';
 ///   (and the Continue row of Browse) keeps it. It is kept in notifiers, never in
 ///   state that rebuilds the screen: the views report the ayah at the top while
 ///   scrolling and only the strips that show it are rebuilt.
+/// - in Words, one step to the next or the previous unit: the arrows of the
+///   reading line (wide screens) or a swipe sideways over the words (any
+///   screen, see `UnitSwipe`).
 /// - the limit the reader was entered through. Leaving it (a jump outside it, the
 ///   end card of Mushaf, "Keep reading" of Words) removes it for both views.
 ///
@@ -74,6 +78,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   QuranView _view = QuranView.mushaf;
   ReaderLimit? _limit;
   bool _barHidden = false;
+
+  // Words are selected on a card: the sideways swipe leaves the touches alone
+  // (a handle dragged sideways is not a step to the next unit).
+  bool _selecting = false;
   late WordsJump _wordsJump;
   late MushafJump _mushafJump;
 
@@ -130,7 +138,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     if (_containerSet) {
       Future<void>.microtask(() {
         try {
-          _container.read(autoReadProvider.notifier).pause();
+          _container.read(autoReadProvider.notifier).stop();
         } catch (_) {}
       });
     }
@@ -404,25 +412,35 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     if (shown != null && mounted) await _jumpToAyah(shown, null);
   }
 
-  Future<void> _openAskAi(AyahRef ayah, [String? prompt, String? focus]) async {
+  /// Opens the assistant on [ayah]. [focus] is the words the reader had
+  /// selected, [prompt] a question for the box. An ayah that has chats already
+  /// offers to go on with the latest one.
+  Future<void> _openAskAi(AyahRef ayah, {String? prompt, String? focus}) async {
     final existing = await ref.read(chatsForAyahProvider(ayah).future);
     if (!mounted) return;
+    var chatId = 'new';
     if (existing.isNotEmpty) {
+      final l10n = context.l10n;
       final choice = await showModalBottomSheet<String>(
         context: context,
+        showDragHandle: true,
         builder: (context) => SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
                 leading: const Icon(Icons.chat_outlined),
-                title: Text('Continue chat (${existing.length})'),
-                subtitle: Text(existing.first.title),
+                title: Text(l10n.askContinueChat(existing.length)),
+                subtitle: Text(
+                  existing.first.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 onTap: () => Navigator.pop(context, existing.first.id),
               ),
               ListTile(
                 leading: const Icon(Icons.add_comment_outlined),
-                title: const Text('Start new chat'),
+                title: Text(l10n.askStartNewChat),
                 onTap: () => Navigator.pop(context, 'new'),
               ),
             ],
@@ -430,14 +448,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
         ),
       );
       if (!mounted || choice == null) return;
-      if (choice == 'new') {
-        context.push(BrowsePaths.askNew(ayah: ayah, prompt: prompt, focus: focus));
-      } else {
-        context.push(BrowsePaths.askChat(choice));
-      }
-    } else {
-      context.push(BrowsePaths.askNew(ayah: ayah, prompt: prompt, focus: focus));
+      chatId = choice;
     }
+    unawaited(
+      context.push(
+        chatId == 'new'
+            ? BrowsePaths.askNew(ayah: ayah, prompt: prompt, focus: focus)
+            : BrowsePaths.askChat(chatId, prompt: prompt, focus: focus),
+      ),
+    );
   }
 
   // -- one step: a unit in Words, a page in Mushaf (wide screens) -------------
@@ -448,7 +467,25 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     return unit == WordsUnit.ch && v2 ? WordsUnit.page : unit;
   }
 
+  /// True while a step is being worked out (a lookup in the layout is async), so
+  /// a second touch of the arrow or a second swipe in the meantime is dropped.
+  bool _stepping = false;
+
+  /// The arrows of the reading line and a swipe over the words: the start of
+  /// the next unit, or of the one before (from the middle of a unit, its own
+  /// start first). Never out of the limit the reader came in through (a part, a
+  /// range), where the stream itself stops.
   Future<void> _stepUnit({required bool forward}) async {
+    if (_stepping) return;
+    _stepping = true;
+    try {
+      await _stepUnitNow(forward: forward);
+    } finally {
+      _stepping = false;
+    }
+  }
+
+  Future<void> _stepUnitNow({required bool forward}) async {
     final at = _place;
     if (at == null) return;
     final locator = ref.read(pageLocatorProvider);
@@ -476,6 +513,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     }
     final next = target;
     if (next == null || !mounted) return;
+    final limit = _limit;
+    final held = limit != null && limit.stopsWords ? limit.ayahs : null;
+    if (held != null && !held.contains(next)) return;
     setState(() {
       _place = next;
       _wordsJump = WordsJump(next);
@@ -520,6 +560,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     final hidden = !words && _barHidden;
     final unit = _effectiveUnit();
     final limit = _limit;
+    // The Ask buttons are there only when the assistant is on and has a key.
+    final askOn = ref.watch(askAvailableProvider);
     return Scaffold(
       body: SafeArea(
         child: Align(
@@ -559,20 +601,38 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
                     children: [
                       Positioned.fill(
                         child: words
-                            ? WordsStreamView(
-                                jump: _wordsJump,
-                                unit: unit,
-                                stop: limit != null && limit.stopsWords
-                                    ? limit.ayahs
-                                    : null,
-                                onTop: _onWordsTop,
-                                onOpenInfo: _openUnitInfo,
-                                onTafsir: (ayah) => unawaited(_openTafsir(ayah)),
-                                onAskAi: (ayah, prompt) =>
-                                    unawaited(_openAskAi(ayah, prompt)),
-                                onStepUnit: (forward) =>
+                            // A swipe sideways is the arrows' step, on screens of
+                            // every width (the arrows need 480px). The Whole
+                            // Quran is one unit: nothing to step to.
+                            ? UnitSwipe(
+                                enabled:
+                                    unit != WordsUnit.quran && !_selecting,
+                                onStep: (forward) =>
                                     unawaited(_stepUnit(forward: forward)),
-                                onReleaseStop: _releaseWordsLimit,
+                                child: WordsStreamView(
+                                  jump: _wordsJump,
+                                  unit: unit,
+                                  stop: limit != null && limit.stopsWords
+                                      ? limit.ayahs
+                                      : null,
+                                  onTop: _onWordsTop,
+                                  onOpenInfo: _openUnitInfo,
+                                  onTafsir: (ayah) =>
+                                      unawaited(_openTafsir(ayah)),
+                                  onAskAi: askOn
+                                      ? (ayah, focus) => unawaited(
+                                          _openAskAi(ayah, focus: focus),
+                                        )
+                                      : null,
+                                  onStepUnit: (forward) =>
+                                      unawaited(_stepUnit(forward: forward)),
+                                  onSelecting: (selecting) {
+                                    if (mounted && _selecting != selecting) {
+                                      setState(() => _selecting = selecting);
+                                    }
+                                  },
+                                  onReleaseStop: _releaseWordsLimit,
+                                ),
                               )
                             : MushafReader(
                                 jump: _mushafJump,
@@ -580,7 +640,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
                                 onPage: _onMushafPage,
                                 onOpenWords: _openWordsAt,
                                 onTafsir: (ayah) => unawaited(_openTafsir(ayah)),
-                                onAskAi: (ayah) => unawaited(_openAskAi(ayah)),
+                                onAskAi: askOn
+                                    ? (ayah) => unawaited(_openAskAi(ayah))
+                                    : null,
                                 onReleaseLimit: _releaseMushafLimit,
                                 onToggleBar: () =>
                                     setState(() => _barHidden = !_barHidden),
@@ -604,10 +666,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
                         right: 0,
                         child: Consumer(
                           builder: (context, ref, _) {
-                            final playing = ref.watch(
-                              autoReadProvider.select((s) => s.playing),
+                            // On screen from the first play until it is closed:
+                            // a pause keeps it, to start again from.
+                            final active = ref.watch(
+                              autoReadProvider.select((s) => s.active),
                             );
-                            if (!playing) return const SizedBox.shrink();
+                            if (!active) return const SizedBox.shrink();
                             return Center(
                               child: AutoReadPill(
                                 onTapPace: () =>

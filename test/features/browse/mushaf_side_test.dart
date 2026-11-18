@@ -11,6 +11,7 @@ import 'package:personaltskmng/features/browse/presentation/pages/browse_not_fou
 import 'package:personaltskmng/features/browse/presentation/pages/reader_page.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/context_line_bar.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/reader_bar.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/unit_swipe.dart';
 import 'package:personaltskmng/mushaf/controller/mushaf_edition.dart';
 import 'package:personaltskmng/mushaf/data/mushaf_source.dart';
 import 'package:personaltskmng/mushaf/models/mushaf_edition.dart';
@@ -20,6 +21,7 @@ import 'package:personaltskmng/quran_data/controller/quran_prefs.dart';
 import 'package:personaltskmng/quran_data/models/context_line.dart';
 import 'package:personaltskmng/quran_data/models/tafsir.dart';
 import 'package:personaltskmng/shared/widgets/mushaf_page_view.dart';
+import 'package:personaltskmng/shared/widgets/text_flow.dart';
 import 'package:personaltskmng/shared/widgets/words_rows.dart';
 import 'package:personaltskmng/shared/widgets/words_stream_view.dart';
 
@@ -441,6 +443,187 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Download the Quran'), findsOneWidget);
+    });
+  });
+
+  group('a swipe over the words', () {
+    // Too narrow for the arrows of the reading line (they need 480px).
+    const narrow = Size(400, 900);
+
+    /// A quick swipe over the words, [dx] to the right (plus) or to the left
+    /// (minus), then the time the stream takes to say where it is.
+    Future<void> swipe(WidgetTester tester, double dx) async {
+      await tester.fling(find.byType(WordsStreamView), Offset(dx, 0), 1000);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pumpAndSettle();
+    }
+
+    MemoryQuranPrefsStore wordsPrefs([Map<String, String> more = const {}]) =>
+        MemoryQuranPrefsStore({QuranPrefKeys.view: 'words', ...more});
+
+    testReader('turns to the next unit and back, where the arrows do not fit', (
+      tester,
+    ) async {
+      useWindow(tester, narrow);
+      await _open(
+        tester,
+        _reader(
+          const ReadAyah(AyahRef(2, 6), view: QuranView.words),
+          prefs: wordsPrefs(),
+        ),
+      );
+      expect(find.byTooltip('Next'), findsNothing);
+      expect(find.text('3 / 604'), findsOneWidget);
+      expect(find.text('ARABIC 2:6'), findsOneWidget);
+
+      // The text runs right to left, as in the Mushaf: a swipe to the right
+      // turns to what comes next (page 4 starts at 2:17).
+      await swipe(tester, 160);
+      expect(find.text('4 / 604'), findsOneWidget);
+      expect(find.text('ARABIC 2:17'), findsOneWidget);
+
+      await swipe(tester, -160);
+      expect(find.text('3 / 604'), findsOneWidget);
+      expect(find.text('ARABIC 2:6'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testReader('goes the other way when the text runs left to right', (
+      tester,
+    ) async {
+      useWindow(tester, narrow);
+      await _open(
+        tester,
+        TextFlow(
+          direction: TextDirection.ltr,
+          child: _reader(
+            const ReadAyah(AyahRef(2, 6), view: QuranView.words),
+            prefs: wordsPrefs(),
+          ),
+        ),
+      );
+      expect(find.text('3 / 604'), findsOneWidget);
+
+      await swipe(tester, -160);
+      expect(find.text('4 / 604'), findsOneWidget);
+      expect(find.text('ARABIC 2:17'), findsOneWidget);
+
+      await swipe(tester, 160);
+      expect(find.text('3 / 604'), findsOneWidget);
+    });
+
+    testReader('steps by the unit that is chosen, like the arrows', (
+      tester,
+    ) async {
+      useWindow(tester, narrow);
+      await _open(
+        tester,
+        _reader(
+          const ReadAyah(AyahRef(2, 6), view: QuranView.words),
+          prefs: wordsPrefs({QuranPrefKeys.wordsUnit: 'surah'}),
+        ),
+      );
+      expect(find.text('ARABIC 2:6'), findsOneWidget);
+
+      // The next surah starts at 3:1 (page 50 in the fixture).
+      await swipe(tester, 160);
+      expect(find.text('ARABIC 3:1'), findsOneWidget);
+      expect(find.text('50 / 604'), findsOneWidget);
+    });
+
+    testReader('a short swipe, or one with no speed in it, changes nothing', (
+      tester,
+    ) async {
+      useWindow(tester, narrow);
+      await _open(
+        tester,
+        _reader(
+          const ReadAyah(AyahRef(2, 6), view: QuranView.words),
+          prefs: wordsPrefs(),
+        ),
+      );
+
+      await tester.fling(
+        find.byType(WordsStreamView),
+        const Offset(30, 0),
+        1000,
+      );
+      await tester.drag(find.byType(WordsStreamView), const Offset(160, 0));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pumpAndSettle();
+      expect(find.text('3 / 604'), findsOneWidget);
+      expect(find.text('ARABIC 2:6'), findsOneWidget);
+    });
+
+    testReader('the Whole Quran is one unit: a swipe does not move', (
+      tester,
+    ) async {
+      useWindow(tester, narrow);
+      await _open(
+        tester,
+        _reader(
+          const ReadAyah(AyahRef(2, 6), view: QuranView.words),
+          prefs: wordsPrefs({QuranPrefKeys.wordsUnit: 'quran'}),
+        ),
+      );
+      expect(find.text('ARABIC 2:6'), findsOneWidget);
+
+      // Back would have jumped to the start of the Quran.
+      await swipe(tester, -160);
+      await swipe(tester, 160);
+      expect(find.text('3 / 604'), findsOneWidget);
+      expect(find.text('ARABIC 2:6'), findsOneWidget);
+    });
+
+    testReader('is not looked at in the Mushaf, which has its own pager', (
+      tester,
+    ) async {
+      useWindow(tester, narrow);
+      await _open(tester, _reader(const ReadPage(106)));
+      expect(find.byType(WordsStreamView), findsNothing);
+      expect(find.text('106 / 604'), findsOneWidget);
+      expect(find.byType(UnitSwipe), findsNothing);
+    });
+
+    testReader('stays inside the range the reader came in through', (
+      tester,
+    ) async {
+      useWindow(tester, narrow);
+      await _open(
+        tester,
+        _reader(const ReadRange(3, 4), prefs: wordsPrefs()),
+      );
+      expect(find.text('3 (1/2)'), findsOneWidget);
+
+      await swipe(tester, 160);
+      expect(find.text('4 (2/2)'), findsOneWidget);
+      expect(find.text('ARABIC 2:17'), findsOneWidget);
+
+      // Page 5 is outside the range: no step.
+      await swipe(tester, 160);
+      expect(find.text('4 (2/2)'), findsOneWidget);
+      expect(find.text('ARABIC 2:17'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testReader('the arrows stay inside the range too', (tester) async {
+      useWindow(tester, _window);
+      await _open(
+        tester,
+        _reader(const ReadRange(3, 4), prefs: wordsPrefs()),
+      );
+      expect(find.text('3 (1/2)'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Next'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pumpAndSettle();
+      expect(find.text('4 (2/2)'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Next'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pumpAndSettle();
+      expect(find.text('4 (2/2)'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 

@@ -10,6 +10,7 @@ import 'package:personaltskmng/quran_data/models/reading_pacer.dart';
 import 'package:personaltskmng/quran_data/models/unit_edges.dart';
 import 'package:personaltskmng/quran_data/models/words_stream.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
+import 'package:personaltskmng/shared/widgets/division_labels.dart';
 
 /// Opens the reading options: one sheet, opened from the context line. What is
 /// chosen here is remembered like the view and the translation are (a view
@@ -23,8 +24,9 @@ Future<void> showReadingOptions(BuildContext context) =>
       builder: (context) => const ReadingOptionsSheet(),
     );
 
-/// The unit of Words, the translation (or none), the text size, keep the screen
-/// on, and the ruku ticks of the Mushaf.
+/// The unit of Words, the translation (or none), the sections of the ayah card
+/// that are open, the text size, keep the screen on, and the ruku ticks of the
+/// Mushaf.
 class ReadingOptionsSheet extends ConsumerWidget {
   const ReadingOptionsSheet({super.key});
 
@@ -60,6 +62,7 @@ class ReadingOptionsSheet extends ConsumerWidget {
     final selectedId = ref.watch(selectedTranslationIdProvider).value;
     final off = choice == quranTranslationOff;
     final step = ref.watch(textSizeProvider);
+    final sections = ref.watch(ayahSectionsProvider);
 
     Widget heading(String text) => Padding(
       padding: const EdgeInsets.only(
@@ -160,6 +163,32 @@ class ReadingOptionsSheet extends ConsumerWidget {
                   ),
               ],
             ),
+
+          // -- sections of the ayah card ---------------------------------------
+          // The same choice as the title rows on the cards of Words: a chip is
+          // selected while its section is open, on every ayah.
+          heading(l10n.readerSections),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            children: [
+              for (final section in AyahSection.values)
+                FilterChip(
+                  label: Text(ayahSectionLabel(l10n, section)),
+                  selected: sections.isOpen(section),
+                  onSelected: (open) => ref
+                      .read(ayahSectionsProvider.notifier)
+                      .setOpen(section, open),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            l10n.readerSectionsHint,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
 
           // -- text size ------------------------------------------------------
           heading(l10n.readerTextSize),
@@ -370,7 +399,7 @@ class _AutoReadSection extends ConsumerWidget {
           children: [
             IconButton(
               icon: const Icon(Icons.remove_rounded),
-              tooltip: '-10 WPM',
+              tooltip: l10n.autoReadSlower,
               onPressed: autoRead.wordsPerMinute <= ReadingPacer.minWpm
                   ? null
                   : () => ref
@@ -393,7 +422,7 @@ class _AutoReadSection extends ConsumerWidget {
             ),
             IconButton(
               icon: const Icon(Icons.add_rounded),
-              tooltip: '+10 WPM',
+              tooltip: l10n.autoReadFaster,
               onPressed: autoRead.wordsPerMinute >= ReadingPacer.maxWpm
                   ? null
                   : () => ref

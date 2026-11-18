@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:personaltskmng/ask/controller/ask_providers.dart';
 import 'package:personaltskmng/core/constants/app_breakpoints.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/core/theme/app_theme.dart';
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
+import 'package:personaltskmng/features/browse/presentation/browse_paths.dart';
 import 'package:personaltskmng/mushaf/controller/mushaf_providers.dart';
 import 'package:personaltskmng/quran_data/controller/quran_prefs.dart';
 import 'package:personaltskmng/quran_data/controller/quran_providers.dart';
@@ -194,6 +196,16 @@ class _TafsirPageState extends ConsumerState<TafsirPage> {
       appBar: AppBar(
         title: Text(l10n.tafsirTitle),
         actions: [
+          if (passage != null && ref.watch(askAvailableProvider))
+            IconButton(
+              icon: const Icon(Icons.auto_awesome_outlined),
+              tooltip: l10n.copyItemAskAi,
+              onPressed: () => unawaited(
+                context.push(
+                  BrowsePaths.askNew(ayah: _focus, tafsir: _sourceId),
+                ),
+              ),
+            ),
           if (passage != null)
             TextButton(
               onPressed: () => context.pop<AyahRef>(passage.covers.first),
@@ -223,6 +235,7 @@ class _TafsirPageState extends ConsumerState<TafsirPage> {
 
     final source = _sources.where((s) => s.id == _sourceId).firstOrNull;
     final scale = QuranTextSize.factor(ref.watch(textSizeProvider));
+    final askOn = ref.watch(askAvailableProvider);
     final range = passage?.covers;
     return Column(
       children: [
@@ -270,15 +283,23 @@ class _TafsirPageState extends ConsumerState<TafsirPage> {
                           _copyWithRef(_selectedText, range, source?.title);
                         },
                       ),
-                      ContextMenuButtonItem(
-                        label: l10n.copyItemAskAi,
-                        onPressed: () {
-                          state.hideToolbar();
-                          context.push(
-                            '/browse/ask/new?ayah=${range.first.key}&focus=${Uri.encodeComponent(_selectedText)}',
-                          );
-                        },
-                      ),
+                      // Only when the assistant is on and has a key.
+                      if (askOn)
+                        ContextMenuButtonItem(
+                          label: l10n.copyItemAskAi,
+                          onPressed: () {
+                            state.hideToolbar();
+                            unawaited(
+                              context.push(
+                                BrowsePaths.askNew(
+                                  ayah: _focus,
+                                  focus: _selectedText.trim(),
+                                  tafsir: _sourceId,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                     ],
                   ),
                   child: CustomScrollView(

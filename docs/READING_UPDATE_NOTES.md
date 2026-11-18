@@ -115,3 +115,152 @@ the old page (`_releaseMushafLimit` now also updates the page and refreshes the 
   that, so confirm both licences yourself.
 - Every tafsir you add, every translation, and QUL resources (see `RULES.md`, "Terms that go with
   the data").
+
+## Collapsible ayah sections (Words)
+
+Each ayah card of the Words view has three sections, each with a title row that opens or closes
+it: **Arabic** (the whole ayah), **Word by word**, **Translation**. The choice is one for the
+whole reader: close the translation on one ayah and it is closed on all of them, and it stays
+closed next time. The same three switches are chips under **Ayah sections** in the reading options.
+
+Where it lives:
+
+- `lib/quran_data/models/ayah_sections.dart` (new, pure Dart): `AyahSection` and `AyahSections`
+  (a small immutable value: which sections are closed; written as `words,translation`).
+- `lib/quran_data/controller/quran_prefs.dart`: `QuranPrefKeys.closedSections`,
+  `AyahSectionsNotifier`, `ayahSectionsProvider` (all open is the default and keeps nothing).
+- `lib/shared/widgets/words_rows.dart`: `AyahCard` gets `sections` and `onToggleSection`; the title
+  rows are `_Section` / `_SectionTitle`. A closed section is only its title row.
+- `lib/shared/widgets/words_stream_view.dart`: a change makes a new stream, like a new translation
+  or text size (cards change height, and rows above the screen would push the reader's place
+  out). It is opened on the ayah whose title was tapped, which then sits at the top; a change from
+  the reading options keeps the ayah at the top.
+- `lib/features/browse/presentation/widgets/reading_options_sheet.dart`: the chips.
+- New texts (en, fr; the generated files were updated by hand too): `wordsSectionArabic`,
+  `wordsSectionWords` (the Translation title reuses `wordsTranslation`), `readerSections`,
+  `readerSectionsHint`.
+
+Tests: new `test/quran_data/ayah_sections_test.dart`; added to `quran_prefs_test.dart`,
+`test/shared/words_rows_test.dart` (group "the sections"), `quran_words_test.dart` (group "the
+sections of the card"), `reading_options_sheet_test.dart`. One old expectation changed: the sheet
+now has the word "Translation" twice (the heading and the chip), so that line says 2. NOT RUN, like
+the rest; the shaky ones are the stream tests that tap a title and read where the card ended up
+(`getTopLeft(...).dy < 80`).
+
+Check on a device: tap a title in the middle of the screen (the card should jump to the top, the
+rest follow, no blank gap); close all three on a long surah and scroll; change a section from the
+reading options while scrolled deep into a surah (the ayah at the top should stay); 200% text and a
+320 px wide screen (titles stay on one line, the chevron stays visible).
+
+## Page marks in every unit (Words)
+
+Before, the page showed in the stream only when the unit was Page. Now it shows in every unit:
+where a page starts (the first ayah that starts on it) the element of that ayah says `p 43`, and an
+ayah that runs over a page break says `continues on p 44`.
+
+- A page that starts where a surah, juz or hizb starts is a chip on that banner; where a ruku starts
+  it is `Ruku 4 · 10 ayahs · p 6` on the hairline (the ruku hairline never showed the page before,
+  also not in Page); where nothing else starts it is a slim `p 43` hairline. Never two elements for
+  one place. A ch banner does not repeat the page its label already starts at.
+- `lib/quran_data/models/words_stream.dart`: `AyahPageInfo` and `WordsStream.pageInfoOf(ayah, locator)`
+  (pure Dart; the page that starts at the ayah, the page it goes on over).
+- `lib/quran_data/models/reading_banners.dart`: `ReadingBanners.at(..., pageStart:)`.
+- `lib/quran_data/models/words_model.dart`: asks for the page info of every ayah it makes (not in the
+  Page unit, whose chunks know it already) in both directions. A layout that cannot be read leaves
+  the page marks out, it never fails the stream.
+- `lib/shared/widgets/words_rows.dart`: the ruku hairline carries the page; one `_pageLabel` helper.
+- No new texts (the numbers and the letter `p` are never translated).
+
+Tests: `reading_banners_test.dart` (group "the page that starts at an ayah, whatever the unit"),
+`words_stream_test.dart` (group "where an ayah is on its pages", against all 604 pages of the
+fixture), `words_model_test.dart` (group "the page marks, in every unit", forward and backward,
+all units, with and without continuations, unreadable and missing layout), `words_rows_test.dart`
+(banners), `quran_words_test.dart` (group "the page marks"). NOT RUN, like the rest. The shaky one is
+"the marks are above too": it scrolls a long way up and reads a marker from the cache.
+
+Check on a device: scroll in Juz, Ruku and Whole Quran units and look for a `p N` at every page
+break; check the first scroll after opening is as smooth as before (each ayah now asks the layout,
+which is cached after the first reads); 200% text, 320 px wide.
+
+## Swipe to the next / previous unit (Words)
+
+The ◀ / ▶ arrows of the reading line only show from 480 px, so on a phone there was no way to step
+a unit. A swipe sideways over the words now does the same step, on every screen.
+
+- `lib/features/browse/presentation/widgets/unit_swipe.dart` (new): `UnitSwipe`, a `Listener` around
+  the stream (raw touches only, it never enters the gesture arena, so scrolling, taps and long
+  presses are untouched). `UnitSwipe.read(...)` is the pure decision: at least 56 px across, at
+  least twice as far across as up or down, still moving at 200 px/s or more the same way when the
+  finger leaves. A vertical scroll, a short or slow drag and a two-finger touch are not swipes.
+- The way follows the reading direction like the Mushaf pager: text right to left (default), a swipe
+  **to the right** is next; left to right, a swipe to the left.
+- `reader_page.dart`: wraps `WordsStreamView` in `UnitSwipe` (off for the Whole Quran unit, where a
+  step back would have jumped to the start of the Quran) and calls the same `_stepUnit` as the
+  arrows. `_stepUnit` now (1) drops a second step asked while one is being worked out and (2) does
+  not step out of a part or a range (`limit.ayahs`), for the arrows too: before, an arrow in Words
+  could leave the part the reader came in through.
+- No new texts, no new settings.
+
+Tests: `test/features/browse/unit_swipe_test.dart` (the decision, both directions, taps and scroll
+untouched, two fingers, cancel, disabled), `mushaf_side_test.dart` (group "a swipe over the words":
+a narrow screen with no arrows, left to right, the surah unit, short / slow, Whole Quran, the range
+limit for swipe and arrows). NOT RUN, like the rest. The shaky ones are the reader ones that read
+the position pill after a `fling` (they rely on the stream reporting its top ayah after it opens).
+
+Check on a device: swipe in Page, Juz and Surah units on a phone and on a tablet; with the Reading
+direction setting on right to left and on left to right; make sure a normal vertical scroll never
+steps and a long press on a note still selects text.
+
+## Copy, selection, unit edges, Ask AI and auto-read: review and completion
+
+The reading features written from `WORDS_MODE_NEXT_STEPS_ADVICE.md` (copy builder, selection,
+unit edges, the assistant with its chats, auto-read) were reviewed and finished. Nothing was run
+(analysis and tests are left to the owner of the project).
+
+Words, selection and edges
+- `words_model.dart`: after a pass or a release the fence of that direction moves to the unit that
+  was entered (before, the next unit's edge never held again).
+- `words_stream_view.dart`: a selection stops the auto-read ticks and the unit swipe (`onSelecting`,
+  also cleared on dispose); the scroll listener keeps checking the top ayah while auto-read runs;
+  the edge tiles use the localized texts; `onAskAi(ayah, focus)` carries the selected words.
+- `reader_page.dart`: Ask buttons only when `askAvailableProvider` is true; auto-read stops when the
+  reader closes; the pill follows `AutoReadState.active`.
+
+Auto-read
+- `auto_read_provider.dart`: `active` (a pause keeps the pill, `stop()` takes it away).
+  `auto_read_pill.dart`: close button, localized tooltips.
+- `mushaf_reader.dart`: progress line through a `ValueNotifier` (no rebuild of the page every
+  tick), a touch on the page restarts the wait.
+
+Assistant
+- `ask_settings_store.dart` / `shared_ask_settings_store.dart` (new) and `AskSettingsNotifier`:
+  the settings are saved. `ask_settings_section.dart` (new) in Settings: switch, provider, model,
+  key, language, length, chat count and size, delete all.
+- `ask_providers.dart`: `askAvailableProvider`, `ChatDetailNotifier` (retry, stop that keeps the
+  partial answer, delete, rename, attach), `ChatListNotifier.remove / restore / rename` (a swiped
+  chat leaves the list in the same frame, as `Dismissible` needs).
+- `ask_preset.dart`: `AskFollowUp` enum (the chips are localized, the instruction stays English
+  for the model). `ask_markdown.dart` (new): bold, italic, bullets, headings, ayah references.
+- `file_chat_store.dart`: an index that is missing or damaged is rebuilt from the chat files.
+- `gemini_chat.dart` / `groq_chat.dart`: an idle timeout on the stream, network errors mapped to
+  `AiProviderException`, a blocked Gemini answer reported.
+- `ask_chat_page.dart` (rewritten), `chats_list_page.dart` (rewritten), `ask_chat_text.dart` (new):
+  localized, markdown answers, the thread follows the answer while it streams (and stays put when
+  the reader scrolled up), presets only with an ayah attached, Retry for a question without an
+  answer, calendar-day labels (Today / Yesterday).
+- `ayah_copy_sheet.dart`: Ask AI button (one ayah), a "Copy for AI" menu that looks enabled
+  (`MenuAnchor`), notices for missing tafsir.
+- Texts: about 30 new keys in `app_en.arb` / `app_fr.arb` and the generated Dart (written by hand to
+  match `flutter gen-l10n`; run it once to be sure they are identical).
+
+Tests added: `auto_read_provider_test.dart` (pause / stop), `ask_markdown_test.dart`,
+`ask_preset_test.dart`, `file_chat_store_test.dart` (index rebuilt / damaged), `chat_stream_test.dart`,
+`ayah_copy_sheet_ask_test.dart`, `chats_list_page_test.dart`. NOT RUN. The shaky ones are the
+swipe-to-delete and rename tests of the chats list (they depend on `Dismissible` and the bottom sheet
+timing) and the copy sheet ones (they scroll a sheet to reach the buttons).
+
+Check on a device: select words in a card, then *Ask AI*; the chat opens with the ayah and the words
+in the box; stream an answer and scroll up while it writes (it must not jump); airplane mode and
+Retry; a missing key; delete and Undo in the list; auto-read in Words (pause, resume, pill close,
+select text while it runs) and in Mushaf (touch the page, last page); Gate and Locked on a unit
+and the one after it.

@@ -59,10 +59,18 @@ final class WordsJump {
 /// cache extent factor in `build`.
 ///
 /// A new stream is made (the rows start again from the ayah at the top, so it
-/// stays where it is) when [jump] or [unit] change, and when the translation or
-/// the text size change; until the new rows are ready the old ones stay, so no
-/// wrong content shows for a moment. It reports the ayah at the top of the
-/// screen with [onTop], at most every 120 ms while scrolling.
+/// stays where it is) when [jump] or [unit] change, and when the translation,
+/// the text size or the open sections change; until the new rows are ready the
+/// old ones stay, so no wrong content shows for a moment. It reports the ayah at
+/// the top of the screen with [onTop], at most every 120 ms while scrolling.
+///
+/// The sections of the ayah card (Arabic, word by word, translation) are opened
+/// and closed from the title row of any card; the choice is ONE for the whole
+/// stream (`ayahSectionsProvider`), so closing the translation closes it on every
+/// ayah. Cards change height when that happens, and rows above the screen would
+/// push what the reader is looking at out of place, so it makes a new stream
+/// too: on the ayah whose title was tapped (or, when the change came from the
+/// reading options, the ayah at the top), which then sits at the top.
 class WordsStreamView extends ConsumerStatefulWidget {
   const WordsStreamView({
     super.key,
@@ -73,6 +81,7 @@ class WordsStreamView extends ConsumerStatefulWidget {
     required this.onTafsir,
     this.onAskAi,
     this.onStepUnit,
+    this.onSelecting,
     this.stop,
     this.onReleaseStop,
   });
@@ -93,11 +102,18 @@ class WordsStreamView extends ConsumerStatefulWidget {
   /// The Tafsir button of an ayah card was tapped.
   final void Function(AyahRef ayah) onTafsir;
 
-  /// Ask AI about this ayah, with optional selected focus text.
-  final void Function(AyahRef ayah, String? prompt)? onAskAi;
+  /// Ask AI about this ayah, with the words the reader selected (null when the
+  /// ask did not come from a selection). Null: the assistant is not available
+  /// and no Ask button is shown.
+  final void Function(AyahRef ayah, String? focus)? onAskAi;
 
   /// Next/previous unit action when locked tile is tapped.
   final void Function(bool forward)? onStepUnit;
+
+  /// True while any card has text selected, false when none has. The reader
+  /// uses it to leave the sideways swipe alone (a handle dragged sideways is not
+  /// a step to the next unit).
+  final ValueChanged<bool>? onSelecting;
 
   /// The reader tapped "Keep reading": the limit is gone.
   final VoidCallback? onReleaseStop;
@@ -140,6 +156,12 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView>
   bool _touchActive = false;
   Timer? _touchResumeTimer;
   double _pixelsPerWord = 16.0;
+  int _ticksSinceMeasure = 0;
+
+  // The ayahs that have text selected now (a card tells when its selection
+  // starts and ends). Auto-read waits while there is one.
+  final Set<AyahRef> _selecting = <AyahRef>{};
+  bool _selectingTold = false;
 
   // Changes only when a new stream is shown, so a rebuild while the next one is
   // being made never restarts the scroll view under the reader.
@@ -157,6 +179,16 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView>
   // never change under the reader, a new stream is made instead.
   String? _translationId;
   double _scale = 1;
+  AyahSections _sections = AyahSections.allOpen;
+
+  // The sections the newest stream was ASKED for (it may not be shown yet): a
+  // change is compared with this, so closing a section and opening it again
+  // before the first new stream is ready still makes the last one.
+  AyahSections _sectionsAsked = AyahSections.allOpen;
+
+  // The ayah whose section title was just tapped: the stream the change makes is
+  // opened on it. Taken by the listener of the sections.
+  AyahRef? _sectionAnchor;
 
   AyahRef? _top;
   AyahRef? _highlight;
@@ -188,6 +220,12 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView>
   @override
   void dispose() {
     _generation++;
+    final selecting = widget.onSelecting;
+    if (_selectingTold && selecting != null) {
+      // The reader was told there is a selection: tell it there is none, after
+      // this frame (it must not rebuild while the tree is taken down).
+      WidgetsBinding.instance.addPostFrameCallback((_) => selecting(false));
+    }
     _autoReadTicker?.dispose();
     _touchResumeTimer?.cancel();
     _attemptsResetTimer?.cancel();
@@ -196,6 +234,20 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView>
     _fraction.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  // -- selection --------------------------------------------------------------
+
+  /// A card told its selection started or ended.
+  void _onSelecting(AyahRef at, bool on) {
+    final changed = on ? _selecting.add(at) : _selecting.remove(at);
+    if (!changed) return;
+    final any = _selecting.isNotEmpty;
+    if (any == _selectingTold) return;
+    _selectingTold = any;
+    // A card can tell this while it is being disposed (the stream was made again
+    // under a selection): the screen above is told only while this view lives.
+    if (mounted) widget.onSelecting?.call(any);
   }
 
   // -- opening a stream ------------------------------------------------------
@@ -240,10 +292,20 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView>
 
   void _reopen() => _open(_top ?? widget.jump.ayah);
 
+  /// A section title on the card of [at] was tapped: the section opens or closes
+  /// on every card (the listener in `build` makes the new stream, on [at]).
+  void _toggleSection(AyahRef at, AyahSection section) {
+    _sectionAnchor = at;
+    unawaited(ref.read(ayahSectionsProvider.notifier).toggle(section));
+  }
+
   Future<void> _open(AyahRef anchor, {bool highlight = false}) async {
     final generation = ++_generation;
     final locator = ref.read(pageLocatorProvider);
     final scale = QuranTextSize.factor(ref.read(textSizeProvider));
+    final sections = ref.read(ayahSectionsProvider);
+    _sectionsAsked = sections;
+    _sectionAnchor = null;
     WordsModel? model;
     String? translationId;
     try {
@@ -296,6 +358,7 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView>
       _shown++;
       _translationId = translationId;
       _scale = scale;
+      _sections = sections;
       _forwardKey = GlobalKey();
       _backwardKey = GlobalKey();
       _forwardBusy = false;
@@ -468,6 +531,7 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView>
     }
 
     if (_touchActive) return; // User is touching screen
+    if (_selecting.isNotEmpty) return; // Words are selected: do not move them
 
     final model = _model;
     if (model == null || !_scroll.hasClients) return;
@@ -495,7 +559,8 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView>
       }
     }
 
-    _measurePixelsPerWord();
+    // The measure walks the built rows: a few times a second is enough.
+    if (_ticksSinceMeasure++ % 15 == 0) _measurePixelsPerWord();
 
     final speed = autoRead.pacer.pixelsPerSecond(_pixelsPerWord);
     if (speed <= 0) return;
@@ -544,16 +609,15 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView>
 
     if (totalWords > 0 && totalHeight > 0) {
       final measuredRatio = totalHeight / totalWords;
-      _pixelsPerWord = _pixelsPerWord * 0.95 + measuredRatio * 0.05;
+      _pixelsPerWord = _pixelsPerWord * 0.75 + measuredRatio * 0.25;
     }
   }
 
   // -- the ayah at the top ---------------------------------------------------
 
   bool _onScroll(ScrollNotification notification) {
-    if (_isAutoScrolling) {
-      return false;
-    }
+    // The ayah at the top is followed while auto-read moves the list too (the
+    // reading place, the context line and "Continue reading" go by it).
     if (notification is ScrollUpdateNotification ||
         notification is ScrollEndNotification) {
       _topTimer ??= Timer(const Duration(milliseconds: 120), () {
@@ -561,6 +625,8 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView>
         if (mounted) _checkTop();
       });
     }
+    // What auto-read does is never an attempt to get through a gate.
+    if (_isAutoScrolling) return false;
 
     final model = _model;
     if (model != null && model.edgeMode == UnitEdge.gate) {
@@ -751,6 +817,14 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView>
     ref.listen(unitEdgesProvider, (previous, next) {
       if (_model != null && previous != next) _reopen();
     });
+    ref.listen(ayahSectionsProvider, (previous, next) {
+      if (_model == null || next == _sectionsAsked) return;
+      _open(_sectionAnchor ?? _top ?? widget.jump.ayah);
+    });
+    ref.listen<bool>(
+      autoReadProvider.select((s) => s.playing),
+      (prev, next) => _updateAutoReadTicker(next),
+    );
 
     if (_missing) return QuranNotice(message: l10n.wordsNotInstalled);
     if (_problem != null) return QuranNotice(message: l10n.mushafBroken);
@@ -761,6 +835,41 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView>
     final tafsirOn = ref.watch(
       tafsirSourcesProvider.select((v) => v.value?.isNotEmpty ?? false),
     );
+
+    // The tile at the end (or the start) of a unit in Gate or Locked mode. Gate:
+    // a scroll against it, or two taps on it, goes on; its button goes on at
+    // once. Locked: only the button (like the arrows and a swipe) goes to the
+    // next unit.
+    Widget unitTile(EdgeItem item, {required bool forward}) {
+      final gate = item.edgeMode == UnitEdge.gate;
+      final attempts = forward ? _forwardAttempts : _backwardAttempts;
+      final label = item.unitLabel;
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: gate ? () => _registerGateAttempt(forward: forward) : null,
+        child: StreamEdge(
+          attempts: gate ? attempts : 0,
+          maxAttempts: 2,
+          hint: gate
+              ? (attempts > 0 ? l10n.unitEdgePullAgain : l10n.unitEdgeGateTile)
+              : l10n.unitEdgeLockedTile,
+          actionLabel: label == null
+              ? l10n.readerKeepReading
+              : (forward
+                    ? l10n.unitEdgeNext(label)
+                    : l10n.unitEdgePrevious(label)),
+          onAction: () {
+            if (gate) {
+              unawaited(_passGate(forward: forward));
+            } else if (widget.onStepUnit != null) {
+              widget.onStepUnit!(forward);
+            } else {
+              unawaited(_passGate(forward: forward));
+            }
+          },
+        ),
+      );
+    }
 
     Widget buildEdge(EdgeItem item) {
       return switch (item.kind) {
@@ -778,62 +887,8 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView>
           actionLabel: l10n.readerKeepReading,
           onAction: () => _release(forward: false),
         ),
-        EdgeKind.unitEndForward => GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: item.edgeMode == UnitEdge.gate
-              ? () => _registerGateAttempt(forward: true)
-              : null,
-          child: StreamEdge(
-            title: item.unitLabel,
-            attempts: item.edgeMode == UnitEdge.gate ? _forwardAttempts : 0,
-            maxAttempts: 2,
-            hint: item.edgeMode == UnitEdge.gate
-                ? (_forwardAttempts > 0
-                    ? 'Tap again or pull down to continue'
-                    : 'Pull or tap twice to continue')
-                : null,
-            actionLabel: item.unitLabel != null
-                ? 'Continue to ${item.unitLabel}'
-                : l10n.readerKeepReading,
-            onAction: () {
-              if (item.edgeMode == UnitEdge.gate) {
-                _registerGateAttempt(forward: true);
-              } else if (widget.onStepUnit != null) {
-                widget.onStepUnit!(true);
-              } else {
-                _passGate(forward: true);
-              }
-            },
-          ),
-        ),
-        EdgeKind.unitStartBack => GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: item.edgeMode == UnitEdge.gate
-              ? () => _registerGateAttempt(forward: false)
-              : null,
-          child: StreamEdge(
-            title: item.unitLabel,
-            attempts: item.edgeMode == UnitEdge.gate ? _backwardAttempts : 0,
-            maxAttempts: 2,
-            hint: item.edgeMode == UnitEdge.gate
-                ? (_backwardAttempts > 0
-                    ? 'Tap again or pull up to continue'
-                    : 'Pull or tap twice to continue')
-                : null,
-            actionLabel: item.unitLabel != null
-                ? 'Previous (${item.unitLabel})'
-                : 'Previous',
-            onAction: () {
-              if (item.edgeMode == UnitEdge.gate) {
-                _registerGateAttempt(forward: false);
-              } else if (widget.onStepUnit != null) {
-                widget.onStepUnit!(false);
-              } else {
-                _passGate(forward: false);
-              }
-            },
-          ),
-        ),
+        EdgeKind.unitEndForward => unitTile(item, forward: true),
+        EdgeKind.unitStartBack => unitTile(item, forward: false),
       };
     }
 
@@ -848,11 +903,14 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView>
         item: ayahItem,
         translationId: _translationId,
         scale: _scale,
+        sections: _sections,
         fontFamily: font,
         tafsirOn: tafsirOn,
         highlighted: _highlight == ayahItem.at,
         onTafsir: widget.onTafsir,
         onAskAi: widget.onAskAi,
+        onToggleSection: _toggleSection,
+        onSelecting: _onSelecting,
       ),
       final EdgeItem edgeItem => buildEdge(edgeItem),
     };
@@ -868,11 +926,6 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView>
       final r = row(list[index]);
       return r;
     }
-
-    ref.listen<bool>(
-      autoReadProvider.select((s) => s.playing),
-      (prev, next) => _updateAutoReadTicker(next),
-    );
 
     return Stack(
       children: [
@@ -947,21 +1000,33 @@ class _AyahRow extends ConsumerWidget {
     required this.item,
     required this.translationId,
     required this.scale,
+    required this.sections,
     required this.fontFamily,
     required this.tafsirOn,
     required this.highlighted,
     required this.onTafsir,
     this.onAskAi,
+    required this.onToggleSection,
+    required this.onSelecting,
   });
 
   final AyahItem item;
   final String? translationId;
   final double scale;
+
+  /// The open sections of the stream this row belongs to.
+  final AyahSections sections;
   final String? fontFamily;
   final bool tafsirOn;
   final bool highlighted;
   final void Function(AyahRef ayah) onTafsir;
-  final void Function(AyahRef ayah, String? prompt)? onAskAi;
+  final void Function(AyahRef ayah, String? focus)? onAskAi;
+
+  /// A section title of this row's card was tapped (the ayah, the section).
+  final void Function(AyahRef ayah, AyahSection section) onToggleSection;
+
+  /// The card of this row has text selected (true) or has none now (false).
+  final void Function(AyahRef ayah, bool selecting) onSelecting;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -986,6 +1051,7 @@ class _AyahRow extends ConsumerWidget {
             ),
           );
     final l10n = context.l10n;
+    final ask = onAskAi;
     String? tafsirLabel;
     if (tafsirOn) {
       final cover = ref.watch(tafsirCoverProvider(at)).value;
@@ -998,15 +1064,19 @@ class _AyahRow extends ConsumerWidget {
       translation: translation,
       fontFamily: fontFamily,
       scale: scale,
+      sections: sections,
+      onToggleSection: (section) => onToggleSection(at, section),
       continuesOnPage: item.continuesOnPage,
       tafsirLabel: tafsirLabel,
       onTafsir: () => onTafsir(at),
       onCopy: () => showAyahCopySheet(
         context,
         ayah: at,
-        onAskAi: onAskAi,
+        // The sheet asks about the whole ayah, with nothing selected.
+        onAskAi: ask == null ? null : (ayah) => ask(ayah, null),
       ),
-      onAskAi: onAskAi,
+      onAskAi: ask,
+      onSelecting: (selecting) => onSelecting(at, selecting),
       highlighted: highlighted,
     );
   }

@@ -11,6 +11,7 @@ import 'package:personaltskmng/ask/controller/ask_providers.dart';
 import 'package:personaltskmng/ask/data/chat_store.dart';
 import 'package:personaltskmng/ask/data/file_chat_store.dart';
 import 'package:personaltskmng/ask/data/in_memory_chat_store.dart';
+import 'package:personaltskmng/ask/data/shared_ask_settings_store.dart';
 import 'package:personaltskmng/features/backup/presentation/providers/backup_providers.dart';
 import 'package:personaltskmng/features/backup/services/backup_service.dart';
 import 'package:personaltskmng/features/backup/services/drive_auth.dart';
@@ -133,6 +134,7 @@ Future<List<Override>> buildOverrides() async {
     apiKeyStoreProvider.overrideWithValue(keyStore),
     aiKeyStoreProvider.overrideWithValue(keyStore),
     chatStoreProvider.overrideWithValue(chatStore),
+    askSettingsStoreProvider.overrideWithValue(SharedAskSettingsStore(prefs)),
     aiRuntimeProvider.overrideWithValue(aiRuntime),
     dayRecordStoreProvider.overrideWithValue(dayRecords),
     driveBackupServiceProvider.overrideWithValue(driveService),

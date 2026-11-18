@@ -1988,6 +1988,18 @@ abstract class AppLocalizations {
   /// **'Translation'**
   String get wordsTranslation;
 
+  /// No description provided for @wordsSectionArabic.
+  ///
+  /// In en, this message translates to:
+  /// **'Arabic'**
+  String get wordsSectionArabic;
+
+  /// No description provided for @wordsSectionWords.
+  ///
+  /// In en, this message translates to:
+  /// **'Word by word'**
+  String get wordsSectionWords;
+
   /// No description provided for @quranDataOpen.
   ///
   /// In en, this message translates to:
@@ -2227,6 +2239,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Off'**
   String get readerTranslationOff;
+
+  /// No description provided for @readerSections.
+  ///
+  /// In en, this message translates to:
+  /// **'Ayah sections'**
+  String get readerSections;
+
+  /// No description provided for @readerSectionsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the title of a section on any ayah to open or close it on every ayah.'**
+  String get readerSectionsHint;
 
   /// No description provided for @readerTextSize.
   ///
@@ -3019,6 +3043,198 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{wpm} WPM · {pace}'**
   String autoReadPaceSummary(int wpm, String pace);
+
+  /// No description provided for @unitEdgePrevious.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous: {unit}'**
+  String unitEdgePrevious(String unit);
+
+  /// No description provided for @unitEdgeGateTile.
+  ///
+  /// In en, this message translates to:
+  /// **'Scroll again or tap twice to go on'**
+  String get unitEdgeGateTile;
+
+  /// No description provided for @unitEdgeLockedTile.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the button, the arrows or a swipe to go on'**
+  String get unitEdgeLockedTile;
+
+  /// No description provided for @askRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get askRetry;
+
+  /// No description provided for @askStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get askStop;
+
+  /// No description provided for @askInterrupted.
+  ///
+  /// In en, this message translates to:
+  /// **'(Interrupted)'**
+  String get askInterrupted;
+
+  /// No description provided for @askRoleYou.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get askRoleYou;
+
+  /// No description provided for @askRoleAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant'**
+  String get askRoleAssistant;
+
+  /// No description provided for @askReadAyah.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in the reader'**
+  String get askReadAyah;
+
+  /// No description provided for @askFocusLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus: “{text}”'**
+  String askFocusLabel(String text);
+
+  /// No description provided for @askAyahTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ayah {ayah}'**
+  String askAyahTitle(String ayah);
+
+  /// No description provided for @askToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get askToday;
+
+  /// No description provided for @askYesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get askYesterday;
+
+  /// No description provided for @askUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get askUndo;
+
+  /// No description provided for @askContinueChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue chat ({count})'**
+  String askContinueChat(int count);
+
+  /// No description provided for @askStartNewChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a new chat'**
+  String get askStartNewChat;
+
+  /// No description provided for @askSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quran assistant'**
+  String get askSettingsTitle;
+
+  /// No description provided for @askEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the Quran assistant'**
+  String get askEnable;
+
+  /// No description provided for @askLanguageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer language'**
+  String get askLanguageLabel;
+
+  /// No description provided for @askLanguageAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Same as the question'**
+  String get askLanguageAuto;
+
+  /// No description provided for @askLengthLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer length'**
+  String get askLengthLabel;
+
+  /// No description provided for @askLengthNormal.
+  ///
+  /// In en, this message translates to:
+  /// **'Normal'**
+  String get askLengthNormal;
+
+  /// No description provided for @askLengthShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Short'**
+  String get askLengthShort;
+
+  /// No description provided for @askStorageSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} chats · {size}'**
+  String askStorageSummary(int count, String size);
+
+  /// No description provided for @askNeedsKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Save a key for this provider to use the assistant.'**
+  String get askNeedsKey;
+
+  /// No description provided for @askPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'A question sends your message and what you attached (ayah text, translation, word glosses, tafsir) to the provider. Chats stay on this device and are not in backups.'**
+  String get askPrivacy;
+
+  /// No description provided for @autoReadSlower.
+  ///
+  /// In en, this message translates to:
+  /// **'Slower'**
+  String get autoReadSlower;
+
+  /// No description provided for @autoReadFaster.
+  ///
+  /// In en, this message translates to:
+  /// **'Faster'**
+  String get autoReadFaster;
+
+  /// No description provided for @autoReadStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Close auto-read'**
+  String get autoReadStop;
+
+  /// No description provided for @askNoMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'No chat matches your search'**
+  String get askNoMatches;
+
+  /// No description provided for @copyNoTafsirHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied, but the tafsir source has nothing on this ayah'**
+  String get copyNoTafsirHere;
+
+  /// No description provided for @copyAskOneAyah.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask AI works on one ayah at a time'**
+  String get copyAskOneAyah;
 }
 
 class _AppLocalizationsDelegate

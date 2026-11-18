@@ -74,25 +74,9 @@ final class FileChatStore implements ChatStore {
   @override
   Future<List<AskChatHeader>> list() => _enqueue(() async {
         await _ensureDir();
-        final file = _file(indexFileName);
-        if (!await file.exists()) return [];
-        try {
-          final content = await file.readAsString();
-          final decoded = jsonDecode(content);
-          if (decoded is List) {
-            final headers = <AskChatHeader>[];
-            for (final item in decoded) {
-              if (item is Map<String, dynamic>) {
-                headers.add(AskChatHeader.fromJson(item));
-              }
-            }
-            headers.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-            return headers;
-          }
-        } on FormatException {
-          await _quarantine(file);
-        } catch (_) {}
-        return [];
+        final headers = await _readIndexUnqueued();
+        headers.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+        return headers;
       });
 
   @override
@@ -139,20 +123,57 @@ final class FileChatStore implements ChatStore {
         await _writeAtomic(indexFileName, indexJson);
       });
 
+  /// The index. When it is missing or can not be read (a crash between the two
+  /// writes of a save, a damaged file: it is put aside) it is made again from
+  /// the chat files, so a chat that is on disk is never lost from the list.
   Future<List<AskChatHeader>> _readIndexUnqueued() async {
     final file = _file(indexFileName);
-    if (!await file.exists()) return [];
+    if (await file.exists()) {
+      try {
+        final decoded = jsonDecode(await file.readAsString());
+        if (decoded is List) {
+          return [
+            for (final item in decoded)
+              if (item is Map<String, dynamic>) AskChatHeader.fromJson(item),
+          ];
+        }
+        await _quarantine(file);
+      } on FormatException {
+        await _quarantine(file);
+      } catch (_) {
+        // Unreadable now (not damaged): leave it where it is, list nothing.
+        return [];
+      }
+    }
+    return _rebuildIndexUnqueued();
+  }
+
+  Future<List<AskChatHeader>> _rebuildIndexUnqueued() async {
+    if (!await directory.exists()) return [];
+    final headers = <AskChatHeader>[];
     try {
-      final content = await file.readAsString();
-      final decoded = jsonDecode(content);
-      if (decoded is List) {
-        return [
-          for (final item in decoded)
-            if (item is Map<String, dynamic>) AskChatHeader.fromJson(item),
-        ];
+      await for (final entity in directory.list()) {
+        if (entity is! File) continue;
+        final name = entity.uri.pathSegments.last;
+        if (!name.startsWith('chat_') || !name.endsWith('.json')) continue;
+        try {
+          final decoded = jsonDecode(await entity.readAsString());
+          if (decoded is Map<String, dynamic>) {
+            headers.add(AskChat.fromJson(decoded).toHeader());
+          }
+        } on FormatException {
+          await _quarantine(entity);
+        } catch (_) {}
       }
     } catch (_) {}
-    return [];
+    if (headers.isNotEmpty) {
+      headers.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      await _writeAtomic(
+        indexFileName,
+        jsonEncode([for (final h in headers) h.toJson()]),
+      );
+    }
+    return headers;
   }
 
   @override

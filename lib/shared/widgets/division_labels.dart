@@ -1,6 +1,16 @@
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/l10n/app_localizations.dart';
 import 'package:personaltskmng/mushaf/models/page_ticks.dart';
+import 'package:personaltskmng/quran_data/models/ayah_sections.dart';
+
+/// The title of a section of the ayah card (`Arabic`, `Word by word`,
+/// `Translation`): on the card and on the chips of the reading options.
+String ayahSectionLabel(AppLocalizations l10n, AyahSection section) =>
+    switch (section) {
+      AyahSection.arabic => l10n.wordsSectionArabic,
+      AyahSection.words => l10n.wordsSectionWords,
+      AyahSection.translation => l10n.wordsTranslation,
+    };
 
 /// "1 ayah" / "12 ayahs" (two texts, not a plural rule: they read the same in
 /// English and French and are easy to check).

@@ -26,6 +26,16 @@ Ground rules:
 - Do not give legal rulings (fatwa).
 - Answer in {language}. Be clear and concise.''';
 
+  /// The language the setting names ('auto', 'en', 'fr', 'ar') as the system
+  /// prompt writes it. 'auto' (and what is not known) is empty: the prompt then
+  /// says to answer in the language of the question.
+  static String languageName(String code) => switch (code) {
+    'en' => 'English',
+    'fr' => 'French',
+    'ar' => 'Arabic',
+    _ => '',
+  };
+
   static String buildSystemPrompt({
     required String language,
     bool hasContext = true,

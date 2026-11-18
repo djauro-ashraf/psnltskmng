@@ -185,6 +185,83 @@ void main() {
     });
   });
 
+  group('the sections of the ayah card', () {
+    test('are all open until the reader closes one', () {
+      final container = _container(MemoryQuranPrefsStore());
+      expect(container.read(ayahSectionsProvider), AyahSections.allOpen);
+    });
+
+    test('are kept by the names of the closed ones and read back', () async {
+      final store = MemoryQuranPrefsStore();
+      final container = _container(store);
+      await container
+          .read(ayahSectionsProvider.notifier)
+          .toggle(AyahSection.translation);
+      expect(store.get(QuranPrefKeys.closedSections), 'translation');
+      await container
+          .read(ayahSectionsProvider.notifier)
+          .toggle(AyahSection.words);
+      expect(store.get(QuranPrefKeys.closedSections), 'words,translation');
+
+      // A new session reads what was kept.
+      final next = _container(store).read(ayahSectionsProvider);
+      expect(next.isClosed(AyahSection.words), isTrue);
+      expect(next.isClosed(AyahSection.translation), isTrue);
+      expect(next.isOpen(AyahSection.arabic), isTrue);
+    });
+
+    test('opening the last closed one keeps nothing: all open is the default', () async {
+      final store = MemoryQuranPrefsStore();
+      final container = _container(store);
+      final notifier = container.read(ayahSectionsProvider.notifier);
+      await notifier.setOpen(AyahSection.arabic, false);
+      expect(store.get(QuranPrefKeys.closedSections), 'arabic');
+      await notifier.setOpen(AyahSection.arabic, true);
+      expect(container.read(ayahSectionsProvider), AyahSections.allOpen);
+      expect(store.get(QuranPrefKeys.closedSections), isNull);
+    });
+
+    test('are one choice for all the cards: what is closed once is closed for all', () async {
+      final container = _container(MemoryQuranPrefsStore());
+      final seen = <AyahSections>[];
+      container.listen(ayahSectionsProvider, (_, next) => seen.add(next));
+      await container
+          .read(ayahSectionsProvider.notifier)
+          .toggle(AyahSection.words);
+      expect(seen, [AyahSections.closing([AyahSection.words])]);
+    });
+
+    test('a value that means nothing reads as open', () {
+      final container = _container(
+        MemoryQuranPrefsStore({QuranPrefKeys.closedSections: 'everything'}),
+      );
+      expect(container.read(ayahSectionsProvider), AyahSections.allOpen);
+    });
+
+    test('setting what it already is writes nothing', () async {
+      final store = _CountingStore();
+      final container = _container(store);
+      final notifier = container.read(ayahSectionsProvider.notifier);
+      await notifier.setOpen(AyahSection.words, true);
+      expect(store.writes, 0);
+      await notifier.setOpen(AyahSection.words, false);
+      expect(store.writes, 1);
+      await notifier.setOpen(AyahSection.words, false);
+      expect(store.writes, 1);
+    });
+
+    test('hold for the session even if they cannot be saved', () async {
+      final container = _container(_FailingStore());
+      await container
+          .read(ayahSectionsProvider.notifier)
+          .toggle(AyahSection.arabic);
+      expect(
+        container.read(ayahSectionsProvider).isClosed(AyahSection.arabic),
+        isTrue,
+      );
+    });
+  });
+
   group('the yes/no choices', () {
     test('are off until the reader asks for them', () {
       final container = _container(MemoryQuranPrefsStore());

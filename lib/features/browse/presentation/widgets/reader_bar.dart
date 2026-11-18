@@ -40,6 +40,8 @@ class ReaderBar extends StatelessWidget {
   final VoidCallback onPosition;
 
   /// Wide screens only: one unit back / forward (Words), or one page (Mushaf).
+  /// On every screen the Words step also comes from a swipe (`UnitSwipe`) and
+  /// the Mushaf pages swipe like a book.
   final VoidCallback? onPrevious;
   final VoidCallback? onNext;
 

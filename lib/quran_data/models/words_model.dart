@@ -91,6 +91,12 @@ final class EdgeItem extends StreamItem {
 /// the rows of a surah are made, so the data of the cards is in memory when they
 /// are built (no card changes its height after it was laid out).
 ///
+/// The page marks do not depend on the unit: where a page starts, the banner of
+/// that ayah says so (or a slim `p 43` divider stands there), and an ayah that
+/// runs over a page break says where it goes on. They come from the layout of
+/// the chosen print; without it (a unit that needs no layout, not downloaded)
+/// the stream simply has no page marks.
+///
 /// The unit only decides which banners show up (the start of a ruku, a hizb, a
 /// ch, a page...) and where they are upgraded; the stream does not stop at the
 /// end of a unit. It stops at the ends of the Quran, and, when [stop] is given
@@ -144,6 +150,19 @@ final class WordsModel {
 
   Future<void>? _forwardBusy;
   Future<void>? _backwardBusy;
+
+  /// What the layout says about [a] and its pages. The Page unit's chunks know
+  /// it already; for the other units it is asked of the layout. A page mark is a
+  /// help, never a reason for the stream to fail: when the layout cannot be read
+  /// there is just none.
+  Future<AyahPageInfo> _pageInfo(AyahRef a) async {
+    if (unit == WordsUnit.page) return AyahPageInfo.none;
+    try {
+      return await WordsStream.pageInfoOf(a, locator);
+    } catch (_) {
+      return AyahPageInfo.none;
+    }
+  }
 
   /// Sets the stream on [anchor]: the first row of [forward] is the banner of
   /// [anchor] (when something starts there) and then its card. Returns false
@@ -236,18 +255,28 @@ final class WordsModel {
           break;
         }
         _forwardChunk = chunk;
+        // The unit the stream is in now (it went on past a gate that was
+        // passed, or past a "Keep reading" that was tapped).
+        _forwardFence = chunk.range;
       }
       if (readied != a.surah) {
         await ready(a.surah);
         readied = a.surah;
       }
+      final info = await _pageInfo(a);
       final unitStart = a == chunk.range.first ? chunk : null;
-      final banner = ReadingBanners.at(a, unitStart: unitStart);
+      final banner = ReadingBanners.at(
+        a,
+        unitStart: unitStart,
+        pageStart: info.startsPage,
+      );
       if (banner != null) forward.add(BannerItem(banner));
       forward.add(
         AyahItem(
           a,
-          continuesOnPage: a == chunk.range.last ? chunk.continuesOnPage : null,
+          continuesOnPage:
+              (a == chunk.range.last ? chunk.continuesOnPage : null) ??
+              info.continuesOnPage,
         ),
       );
       made++;
@@ -297,20 +326,28 @@ final class WordsModel {
           break;
         }
         _backwardChunk = chunk;
+        _backwardFence = chunk.range;
       }
       if (readied != a.surah) {
         await ready(a.surah);
         readied = a.surah;
       }
       // Upwards: the card first, the element in front of it above it.
+      final info = await _pageInfo(a);
       backward.add(
         AyahItem(
           a,
-          continuesOnPage: a == chunk.range.last ? chunk.continuesOnPage : null,
+          continuesOnPage:
+              (a == chunk.range.last ? chunk.continuesOnPage : null) ??
+              info.continuesOnPage,
         ),
       );
       final unitStart = a == chunk.range.first ? chunk : null;
-      final banner = ReadingBanners.at(a, unitStart: unitStart);
+      final banner = ReadingBanners.at(
+        a,
+        unitStart: unitStart,
+        pageStart: info.startsPage,
+      );
       if (banner != null) backward.add(BannerItem(banner));
       made++;
       final previous = QuranDivisions.previous(a);

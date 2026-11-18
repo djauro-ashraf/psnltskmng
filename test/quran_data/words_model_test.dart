@@ -252,6 +252,142 @@ void main() {
     });
   });
 
+  group('the page marks, in every unit', () {
+    // The 1405 print of the fixture: page 3 is 2:6 to 2:16, page 4 is 2:17 to
+    // 2:24, and nothing else starts at 2:17 (no ruku, hizb or juz).
+
+    /// The ayah of each element that says a page starts there, and the page.
+    Map<AyahRef, int?> marks(List<StreamItem> items) => {
+      for (final item in items)
+        if (item is BannerItem && item.banner.page != null)
+          item.banner.at: item.banner.page,
+    };
+
+    test('a slim p divider stands where a page starts, going forward', () async {
+      final model = _make(WordsUnit.surah, locator: fixture.locator()).model;
+      await model.start(const AyahRef(2, 14));
+      await model.extendForward(5);
+      expect(_shapes(model.forward), [
+        'ayah:2:14',
+        'ayah:2:15',
+        'ayah:2:16',
+        'banner:page',
+        'ayah:2:17',
+        'ayah:2:18',
+      ]);
+      final marker = model.forward.whereType<BannerItem>().single.banner;
+      expect(marker.page, 4);
+      expect(marker.at, const AyahRef(2, 17));
+    });
+
+    test('going backward the divider is above the first ayah of the page', () async {
+      final model = _make(WordsUnit.surah, locator: fixture.locator()).model;
+      await model.start(const AyahRef(2, 10));
+      await model.extendBackward(5);
+      // Upwards: 2:8 starts a ruku and 2:6 starts page 3.
+      expect(_shapes(model.backward), [
+        'ayah:2:9',
+        'ayah:2:8',
+        'banner:ruku',
+        'ayah:2:7',
+        'ayah:2:6',
+        'banner:page',
+        'ayah:2:5',
+      ]);
+      expect(marks(model.backward), {const AyahRef(2, 6): 3});
+    });
+
+    test('a page that starts with a ruku is said on the ruku, not on a second element', () async {
+      final model = _make(WordsUnit.surah, locator: fixture.locator()).model;
+      // 2:30 starts a ruku and page 6.
+      await model.start(const AyahRef(2, 28));
+      await model.extendForward(3);
+      expect(_shapes(model.forward), [
+        'ayah:2:28',
+        'ayah:2:29',
+        'banner:ruku',
+        'ayah:2:30',
+      ]);
+      expect(marks(model.forward), {const AyahRef(2, 30): 6});
+    });
+
+    test('the pages that start are the same in every unit, Page included', () async {
+      final locator = fixture.locator();
+      for (final unit in [
+        WordsUnit.surah,
+        WordsUnit.juz,
+        WordsUnit.hizb,
+        WordsUnit.ruku,
+        WordsUnit.quran,
+        WordsUnit.page,
+      ]) {
+        final model = _make(unit, locator: locator).model;
+        expect(await model.start(const AyahRef(2, 1)), isTrue, reason: '$unit');
+        await model.extendForward(60);
+
+        // What the fixture says, which is a source of its own: the first ayah of
+        // each page, from 2:1 to the last ayah that was made.
+        final last = model.forward.whereType<AyahItem>().last.at;
+        final expected = <AyahRef, int?>{
+          for (final entry in fixture.pages)
+            if (DivisionsFixture.refOf(entry['start']).index >=
+                    const AyahRef(2, 1).index &&
+                DivisionsFixture.refOf(entry['start']).index <= last.index)
+              DivisionsFixture.refOf(entry['start']): entry['page'] as int,
+        };
+        expect(expected.length, greaterThan(5), reason: 'the check checks something');
+        expect(marks(model.forward), expected, reason: '$unit');
+      }
+    });
+
+    test('an ayah that runs over a page break says where it goes on, in every unit', () async {
+      final locator = fixture.locatorWithContinuations({51});
+      for (final unit in [
+        WordsUnit.surah,
+        WordsUnit.juz,
+        WordsUnit.ruku,
+        WordsUnit.quran,
+        WordsUnit.page,
+      ]) {
+        final model = _make(unit, locator: locator).model;
+        expect(await model.start(const AyahRef(3, 1)), isTrue, reason: '$unit');
+        await model.extendForward(12);
+        for (final card in model.forward.whereType<AyahItem>()) {
+          expect(
+            card.continuesOnPage,
+            card.at == const AyahRef(3, 9) ? 51 : isNull,
+            reason: '$unit ${card.at}',
+          );
+        }
+        // Page 51 starts at the ayah after it, which is not shown twice.
+        expect(marks(model.forward)[const AyahRef(3, 10)], 51, reason: '$unit');
+        final keys = _ayahKeys(model.forward);
+        expect(keys.toSet(), hasLength(keys.length), reason: '$unit');
+      }
+    });
+
+    test('a layout that cannot be read leaves the rows without marks, not broken', () async {
+      final broken = PageLocator((page) async => throw StateError('unreadable'));
+      final model = _make(WordsUnit.surah, locator: broken).model;
+      expect(await model.start(const AyahRef(2, 14)), isTrue);
+      await model.extendForward(5);
+      await model.extendBackward(2);
+      expect(_ayahKeys(model.forward), [for (var a = 14; a <= 18; a++) '2:$a']);
+      expect(marks(model.forward), isEmpty);
+      expect(marks(model.backward), isEmpty);
+    });
+
+    test('with no layout there are no marks at all', () async {
+      final model = _make(WordsUnit.surah).model;
+      await model.start(const AyahRef(2, 14));
+      await model.extendForward(5);
+      expect(marks(model.forward), isEmpty);
+      for (final card in model.forward.whereType<AyahItem>()) {
+        expect(card.continuesOnPage, isNull, reason: '${card.at}');
+      }
+    });
+  });
+
   group('a part or a range stops the stream', () {
     final stop = AyahRange(const AyahRef(2, 10), const AyahRef(2, 12));
 

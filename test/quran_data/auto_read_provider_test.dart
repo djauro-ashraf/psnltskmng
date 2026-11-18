@@ -53,6 +53,38 @@ void main() {
       expect(container.read(autoReadProvider).playing, true);
     });
 
+    test('a pause keeps the controls, only stop takes them away', () {
+      final container = ProviderContainer(
+        overrides: [
+          quranPrefsStoreProvider.overrideWithValue(MemoryQuranPrefsStore()),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(autoReadProvider.notifier);
+      expect(container.read(autoReadProvider).active, false);
+
+      notifier.play();
+      expect(container.read(autoReadProvider).playing, true);
+      expect(container.read(autoReadProvider).active, true);
+
+      // Paused (by the reader, or at the end of the text): still on screen.
+      notifier.pause();
+      expect(container.read(autoReadProvider).playing, false);
+      expect(container.read(autoReadProvider).active, true);
+
+      notifier.togglePlaying();
+      expect(container.read(autoReadProvider).playing, true);
+
+      notifier.stop();
+      expect(container.read(autoReadProvider).playing, false);
+      expect(container.read(autoReadProvider).active, false);
+
+      // Pausing what is not there does not bring the controls back.
+      notifier.pause();
+      expect(container.read(autoReadProvider).active, false);
+    });
+
     test('updates and clamps words per minute', () async {
       final store = MemoryQuranPrefsStore();
       final container = ProviderContainer(

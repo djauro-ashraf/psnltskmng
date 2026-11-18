@@ -42,6 +42,24 @@ final class WordsChunk {
   String toString() => 'WordsChunk($unit $number $range)';
 }
 
+/// Where an ayah sits on the printed pages, as far as the Words stream says it:
+/// the page that starts at it, and the page it goes on over. Both are null when
+/// the layout is not downloaded (the stream then has no page marks at all).
+final class AyahPageInfo {
+  const AyahPageInfo({this.startsPage, this.continuesOnPage});
+
+  /// Nothing known (no layout), or nothing to say.
+  static const AyahPageInfo none = AyahPageInfo();
+
+  /// The page that STARTS at this ayah: it is the first ayah that starts on that
+  /// page (an ayah that is only the end of the one before does not count). The
+  /// page mark of the stream goes in front of it, whatever the reader's unit.
+  final int? startsPage;
+
+  /// The ayah goes on over this page (the one after the page it starts on).
+  final int? continuesOnPage;
+}
+
 /// Works out the chunk of a unit that holds an ayah; the chunk before and the
 /// one after are the chunks that hold the ayah before its first and the ayah
 /// after its last. The units that are divisions of the text (surah, juz, hizb,
@@ -116,6 +134,29 @@ abstract final class WordsStream {
   /// no ayah starts on the page.
   static Future<AyahRef?> firstStartingOn(int page, PageLocator locator) =>
       _firstStarting(page, locator);
+
+  /// What the layout says about [ayah] and its pages: the page that starts at it
+  /// (when it is the first ayah that starts on its page) and the page it goes on
+  /// over (when it runs over the page break). [AyahPageInfo.none] when the layout
+  /// is not there. An ayah is on the page where it starts and, when it is long,
+  /// also on the next one: the next page lists it first (see [PageLocator]).
+  static Future<AyahPageInfo> pageInfoOf(
+    AyahRef ayah,
+    PageLocator locator,
+  ) async {
+    final page = await locator.pageOf(ayah);
+    if (page == null) return AyahPageInfo.none;
+    final first = await _firstStarting(page, locator);
+    int? continues;
+    if (page < ChTable.totalPages) {
+      final nextFirst = await locator.firstAyahOf(page + 1);
+      if (nextFirst == ayah) continues = page + 1;
+    }
+    return AyahPageInfo(
+      startsPage: first == ayah ? page : null,
+      continuesOnPage: continues,
+    );
+  }
 
   // -- pieces --------------------------------------------------------------
 

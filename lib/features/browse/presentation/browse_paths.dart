@@ -67,17 +67,33 @@ abstract final class BrowsePaths {
   static String tafsirOf(AyahRef ayah) =>
       '$tafsir/${ayah.surah}/${ayah.ayah}';
 
-  static String askNew({AyahRef? ayah, String? prompt, String? focus}) {
-    final params = <String, String>{};
-    if (ayah != null) params['ayah'] = ayah.key;
-    if (prompt != null) params['prompt'] = prompt;
-    if (focus != null) params['focus'] = focus;
-    if (params.isEmpty) return '$ask/new';
-    final query = params.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&');
-    return '$ask/new?$query';
-  }
+  static String _query(Map<String, String> params) => params.isEmpty
+      ? ''
+      : '?${params.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&')}';
 
-  static String askChat(String id) => '$ask/$id';
+  /// A new chat; [ayah] is attached to it, [focus] is the words the reader had
+  /// selected in it, [prompt] a question put in the box and [tafsir] the tafsir
+  /// the reader was reading (its id; without it the first one downloaded).
+  static String askNew({
+    AyahRef? ayah,
+    String? prompt,
+    String? focus,
+    String? tafsir,
+  }) =>
+      '$ask/new${_query({
+        if (ayah != null) 'ayah': ayah.key,
+        if (prompt != null && prompt.isNotEmpty) 'prompt': prompt,
+        if (focus != null && focus.isNotEmpty) 'focus': focus,
+        if (tafsir != null && tafsir.isNotEmpty) 'tafsir': tafsir,
+      })}';
+
+  /// A chat that exists; [prompt] and [focus] go in its box (the reader asked
+  /// about something and chose to go on with this chat).
+  static String askChat(String id, {String? prompt, String? focus}) =>
+      '$ask/$id${_query({
+        if (prompt != null) 'prompt': prompt,
+        if (focus != null) 'focus': focus,
+      })}';
 
   static final RegExp _pageScreen = RegExp(
     '^${RegExp.escape(root)}/(?:.*/)?ps/\\d+/?\$',

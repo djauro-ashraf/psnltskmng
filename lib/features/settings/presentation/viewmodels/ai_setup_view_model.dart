@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personaltskmng/ai/ai_runtime.dart';
+import 'package:personaltskmng/ask/controller/ask_providers.dart';
 import 'package:personaltskmng/features/daily_plan/presentation/providers/planning_providers.dart';
 import 'package:personaltskmng/features/settings/presentation/providers/ai_providers.dart';
 import 'package:personaltskmng/features/settings/presentation/viewmodels/settings_view_model.dart';
@@ -102,6 +103,8 @@ class AiSetupViewModel extends Notifier<AiSetupState> {
       runtime.providersWithKey.remove(providerId);
     }
     ref.read(planningControllerProvider).plannerChanged();
+    // The assistant reads the same key store: it asks again whether it has one.
+    ref.invalidate(askHasKeyProvider);
     if (ref.mounted) {
       state = AiSetupState(providersWithKey: {...runtime.providersWithKey});
     }

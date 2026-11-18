@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,7 +18,7 @@ Future<void> showAyahCopySheet(
   BuildContext context, {
   required AyahRef ayah,
   AyahRange? range,
-  void Function(AyahRef ayah, String? prompt)? onAskAi,
+  void Function(AyahRef ayah)? onAskAi,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -40,7 +42,10 @@ class AyahCopySheet extends ConsumerStatefulWidget {
 
   final AyahRef initialAyah;
   final AyahRange initialRange;
-  final void Function(AyahRef ayah, String? prompt)? onAskAi;
+
+  /// Opens the Ask AI chat on an ayah. Null: no Ask button (Ask AI is off, or
+  /// has no key). The chat takes one ayah, so the button waits for a single one.
+  final void Function(AyahRef ayah)? onAskAi;
 
   @override
   ConsumerState<AyahCopySheet> createState() => _AyahCopySheetState();
@@ -51,6 +56,7 @@ class _AyahCopySheetState extends ConsumerState<AyahCopySheet> {
   late CopyRecipe _recipe;
   String? _tafsirSourceId;
   List<TafsirSource> _sources = const [];
+  bool _sourcesLoaded = false;
   bool _isCopying = false;
 
   @override
@@ -66,6 +72,7 @@ class _AyahCopySheetState extends ConsumerState<AyahCopySheet> {
     if (!mounted) return;
     setState(() {
       _sources = sources;
+      _sourcesLoaded = true;
       if (sources.isNotEmpty &&
           (_tafsirSourceId == null ||
               !sources.any((s) => s.id == _tafsirSourceId))) {
@@ -157,11 +164,20 @@ class _AyahCopySheetState extends ConsumerState<AyahCopySheet> {
 
       await Clipboard.setData(ClipboardData(text: result.text));
 
+      // Tafsir was asked for, and a source is installed, but it has nothing on
+      // these ayahs: said, so that a copy without it is not a surprise.
+      final tafsirMissing =
+          _recipe.parts.contains(CopyPart.tafsir) &&
+          _sources.isNotEmpty &&
+          inputs.every((i) => i.tafsir == null);
+
       if (mounted) {
         showAppSnackBar(
           context,
           result.isTruncated
               ? l10n.copyTruncatedNotice
+              : tafsirMissing
+              ? l10n.copyNoTafsirHere
               : l10n.readerCopied,
         );
         Navigator.of(context).pop();
@@ -173,6 +189,15 @@ class _AyahCopySheetState extends ConsumerState<AyahCopySheet> {
     } finally {
       if (mounted) setState(() => _isCopying = false);
     }
+  }
+
+  /// Closes the sheet and opens the chat on the ayah.
+  void _askAi() {
+    final ask = widget.onAskAi;
+    if (ask == null) return;
+    final ayah = _range.first;
+    Navigator.of(context).pop();
+    ask(ayah);
   }
 
   Future<void> _editCustomPromptAndCopy() async {
@@ -219,6 +244,7 @@ class _AyahCopySheetState extends ConsumerState<AyahCopySheet> {
     final rangeLabel = _formatRangeLabel(_range);
     final hasTafsirPacks = _sources.isNotEmpty;
     final isExtended = _range != widget.initialRange;
+    final singleAyah = _range.first == _range.last;
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -297,6 +323,16 @@ class _AyahCopySheetState extends ConsumerState<AyahCopySheet> {
                 ),
               ],
             ),
+
+            if (_sourcesLoaded && !hasTafsirPacks) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                l10n.copyNoTafsir,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
 
             // Tafsir source picker if multiple installed and tafsir selected
             if (hasTafsirPacks &&
@@ -442,47 +478,63 @@ class _AyahCopySheetState extends ConsumerState<AyahCopySheet> {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
-                PopupMenuButton<String>(
-                  onSelected: (action) {
-                    switch (action) {
-                      case 'explain':
-                        _performCopy(
-                          aiInstruction: AiCopyInstructions.explain,
-                        );
-                        break;
-                      case 'simplify_tafsir':
-                        _performCopy(
-                          aiInstruction: AiCopyInstructions.simplifyTafsir,
-                        );
-                        break;
-                      case 'custom':
-                        _editCustomPromptAndCopy();
-                        break;
-                    }
-                  },
-                  itemBuilder: (ctx) => [
-                    PopupMenuItem(
-                      value: 'explain',
+                // Copy with an instruction in front, to paste into any AI app.
+                MenuAnchor(
+                  menuChildren: [
+                    MenuItemButton(
+                      onPressed: () => unawaited(
+                        _performCopy(aiInstruction: AiCopyInstructions.explain),
+                      ),
                       child: Text(l10n.copyExplainSimply),
                     ),
                     if (_recipe.parts.contains(CopyPart.tafsir))
-                      PopupMenuItem(
-                        value: 'simplify_tafsir',
+                      MenuItemButton(
+                        onPressed: () => unawaited(
+                          _performCopy(
+                            aiInstruction: AiCopyInstructions.simplifyTafsir,
+                          ),
+                        ),
                         child: Text(l10n.copySimplifyTafsir),
                       ),
-                    PopupMenuItem(
-                      value: 'custom',
+                    MenuItemButton(
+                      onPressed: () => unawaited(_editCustomPromptAndCopy()),
                       child: Text(l10n.copyCustomPrompt),
                     ),
                   ],
-                  child: FilledButton.tonalIcon(
-                    icon: const Icon(Icons.auto_awesome, size: 18),
-                    label: Text(l10n.copyForAi),
-                    onPressed: null, // Tap handled by PopupMenuButton child
-                  ),
+                  builder: (context, controller, child) =>
+                      FilledButton.tonalIcon(
+                        icon: const Icon(Icons.auto_awesome, size: 18),
+                        label: Text(l10n.copyForAi),
+                        onPressed: _isCopying
+                            ? null
+                            : () => controller.isOpen
+                                  ? controller.close()
+                                  : controller.open(),
+                      ),
                 ),
               ],
             ),
+
+            // Ask the assistant here, in the app (when it is on and has a key).
+            if (widget.onAskAi != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                label: Text(l10n.copyItemAskAi),
+                onPressed: singleAyah && !_isCopying ? _askAi : null,
+              ),
+              if (!singleAyah)
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xs),
+                  child: Text(
+                    l10n.copyAskOneAyah,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+            ],
           ],
         ),
       ),

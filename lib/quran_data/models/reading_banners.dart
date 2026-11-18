@@ -18,7 +18,11 @@ import 'package:personaltskmng/quran_data/models/words_stream.dart';
 /// - [ruku]: a hairline with a centred label `Ruku 2 · 12 ayahs`.
 /// - [unit]: the start of the unit the reader chose when nothing else starts
 ///   there: the full banner of a ch (`ch 13 · p 106–115`).
-/// - [page]: the slim `p 43` divider of the Page unit.
+/// - [page]: the slim `p 43` divider, where a page starts and nothing else does.
+///
+/// A page that starts at the same ayah as one of the others is not an element of
+/// its own: its number goes on that element (a chip, or `· p 43` at the end of
+/// the line). This holds in every unit, not only the Page unit.
 enum BannerKind { surah, juz, hizb, ruku, unit, page }
 
 /// What the reader sees at one start position; built by [ReadingBanners.at].
@@ -66,7 +70,7 @@ final class ReadingBanner {
   /// `ChTable.displayRange`).
   final int? ch;
 
-  /// The page the reader chose (the Page unit) that starts here.
+  /// The page that starts here (the first ayah that starts on it), in any unit.
   final int? page;
 
   /// Tapping the element opens that unit's info: a surah or a juz banner does,
@@ -90,12 +94,23 @@ abstract final class ReadingBanners {
   ///
   /// [unitStart] is the chunk of the reader's unit that starts at [ayah], null
   /// when none does. It adds the unit to what starts there: an upgrade to a
-  /// full banner for a hizb, a ruku or a ch, a slim divider for a page.
-  static ReadingBanner? at(AyahRef ayah, {WordsChunk? unitStart}) {
+  /// full banner for a hizb, a ruku or a ch.
+  ///
+  /// [pageStart] is the page that starts at [ayah] (see
+  /// `WordsStream.pageInfoOf`), whatever the unit; null when none does or when
+  /// the layout is not downloaded. It is a slim divider when nothing else starts
+  /// there and a mark on the element that does. With the Page unit the page is
+  /// also the unit's own start ([unitStart]), and says the same.
+  static ReadingBanner? at(
+    AyahRef ayah, {
+    WordsChunk? unitStart,
+    int? pageStart,
+  }) {
     final starts = QuranDivisions.startsAt(ayah);
     final unit = unitStart?.unit;
     final chNumber = unit == WordsUnit.ch ? unitStart!.number : null;
-    final pageNumber = unit == WordsUnit.page ? unitStart!.number : null;
+    final pageNumber =
+        pageStart ?? (unit == WordsUnit.page ? unitStart!.number : null);
 
     if (starts.surahStart) {
       return ReadingBanner(
@@ -147,6 +162,8 @@ abstract final class ReadingBanners {
         at: ayah,
         full: true,
         ch: chNumber,
+        // Not shown: the title of a ch already says its pages.
+        page: pageNumber,
       );
     }
     if (pageNumber != null) {

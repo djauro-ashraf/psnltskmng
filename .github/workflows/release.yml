@@ -1,11 +1,12 @@
 name: Build & Release Android APK
 
 on:
-  push:
-    tags:
-      - 'v*'
-    branches:
-      - main
+  # Automated builds on push to main are disabled per user request until review is complete.
+  # push:
+  #   tags:
+  #     - 'v*'
+  #   branches:
+  #     - main
   workflow_dispatch:
     inputs:
       release_tag:

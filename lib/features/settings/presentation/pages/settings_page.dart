@@ -12,6 +12,7 @@ import 'package:personaltskmng/features/daily_plan/presentation/viewmodels/plann
 import 'package:personaltskmng/features/settings/domain/entities/app_settings.dart';
 import 'package:personaltskmng/features/settings/presentation/viewmodels/settings_view_model.dart';
 import 'package:personaltskmng/features/settings/presentation/widgets/ai_planner_section.dart';
+import 'package:personaltskmng/features/settings/presentation/widgets/ask_settings_section.dart';
 import 'package:personaltskmng/features/settings/presentation/widgets/planning_draft.dart';
 import 'package:personaltskmng/features/settings/presentation/widgets/planning_fields.dart';
 import 'package:personaltskmng/features/settings/presentation/widgets/planning_priority_and_shared.dart';
@@ -613,6 +614,23 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ),
               ),
             ],
+          ),
+        ),
+        Card(
+          margin: const EdgeInsets.only(bottom: AppSpacing.md),
+          child: ExpansionTile(
+            title: Text(
+              l10n.askSettingsTitle,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            childrenPadding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              0,
+              AppSpacing.lg,
+              AppSpacing.md,
+            ),
+            expandedCrossAxisAlignment: CrossAxisAlignment.start,
+            children: const [AskSettingsSection()],
           ),
         ),
       ],

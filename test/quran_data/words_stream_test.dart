@@ -180,6 +180,68 @@ void main() {
     });
   });
 
+  group('where an ayah is on its pages', () {
+    test('the first ayah that starts a page is the one that starts it, on all 604', () async {
+      final locator = fixture.locator();
+      var checked = 0;
+      for (var page = 1; page <= 604; page++) {
+        final first = await WordsStream.firstStartingOn(page, locator);
+        if (first == null) continue;
+        final info = await WordsStream.pageInfoOf(first, locator);
+        expect(info.startsPage, page, reason: 'p $page');
+        checked++;
+      }
+      expect(checked, greaterThan(600));
+    });
+
+    test('an ayah inside a page starts nothing, and does not go on', () async {
+      final locator = fixture.locator();
+      // Page 3 is 2:6 to 2:16, page 4 is 2:17 to 2:24.
+      for (final ayah in [
+        const AyahRef(2, 7),
+        const AyahRef(2, 10),
+        const AyahRef(2, 16),
+        const AyahRef(2, 18),
+      ]) {
+        final info = await WordsStream.pageInfoOf(ayah, locator);
+        expect(info.startsPage, isNull, reason: '$ayah');
+        expect(info.continuesOnPage, isNull, reason: '$ayah');
+      }
+      expect((await WordsStream.pageInfoOf(const AyahRef(2, 6), locator)).startsPage, 3);
+      expect((await WordsStream.pageInfoOf(const AyahRef(2, 17), locator)).startsPage, 4);
+      expect((await WordsStream.pageInfoOf(const AyahRef(1, 1), locator)).startsPage, 1);
+    });
+
+    test('an ayah that runs over the page break says where it goes on', () async {
+      // Page 50 is 3:1 to 3:9, and page 51 lists 3:9 again before 3:10.
+      final locator = fixture.locatorWithContinuations({51});
+
+      final last = await WordsStream.pageInfoOf(const AyahRef(3, 9), locator);
+      expect(last.continuesOnPage, 51);
+      // It is the end of page 50, not the start of any page.
+      expect(last.startsPage, isNull);
+
+      // The page starts at the ayah after it, which is its own.
+      final next = await WordsStream.pageInfoOf(const AyahRef(3, 10), locator);
+      expect(next.startsPage, 51);
+      expect(next.continuesOnPage, isNull);
+
+      final first = await WordsStream.pageInfoOf(const AyahRef(3, 1), locator);
+      expect(first.startsPage, 50);
+      expect(first.continuesOnPage, isNull);
+    });
+
+    test('without the layout there is nothing to say', () async {
+      for (final locator in [missingLayout(), customLayout(const {})]) {
+        final info = await WordsStream.pageInfoOf(const AyahRef(2, 17), locator);
+        expect(info.startsPage, isNull);
+        expect(info.continuesOnPage, isNull);
+      }
+      expect(AyahPageInfo.none.startsPage, isNull);
+      expect(AyahPageInfo.none.continuesOnPage, isNull);
+    });
+  });
+
   group('ch', () {
     test('a ch takes the ayahs that start on the pages it owns', () async {
       final locator = fixture.locator();

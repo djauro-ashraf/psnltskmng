@@ -8,11 +8,17 @@ import 'package:personaltskmng/quran_data/models/reading_pacer.dart';
 final class AutoReadState {
   const AutoReadState({
     this.playing = false,
+    this.active = false,
     this.wordsPerMinute = ReadingPacer.defaultWpm,
   });
 
-  /// Whether auto-read is currently active (auto-scrolling or auto-turning).
+  /// Whether auto-read is currently running (auto-scrolling or auto-turning).
   final bool playing;
+
+  /// Whether the auto-read controls are on screen: from the first play until
+  /// the reader closes them (or leaves the reader). A pause keeps them, so the
+  /// reader can start again from where the pill is; only `stop` takes them away.
+  final bool active;
 
   /// Words per minute reading speed.
   final double wordsPerMinute;
@@ -22,10 +28,12 @@ final class AutoReadState {
 
   AutoReadState copyWith({
     bool? playing,
+    bool? active,
     double? wordsPerMinute,
   }) {
     return AutoReadState(
       playing: playing ?? this.playing,
+      active: active ?? this.active,
       wordsPerMinute: wordsPerMinute ?? this.wordsPerMinute,
     );
   }
@@ -35,10 +43,11 @@ final class AutoReadState {
       identical(this, other) ||
       other is AutoReadState &&
           other.playing == playing &&
+          other.active == active &&
           other.wordsPerMinute == wordsPerMinute;
 
   @override
-  int get hashCode => Object.hash(playing, wordsPerMinute);
+  int get hashCode => Object.hash(playing, active, wordsPerMinute);
 }
 
 /// Controller managing auto-read state across both Words and Mushaf modes.
@@ -59,17 +68,22 @@ class AutoReadNotifier extends Notifier<AutoReadState> {
   }
 
   void setPlaying(bool play) {
-    if (state.playing == play) return;
-    state = state.copyWith(playing: play);
+    if (state.playing == play && (!play || state.active)) return;
+    // Playing shows the controls; pausing keeps them where they are.
+    state = state.copyWith(playing: play, active: play ? true : state.active);
   }
 
-  void togglePlaying() {
-    state = state.copyWith(playing: !state.playing);
-  }
+  void togglePlaying() => setPlaying(!state.playing);
 
   void play() => setPlaying(true);
 
   void pause() => setPlaying(false);
+
+  /// Pauses and takes the controls away (the reader closed them, or left).
+  void stop() {
+    if (!state.playing && !state.active) return;
+    state = state.copyWith(playing: false, active: false);
+  }
 
   void setWordsPerMinute(double wpm) {
     final clamped = wpm.clamp(ReadingPacer.minWpm, ReadingPacer.maxWpm);

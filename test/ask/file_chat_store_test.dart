@@ -123,5 +123,48 @@ void main() {
     final entities = tempDir.listSync();
     expect(entities.any((e) => e.path.contains('.bad-')), isTrue);
   });
-}
 
+  AskChat chatOf(String id, DateTime updated) => AskChat(
+    id: id,
+    title: 'Chat $id',
+    createdAt: updated,
+    updatedAt: updated,
+  );
+
+  test('a missing index is made again from the chat files', () async {
+    await store.save(chatOf('a', DateTime(2026, 11, 1)));
+    await store.save(chatOf('b', DateTime(2026, 11, 2)));
+
+    await File(
+      '${tempDir.path}${Platform.pathSeparator}${FileChatStore.indexFileName}',
+    ).delete();
+
+    final headers = await store.list();
+    expect([for (final h in headers) h.id], ['b', 'a']);
+    // And the index is on disk again.
+    expect(
+      File(
+        '${tempDir.path}${Platform.pathSeparator}${FileChatStore.indexFileName}',
+      ).existsSync(),
+      isTrue,
+    );
+  });
+
+  test('a damaged index is put aside and made again', () async {
+    await store.save(chatOf('a', DateTime(2026, 11, 1)));
+    await File(
+      '${tempDir.path}${Platform.pathSeparator}${FileChatStore.indexFileName}',
+    ).writeAsString('[[[ not json');
+
+    final headers = await store.list();
+    expect([for (final h in headers) h.id], ['a']);
+    expect(
+      tempDir.listSync().any((e) => e.path.contains('index.json.bad-')),
+      isTrue,
+    );
+
+    // A save after that keeps the chat that was already there.
+    await store.save(chatOf('b', DateTime(2026, 11, 3)));
+    expect([for (final h in await store.list()) h.id], ['b', 'a']);
+  });
+}

@@ -94,8 +94,14 @@ class _MushafReaderState extends ConsumerState<MushafReader>
   Ticker? _autoReadTicker;
   Duration _lastTick = Duration.zero;
   Duration _dwellElapsed = Duration.zero;
-  double _dwellProgress = 0.0;
+
+  // How much of the page's time has passed (the thin line at the bottom). A
+  // notifier, so a tick of the clock repaints the line, not the pager.
+  final ValueNotifier<double> _dwellProgress = ValueNotifier<double>(0);
   bool _nextPagePreloaded = false;
+
+  // A finger is on the pager: the page is being turned by hand, the clock waits.
+  bool _touching = false;
 
   int get _first => widget.limit?.firstPage ?? 1;
   int get _count => widget.limit == null
@@ -148,13 +154,16 @@ class _MushafReaderState extends ConsumerState<MushafReader>
   void dispose() {
     _autoReadTicker?.dispose();
     _highlightTimer?.cancel();
+    _dwellProgress.dispose();
     _controller.dispose();
     super.dispose();
   }
 
+  // The clock starts again. It does not touch the line at the bottom: this is
+  // also called while the widget is being updated (a jump), where a listener
+  // must not be told; the next tick draws the line again.
   void _resetDwell() {
     _dwellElapsed = Duration.zero;
-    _dwellProgress = 0.0;
     _nextPagePreloaded = false;
   }
 
@@ -182,9 +191,7 @@ class _MushafReaderState extends ConsumerState<MushafReader>
     } else {
       _autoReadTicker?.stop();
       _lastTick = Duration.zero;
-      if (_dwellProgress != 0.0 && mounted) {
-        setState(() => _dwellProgress = 0.0);
-      }
+      _dwellProgress.value = 0;
     }
   }
 
@@ -205,6 +212,7 @@ class _MushafReaderState extends ConsumerState<MushafReader>
       _updateAutoReadTicker(false);
       return;
     }
+    if (_touching) return;
 
     final words = _wordCountForPage(_page);
     final totalDwell = autoRead.pacer.pageDwell(words);
@@ -227,18 +235,20 @@ class _MushafReaderState extends ConsumerState<MushafReader>
       if (_page >= MushafPage.pageCount ||
           (limit != null && _page >= limit.lastPage)) {
         ref.read(autoReadProvider.notifier).pause();
-        setState(() => _dwellProgress = 0.0);
+        _dwellProgress.value = 0;
       } else {
         if (_controller.hasClients) {
-          _controller.nextPage(
-            duration: const Duration(milliseconds: 450),
-            curve: Curves.easeInOut,
+          unawaited(
+            _controller.nextPage(
+              duration: const Duration(milliseconds: 450),
+              curve: Curves.easeInOut,
+            ),
           );
         }
-        setState(() => _dwellProgress = 0.0);
+        _dwellProgress.value = 0;
       }
     } else {
-      setState(() => _dwellProgress = progress);
+      _dwellProgress.value = progress;
     }
   }
 
@@ -253,6 +263,7 @@ class _MushafReaderState extends ConsumerState<MushafReader>
 
   void _onPageChanged(int index) {
     _resetDwell();
+    _dwellProgress.value = 0;
     if (index >= _count) {
       // The end card.
       setState(() => _selected = null);
@@ -302,7 +313,11 @@ class _MushafReaderState extends ConsumerState<MushafReader>
     final selected = _selected == null ? null : AyahRef.tryParse(_selected!);
     return Stack(
       children: [
-        PageView.builder(
+        Listener(
+          onPointerDown: (_) => _touching = true,
+          onPointerUp: (_) => _touching = false,
+          onPointerCancel: (_) => _touching = false,
+          child: PageView.builder(
           // A pager of its own for each set of pages (see `didUpdateWidget`).
           key: ValueKey(limit),
           reverse: context.textRunsRightToLeft,
@@ -335,22 +350,29 @@ class _MushafReaderState extends ConsumerState<MushafReader>
             );
           },
         ),
-        if (_dwellProgress > 0)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: SizedBox(
-              height: 3,
-              child: LinearProgressIndicator(
-                value: _dwellProgress,
-                backgroundColor: Colors.transparent,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
-                ),
-              ),
-            ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: ValueListenableBuilder<double>(
+            valueListenable: _dwellProgress,
+            builder: (context, progress, _) => progress <= 0
+                ? const SizedBox.shrink()
+                : SizedBox(
+                    height: 3,
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      backgroundColor: Colors.transparent,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ),
           ),
+        ),
         if (selected != null)
           Align(
             alignment: Alignment.bottomCenter,
@@ -361,7 +383,11 @@ class _MushafReaderState extends ConsumerState<MushafReader>
                 tafsir: tafsirOn ? () => widget.onTafsir(selected) : null,
                 onWords: () => widget.onOpenWords(selected),
                 onCopy: () => unawaited(_copy(selected)),
-                onCopySheet: () => showAyahCopySheet(context, ayah: selected),
+                onCopySheet: () => showAyahCopySheet(
+                  context,
+                  ayah: selected,
+                  onAskAi: widget.onAskAi,
+                ),
                 onAskAi: widget.onAskAi != null
                     ? () => widget.onAskAi!(selected)
                     : null,

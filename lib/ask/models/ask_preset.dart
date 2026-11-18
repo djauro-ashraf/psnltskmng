@@ -75,30 +75,18 @@ final class AskPreset {
           'Provide a memorable way to remember this ayah and how it connects to the ayahs before and after it.',
     ),
   ];
-
-  static const List<String> followUps = [
-    'Shorter',
-    'More detail',
-    'Give an example',
-    'Say it in French',
-    'Say it in Arabic',
-  ];
-
-  static String instructionForFollowUp(String followUp) {
-    switch (followUp) {
-      case 'Shorter':
-        return 'Make the previous answer shorter and more concise.';
-      case 'More detail':
-        return 'Explain the previous answer in more depth and detail.';
-      case 'Give an example':
-        return 'Give a clear real-life example to illustrate this.';
-      case 'Say it in French':
-        return 'Explain the previous answer in French.';
-      case 'Say it in Arabic':
-        return 'Explain the previous answer in Arabic.';
-      default:
-        return followUp;
-    }
-  }
 }
 
+/// A one-tap request after an answer. The chip says it in the reader's language
+/// (the screen's translation); [instruction] is what goes to the model.
+enum AskFollowUp {
+  shorter('Make the previous answer shorter and more concise.'),
+  moreDetail('Explain the previous answer in more depth and detail.'),
+  example('Give a clear real-life example to illustrate this.'),
+  french('Explain the previous answer in French.'),
+  arabic('Explain the previous answer in Arabic.');
+
+  const AskFollowUp(this.instruction);
+
+  final String instruction;
+}

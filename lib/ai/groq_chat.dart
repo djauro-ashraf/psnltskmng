@@ -20,6 +20,9 @@ final class GroqChat implements AiChatProvider {
 
   static const String defaultModel = 'llama-3.3-70b-versatile';
 
+  /// How long a stream may say nothing before it is taken for lost.
+  static const Duration streamIdleTimeout = Duration(seconds: 45);
+
   final ApiKeyStore keys;
   final String model;
   final Duration timeout;
@@ -84,6 +87,16 @@ final class GroqChat implements AiChatProvider {
     );
   }
 
+  static String? _deltaText(Object? decoded) {
+    if (decoded is! Map) return null;
+    final choices = decoded['choices'];
+    if (choices is! List || choices.isEmpty) return null;
+    final first = choices.first;
+    final delta = first is Map ? first['delta'] : null;
+    final text = delta is Map ? delta['content'] : null;
+    return text is String ? text : null;
+  }
+
   @override
   Stream<String> streamText({
     required String system,
@@ -133,36 +146,48 @@ final class GroqChat implements AiChatProvider {
       );
     }
 
+    // A stream that says nothing for a while is a connection that is gone: the
+    // reader would wait for ever (the Stop button is the only way out).
     final lines = response.stream
         .transform(utf8.decoder)
-        .transform(const LineSplitter());
+        .transform(const LineSplitter())
+        .timeout(
+          streamIdleTimeout,
+          onTimeout: (sink) {
+            sink.addError(
+              const AiProviderException(
+                AiErrorKind.timeout,
+                'Groq stopped answering',
+              ),
+            );
+            sink.close();
+          },
+        );
 
-    await for (final line in lines) {
-      final trimmed = line.trim();
-      if (!trimmed.startsWith('data:')) continue;
-      final content = trimmed.substring(5).trim();
-      if (content == '[DONE]') break;
-      if (content.isEmpty) continue;
-      try {
-        final decoded = jsonDecode(content);
-        if (decoded is Map) {
-          final choices = decoded['choices'];
-          if (choices is List && choices.isNotEmpty) {
-            final first = choices.first;
-            if (first is Map) {
-              final delta = first['delta'];
-              if (delta is Map) {
-                final text = delta['content'];
-                if (text is String && text.isNotEmpty) {
-                  yield text;
-                }
-              }
-            }
-          }
+    try {
+      await for (final line in lines) {
+        final trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        final content = trimmed.substring(5).trim();
+        if (content == '[DONE]') break;
+        if (content.isEmpty) continue;
+        final Object? decoded;
+        try {
+          decoded = jsonDecode(content);
+        } catch (_) {
+          continue; // Skip unparseable SSE line
         }
-      } catch (_) {
-        // Skip unparseable SSE line
+        final text = _deltaText(decoded);
+        if (text != null && text.isNotEmpty) yield text;
       }
+    } on AiProviderException {
+      rethrow;
+    } on Exception catch (e) {
+      // The connection broke while the answer was coming.
+      throw AiProviderException(
+        AiErrorKind.network,
+        'Groq connection lost: $e',
+      );
     }
   }
 }

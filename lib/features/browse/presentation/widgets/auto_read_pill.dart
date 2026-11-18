@@ -7,7 +7,9 @@ import 'package:personaltskmng/quran_data/controller/auto_read_provider.dart';
 import 'package:personaltskmng/quran_data/models/reading_pacer.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 
-/// Floating capsule pill for auto-read controls (play/pause, -/+ 10 WPM, pace label).
+/// Floating capsule pill for auto-read controls (play/pause, -/+ 10 WPM, pace
+/// label, close). It stays while paused, so the reader can start again; the close
+/// button takes it away.
 class AutoReadPill extends ConsumerStatefulWidget {
   const AutoReadPill({
     super.key,
@@ -114,7 +116,7 @@ class _AutoReadPillState extends ConsumerState<AutoReadPill> {
                 IconButton(
                   iconSize: 18,
                   visualDensity: VisualDensity.compact,
-                  tooltip: '-10 WPM',
+                  tooltip: l10n.autoReadSlower,
                   icon: const Icon(Icons.remove_rounded),
                   onPressed: autoRead.wordsPerMinute <= ReadingPacer.minWpm
                       ? null
@@ -145,7 +147,7 @@ class _AutoReadPillState extends ConsumerState<AutoReadPill> {
                 IconButton(
                   iconSize: 18,
                   visualDensity: VisualDensity.compact,
-                  tooltip: '+10 WPM',
+                  tooltip: l10n.autoReadFaster,
                   icon: const Icon(Icons.add_rounded),
                   onPressed: autoRead.wordsPerMinute >= ReadingPacer.maxWpm
                       ? null
@@ -155,6 +157,13 @@ class _AutoReadPillState extends ConsumerState<AutoReadPill> {
                               .read(autoReadProvider.notifier)
                               .adjustWpm(ReadingPacer.stepWpm);
                         },
+                ),
+                IconButton(
+                  iconSize: 18,
+                  visualDensity: VisualDensity.compact,
+                  tooltip: l10n.autoReadStop,
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () => ref.read(autoReadProvider.notifier).stop(),
                 ),
               ],
             ),

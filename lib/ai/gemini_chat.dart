@@ -20,6 +20,9 @@ final class GeminiChat implements AiChatProvider {
 
   static const String defaultModel = 'gemini-3.8-flash';
 
+  /// How long a stream may say nothing before it is taken for lost.
+  static const Duration streamIdleTimeout = Duration(seconds: 45);
+
   final ApiKeyStore keys;
   final String model;
   final Duration timeout;
@@ -123,24 +126,55 @@ final class GeminiChat implements AiChatProvider {
       );
     }
 
+    // A stream that says nothing for a while is a connection that is gone: the
+    // reader would wait for ever (the Stop button is the only way out).
     final lines = response.stream
         .transform(utf8.decoder)
-        .transform(const LineSplitter());
+        .transform(const LineSplitter())
+        .timeout(
+          streamIdleTimeout,
+          onTimeout: (sink) {
+            sink.addError(
+              const AiProviderException(
+                AiErrorKind.timeout,
+                'Gemini stopped answering',
+              ),
+            );
+            sink.close();
+          },
+        );
 
-    await for (final line in lines) {
-      final trimmed = line.trim();
-      if (!trimmed.startsWith('data:')) continue;
-      final jsonStr = trimmed.substring(5).trim();
-      if (jsonStr.isEmpty) continue;
-      try {
-        final decoded = jsonDecode(jsonStr);
+    try {
+      await for (final line in lines) {
+        final trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        final jsonStr = trimmed.substring(5).trim();
+        if (jsonStr.isEmpty) continue;
+        final Object? decoded;
+        try {
+          decoded = jsonDecode(jsonStr);
+        } catch (_) {
+          continue; // Skip unparseable SSE line
+        }
+        if (_isBlocked(decoded)) {
+          throw const AiProviderException(
+            AiErrorKind.blocked,
+            'Response was blocked by safety filters',
+          );
+        }
         final chunkText = _extractTextFromChunk(decoded);
         if (chunkText != null && chunkText.isNotEmpty) {
           yield chunkText;
         }
-      } catch (_) {
-        // Skip unparseable SSE line
       }
+    } on AiProviderException {
+      rethrow;
+    } on Exception catch (e) {
+      // The connection broke while the answer was coming.
+      throw AiProviderException(
+        AiErrorKind.network,
+        'Gemini connection lost: $e',
+      );
     }
   }
 
@@ -175,6 +209,15 @@ final class GeminiChat implements AiChatProvider {
       AiErrorKind.emptyResponse,
       'Gemini returned no text (blocked or empty)',
     );
+  }
+
+  static bool _isBlocked(Object? decoded) {
+    if (decoded is! Map) return false;
+    final candidates = decoded['candidates'];
+    if (candidates is! List || candidates.isEmpty) return false;
+    final first = candidates.first;
+    final reason = first is Map ? first['finishReason'] : null;
+    return reason == 'SAFETY' || reason == 'BLOCKLIST';
   }
 
   static String? _extractTextFromChunk(Object? decoded) {

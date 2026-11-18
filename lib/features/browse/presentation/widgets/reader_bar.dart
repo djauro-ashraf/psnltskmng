@@ -3,26 +3,22 @@ import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/position_nav.dart';
 import 'package:personaltskmng/quran_data/models/quran_view.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
+import 'package:personaltskmng/shared/widgets/division_labels.dart';
 import 'package:personaltskmng/shared/widgets/pill_toggle.dart';
 
-/// What the one switch of the reading line offers: out to the info of the page
-/// the reader is on, or one of the two ways to read.
-enum ReaderTab { info, mushaf, words }
-
 /// The whole chrome of the reader in one slim line: back, one switch
-/// (Info | Mushaf | Words) and the position. The position is a button: it opens
-/// the Go to sheet.
+/// (Details | Mushaf | Words) and the position. The position is a button: it
+/// opens the Go to sheet.
 ///
-/// "Info" is a way out, never the chosen tab here: the reader is showing, so
-/// Mushaf or Words is the one that is raised. A tap on Info opens the info of
-/// the page as a normal screen on top of the reader; Back returns to the same
-/// spot ([onInfo]).
+/// The switch is the SAME one as at the top of Browse (`quranViewProvider`), and
+/// every tab stays in the reader: Details and Words are the same stream of
+/// ayahs (the place is kept when one is switched for the other), Mushaf is the
+/// page as printed.
 class ReaderBar extends StatelessWidget {
   const ReaderBar({
     super.key,
     required this.view,
     required this.onView,
-    required this.onInfo,
     required this.positionLabel,
     required this.onPosition,
     this.onPrevious,
@@ -31,7 +27,6 @@ class ReaderBar extends StatelessWidget {
 
   final QuranView view;
   final ValueChanged<QuranView> onView;
-  final VoidCallback onInfo;
 
   /// The position, e.g. "282 / 604" or "106 (2/9)".
   final String positionLabel;
@@ -39,8 +34,9 @@ class ReaderBar extends StatelessWidget {
   /// The position pill was tapped: open the Go to sheet.
   final VoidCallback onPosition;
 
-  /// Wide screens only: one unit back / forward (Words), or one page (Mushaf).
-  /// On every screen the Words step also comes from a swipe (`UnitSwipe`) and
+  /// Wide screens only: one unit back / forward (Details and Words), or one page
+  /// (Mushaf). On every screen the stream's step also comes from a swipe
+  /// (`UnitSwipe`) and
   /// the Mushaf pages swipe like a book.
   final VoidCallback? onPrevious;
   final VoidCallback? onNext;
@@ -71,22 +67,12 @@ class ReaderBar extends StatelessWidget {
                 // Scaled down, never cut, when the text is big.
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
-                  child: PillToggle<ReaderTab>(
+                  child: PillToggle<QuranView>(
                     horizontalPadding: AppSpacing.md,
                     verticalPadding: 3,
-                    options: [
-                      (ReaderTab.info, l10n.pageSideInfo),
-                      (ReaderTab.mushaf, l10n.quranViewMushaf),
-                      (ReaderTab.words, l10n.quranViewWords),
-                    ],
-                    value: view == QuranView.words
-                        ? ReaderTab.words
-                        : ReaderTab.mushaf,
-                    onChanged: (tab) => switch (tab) {
-                      ReaderTab.info => onInfo(),
-                      ReaderTab.mushaf => onView(QuranView.mushaf),
-                      ReaderTab.words => onView(QuranView.words),
-                    },
+                    options: quranViewOptions(l10n),
+                    value: view,
+                    onChanged: onView,
                   ),
                 ),
               ),

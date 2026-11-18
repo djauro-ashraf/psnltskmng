@@ -4,16 +4,16 @@ import 'package:go_router/go_router.dart';
 import 'package:personaltskmng/core/constants/app_breakpoints.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/features/browse/presentation/browse_paths.dart';
-import 'package:personaltskmng/features/browse/presentation/widgets/page_side_toggle.dart';
-import 'package:personaltskmng/mushaf/controller/page_side.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/view_mode_toggle.dart';
 import 'package:personaltskmng/quran_data/controller/quran_prefs.dart';
 import 'package:personaltskmng/quran_data/models/reader_entry.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
+import 'package:personaltskmng/shared/widgets/division_labels.dart';
 
-/// The top of Browse, above the p / s / ch / juz lists: the Info | Quran switch,
-/// a one-line hint that says what a tap on a row does, and (once the reader has
-/// read something) the Continue row. The switch is the same one a page screen
-/// has; the choice is remembered.
+/// The top of Browse, above the Surahs / ch / Juz / Pages lists: the Details |
+/// Mushaf | Words switch, a one-line hint that says how a tap on a row opens it,
+/// and (once the reader has read something) the Continue row. The switch is the
+/// same one the reader has (`quranViewProvider`); the choice is remembered.
 class BrowseReadingHeader extends ConsumerWidget {
   const BrowseReadingHeader({super.key});
 
@@ -21,7 +21,7 @@ class BrowseReadingHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
-    final reading = ref.watch(pageSideProvider) == PageSide.quran;
+    final view = ref.watch(quranViewProvider);
     final last = ref.watch(lastReadProvider);
     return Center(
       child: ConstrainedBox(
@@ -32,10 +32,14 @@ class BrowseReadingHeader extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: AppSpacing.xs),
-            const PageSideToggle(),
+            const ViewModeToggle(),
             // The same tap always does the same thing: the hint says which.
             Text(
-              reading ? l10n.browseHintQuran : l10n.browseHintInfo,
+              switch (view) {
+                QuranView.details => l10n.browseHintDetails,
+                QuranView.mushaf => l10n.browseHintMushaf,
+                QuranView.words => l10n.browseHintWords,
+              },
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -50,7 +54,7 @@ class BrowseReadingHeader extends ConsumerWidget {
 }
 
 /// "Continue: 2:142 · Words": back to the last ayah read, in the view it was read
-/// in.
+/// in (Details, Mushaf or Words).
 class _ContinueRow extends StatelessWidget {
   const _ContinueRow({required this.last});
 
@@ -61,9 +65,7 @@ class _ContinueRow extends StatelessWidget {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final view = last.view == QuranView.words
-        ? l10n.quranViewWords
-        : l10n.quranViewMushaf;
+    final view = quranViewLabel(l10n, last.view);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,

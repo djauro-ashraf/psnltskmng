@@ -26,9 +26,7 @@ import 'package:personaltskmng/features/settings/presentation/providers/ai_provi
 import 'package:personaltskmng/features/settings/presentation/providers/settings_providers.dart';
 import 'package:personaltskmng/mushaf/controller/mushaf_edition.dart';
 import 'package:personaltskmng/mushaf/controller/mushaf_providers.dart';
-import 'package:personaltskmng/mushaf/controller/page_side.dart';
 import 'package:personaltskmng/mushaf/data/shared_mushaf_edition_store.dart';
-import 'package:personaltskmng/mushaf/data/shared_page_side_store.dart';
 import 'package:personaltskmng/notes/controller/notes_controller.dart';
 import 'package:personaltskmng/notes/data/day_log.dart';
 import 'package:personaltskmng/notes/data/file_note_store.dart';
@@ -126,6 +124,13 @@ Future<List<Override>> buildOverrides() async {
     files: DriveFileApi(client: httpClient, accessToken: driveAuth.accessToken),
   );
   await _reconcileDriveSetting(settingsRepo, driveAuth);
+  // A reader who never chose how to read opens in Details (the Quran view is
+  // Mushaf until something says otherwise, so the first run says it here, once;
+  // a choice made before is kept as it is).
+  final quranPrefs = SharedQuranPrefsStore(prefs);
+  if (quranPrefs.get(QuranPrefKeys.view) == null) {
+    await quranPrefs.set(QuranPrefKeys.view, QuranView.details.name);
+  }
 
   return [
     settingsRepositoryProvider.overrideWithValue(settingsRepo),
@@ -138,12 +143,9 @@ Future<List<Override>> buildOverrides() async {
     aiRuntimeProvider.overrideWithValue(aiRuntime),
     dayRecordStoreProvider.overrideWithValue(dayRecords),
     driveBackupServiceProvider.overrideWithValue(driveService),
-    // Which side of a page screen was open (info or the Quran): a view
-    // preference kept in the app preferences, not in the settings.
-    pageSideStoreProvider.overrideWithValue(SharedPageSideStore(prefs)),
     // The Quran side reads the downloaded Quran; the view, the translation and
     // the pack address chosen there are kept in the app preferences too.
-    quranPrefsStoreProvider.overrideWithValue(SharedQuranPrefsStore(prefs)),
+    quranPrefsStoreProvider.overrideWithValue(quranPrefs),
     // "Keep screen on while reading" needs the platform's wake lock.
     screenWakeProvider.overrideWithValue(const WakelockScreenWake()),
     mushafEditionStoreProvider.overrideWithValue(SharedMushafEditionStore(prefs)),

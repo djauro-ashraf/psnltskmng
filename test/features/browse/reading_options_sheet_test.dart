@@ -43,7 +43,7 @@ Future<ProviderContainer> _open(
   List<InstalledPack> installed = const [sahihPack, pickthallPack],
   MushafEdition edition = MushafEdition.v1,
 }) async {
-  useWindow(tester, const Size(500, 1000));
+  useWindow(tester, const Size(500, 1400));
   await tester.pumpWidget(
     testApp(
       home: const _Host(),
@@ -88,13 +88,14 @@ bool _sectionOpen(WidgetTester tester, String label) =>
     tester.widget<FilterChip>(_sectionChip(label)).selected;
 
 void main() {
-  // What each unit is called on its chip (never translated, like p, s and ch).
+  // What each unit is called on its chip: the full names (never translated);
+  // only ch stays short.
   const unitLabels = <WordsUnit, String>{
-    WordsUnit.page: 'p',
+    WordsUnit.page: 'Page',
     WordsUnit.ruku: 'Ruku',
     WordsUnit.hizb: 'Hizb',
     WordsUnit.juz: 'Juz',
-    WordsUnit.surah: 's',
+    WordsUnit.surah: 'Surah',
     WordsUnit.ch: 'ch',
     WordsUnit.quran: 'Whole Quran',
   };
@@ -116,14 +117,23 @@ void main() {
   });
 
   group('The unit', () {
-    testReader('every unit has a chip, in the order of the stream, Page first', (
+    testReader('every unit has a chip, Surah first and Page way last', (
       tester,
     ) async {
       await _open(tester);
 
+      // The order of the chips is its own (the enum keeps the stored order).
+      expect(ReadingOptionsSheet.unitOrder.first, WordsUnit.surah);
+      expect(ReadingOptionsSheet.unitOrder.last, WordsUnit.page);
+      expect(
+        ReadingOptionsSheet.unitOrder.toSet(),
+        WordsUnit.values.toSet(),
+        reason: 'no unit is left without a chip',
+      );
+
       var left = -1.0;
       var top = -1.0;
-      for (final unit in WordsUnit.values) {
+      for (final unit in ReadingOptionsSheet.unitOrder) {
         final label = unitLabels[unit]!;
         expect(_chip(label), findsOneWidget, reason: label);
         final at = tester.getTopLeft(_chip(label));
@@ -136,8 +146,9 @@ void main() {
         left = at.dx;
         top = at.dy;
       }
-      expect(_selected(tester, 'p'), isTrue);
-      for (final unit in WordsUnit.values.skip(1)) {
+      // Surah is the unit nothing was chosen for.
+      expect(_selected(tester, 'Surah'), isTrue);
+      for (final unit in WordsUnit.values.where((u) => u != WordsUnit.surah)) {
         expect(_selected(tester, unitLabels[unit]!), isFalse);
       }
     });
@@ -146,7 +157,7 @@ void main() {
       final prefs = MemoryQuranPrefsStore();
       final container = await _open(tester, prefs: prefs);
 
-      for (final unit in WordsUnit.values.skip(1)) {
+      for (final unit in WordsUnit.values.where((u) => u != WordsUnit.surah)) {
         await tester.tap(_chip(unitLabels[unit]!));
         await tester.pumpAndSettle();
 
@@ -159,10 +170,10 @@ void main() {
         }
       }
 
-      await tester.tap(_chip('p'));
+      await tester.tap(_chip('Surah'));
       await tester.pumpAndSettle();
-      expect(container.read(wordsUnitProvider), WordsUnit.page);
-      expect(prefs.get(QuranPrefKeys.wordsUnit), WordsUnit.page.name);
+      expect(container.read(wordsUnitProvider), WordsUnit.surah);
+      expect(prefs.get(QuranPrefKeys.wordsUnit), WordsUnit.surah.name);
     });
 
     testReader('a unit kept before is the one chosen when the sheet opens', (
@@ -176,7 +187,7 @@ void main() {
       );
 
       expect(_selected(tester, 'Juz'), isTrue);
-      expect(_selected(tester, 'p'), isFalse);
+      expect(_selected(tester, 'Surah'), isFalse);
     });
 
     testReader('in the 1421 print there is no ch chip, and the sheet says why', (
@@ -186,8 +197,24 @@ void main() {
 
       expect(_chip('ch'), findsNothing);
       expect(find.text('ch is not offered in the 1421 print.'), findsOneWidget);
-      // Page is chosen, and the print's own note is shown with it.
-      expect(_selected(tester, 'p'), isTrue);
+      // Surah is the unit nothing was chosen for, and the print's own note is
+      // for Page only.
+      expect(_selected(tester, 'Surah'), isTrue);
+      expect(find.textContaining('The newer Madinah print.'), findsNothing);
+    });
+
+    testReader('with Page chosen the print\'s own note is shown with it', (
+      tester,
+    ) async {
+      await _open(
+        tester,
+        edition: MushafEdition.v2,
+        prefs: MemoryQuranPrefsStore({
+          QuranPrefKeys.wordsUnit: WordsUnit.page.name,
+        }),
+      );
+
+      expect(_selected(tester, 'Page'), isTrue);
       expect(find.textContaining('The newer Madinah print.'), findsOneWidget);
     });
 
@@ -201,7 +228,7 @@ void main() {
       );
 
       expect(_chip('ch'), findsNothing);
-      expect(_selected(tester, 'p'), isTrue);
+      expect(_selected(tester, 'Page'), isTrue);
     });
 
     testReader('with another unit chosen the print\'s own note is not shown', (
@@ -369,6 +396,58 @@ void main() {
       expect(_sectionOpen(tester, 'Word by word'), isTrue);
       expect(_sectionOpen(tester, 'Translation'), isFalse);
     });
+
+    testReader('Details has the cards of Details: word by word and Details', (
+      tester,
+    ) async {
+      await _open(
+        tester,
+        prefs: MemoryQuranPrefsStore({
+          QuranPrefKeys.view: QuranView.details.name,
+        }),
+      );
+
+      expect(_sectionChip('Word by word'), findsOneWidget);
+      expect(_sectionChip('Details'), findsOneWidget);
+      // Nothing else is on a Details card.
+      expect(_sectionChip('Arabic'), findsNothing);
+      expect(_sectionChip('Translation'), findsNothing);
+      expect(_sectionOpen(tester, 'Word by word'), isTrue);
+      expect(_sectionOpen(tester, 'Details'), isTrue);
+    });
+
+    testReader('a tap closes the Details section, and it is kept', (
+      tester,
+    ) async {
+      final prefs = MemoryQuranPrefsStore({
+        QuranPrefKeys.view: QuranView.details.name,
+      });
+      final container = await _open(tester, prefs: prefs);
+
+      await tester.tap(_sectionChip('Details'));
+      await tester.pumpAndSettle();
+
+      expect(_sectionOpen(tester, 'Details'), isFalse);
+      expect(
+        container.read(ayahSectionsProvider).isClosed(AyahSection.details),
+        isTrue,
+      );
+      expect(prefs.get(QuranPrefKeys.closedSections), 'details');
+    });
+
+    for (final view in [QuranView.words, QuranView.mushaf]) {
+      testReader('${view.name} has the Words sections', (tester) async {
+        await _open(
+          tester,
+          prefs: MemoryQuranPrefsStore({QuranPrefKeys.view: view.name}),
+        );
+
+        for (final label in labels) {
+          expect(_sectionChip(label), findsOneWidget, reason: label);
+        }
+        expect(_sectionChip('Details'), findsNothing);
+      });
+    }
   });
 
   group('The text size', () {

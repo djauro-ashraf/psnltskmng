@@ -73,6 +73,13 @@ abstract interface class AppStateStore {
 
   Future<void> saveState(StoredState state);
 
+  /// Moves `state.json` aside as `state.json.replaced-<timestamp>` (nothing is
+  /// deleted) so that the next [loadState] finds nothing and the first-run
+  /// setup runs again; returns the new name, or null when there was no state.
+  /// Queued behind any save in progress. Can throw (the caller then keeps the
+  /// state it has and tells the user).
+  Future<String?> archiveState();
+
   Future<SettingsLoadResult> loadSettings();
 
   Future<void> saveSettings(PlanningSettings settings);
@@ -100,6 +107,10 @@ final class InMemoryAppStateStore implements AppStateStore {
   /// Files moved aside after a failed load: `<name>.bad-<timestamp>` -> text.
   final Map<String, String> quarantined = {};
 
+  /// States replaced by a restart of the setup (see [archiveState]):
+  /// `state.json.replaced-<timestamp>` -> text.
+  final Map<String, String> archived = {};
+
   /// How many times each file was written.
   int stateSaves = 0;
   int settingsSaves = 0;
@@ -125,6 +136,16 @@ final class InMemoryAppStateStore implements AppStateStore {
   Future<void> saveState(StoredState state) async {
     stateText = AppStateCodec.stateToText(state);
     stateSaves++;
+  }
+
+  @override
+  Future<String?> archiveState() async {
+    final text = stateText;
+    if (text == null) return null;
+    final name = '$stateFileName.replaced-${_clock().millisecondsSinceEpoch}';
+    archived[name] = text;
+    stateText = null;
+    return name;
   }
 
   @override

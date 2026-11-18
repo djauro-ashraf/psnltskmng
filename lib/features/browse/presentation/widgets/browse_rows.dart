@@ -16,7 +16,7 @@ import 'package:personaltskmng/shared/widgets/division_labels.dart';
 // Every row shows the open-note count of its unit (nothing for 0). A row reads
 // only its own count, so it is rebuilt only when that count changes.
 
-/// A page: "p 106", with its ch and s underneath. Opens [path], or does
+/// A page: "Page 106", with its ch and surah underneath. Opens [path], or does
 /// [onTap] when it is given instead (the pages of a unit inside the Go to sheet,
 /// where the reader stays where it is).
 class PageRow extends ConsumerWidget {
@@ -34,7 +34,7 @@ class PageRow extends ConsumerWidget {
       browseDataProvider.select((data) => data.notes.onPage(page)),
     );
     return BrowseRowCard(
-      title: l10n.pagesSingle(page),
+      title: l10n.browsePageOne(page),
       subtitle: pageSubtitle(l10n, page),
       openNotes: notes,
       onTap: onTap ?? () => context.go(path!),
@@ -42,8 +42,8 @@ class PageRow extends ConsumerWidget {
   }
 }
 
-/// An s: "s 5", its exact pages and the ch it spans, its page count, and its
-/// Arabic and English names at the end.
+/// A surah: "Surah 5", its exact pages and the ch it spans, its page count, and
+/// its Arabic and English names at the end.
 class SRow extends ConsumerWidget {
   const SRow({super.key, required this.s, required this.path});
 
@@ -60,12 +60,12 @@ class SRow extends ConsumerWidget {
       browseDataProvider.select((data) => data.notes.inS(s)),
     );
     return BrowseRowCard(
-      title: l10n.sLabelOne(s),
+      title: l10n.browseSurahOne(s),
       subtitle: l10n.browseTrail(
         pagesLabel(l10n, first, last),
         chRunLabel(l10n, chs.first, chs.last),
       ),
-      trailing: l10n.browsePageCount(last - first + 1),
+      trailing: pageCountText(l10n, last - first + 1),
       aside: SurahRowAside(s: s),
       openNotes: notes,
       onTap: () => context.go(path),
@@ -73,7 +73,7 @@ class SRow extends ConsumerWidget {
   }
 }
 
-/// A ch: "ch 13", its exact range (shared pages included) and the s it
+/// A ch: "ch 13", its exact range (shared pages included) and the surahs it
 /// touches, and its page count.
 class ChRow extends ConsumerWidget {
   const ChRow({super.key, required this.ch, required this.path});
@@ -94,39 +94,7 @@ class ChRow extends ConsumerWidget {
         pagesLabel(l10n, c.firstPage, c.lastPage),
         sRunLabel(l10n, c.s.first, c.s.last),
       ),
-      trailing: l10n.browsePageCount(c.lastPage - c.firstPage + 1),
-      openNotes: notes,
-      onTap: () => context.go(path),
-    );
-  }
-}
-
-/// A part in the first level of "more details": a ch of an s ([byCh]), or an s
-/// of a ch (with its names). Shows only the pages the part has (what the second
-/// level lists).
-class PartRow extends ConsumerWidget {
-  const PartRow({
-    super.key,
-    required this.part,
-    required this.byCh,
-    required this.path,
-  });
-
-  final BrowsePart part;
-  final bool byCh;
-  final String path;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final notes = ref.watch(
-      browseDataProvider.select((data) => data.notes.inPart(part.s, part.ch)),
-    );
-    return BrowseRowCard(
-      title: byCh ? l10n.chLabelOne(part.ch) : l10n.sLabelOne(part.s),
-      subtitle: pagesLabel(l10n, part.firstPage, part.lastPage),
-      trailing: l10n.browsePageCount(part.pageCount),
-      aside: byCh ? null : SurahRowAside(s: part.s),
+      trailing: pageCountText(l10n, c.lastPage - c.firstPage + 1),
       openNotes: notes,
       onTap: () => context.go(path),
     );
@@ -150,13 +118,13 @@ class JuzRow extends ConsumerWidget {
       browseDataProvider.select((data) => BrowseGroups.juzNotes(pages, data)),
     );
     return BrowseRowCard(
-      // `Juz` is never translated, like `s` and `ch`.
+      // `Juz` is never translated, like `ch`.
       title: 'Juz ${pages.juz}',
       subtitle: l10n.browseTrail(
         pagesLabel(l10n, pages.first, pages.last),
         ayahRangeText(pages.ayahs),
       ),
-      trailing: l10n.browsePageCount(pages.pageCount),
+      trailing: pageCountText(l10n, pages.pageCount),
       openNotes: notes,
       onTap: () => context.go(path),
     );

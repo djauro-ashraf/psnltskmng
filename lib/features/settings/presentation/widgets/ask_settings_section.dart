@@ -125,7 +125,6 @@ class _AskSettingsSectionState extends ConsumerState<AskSettingsSection> {
     final settings = ref.watch(askSettingsProvider);
     final notifier = ref.read(askSettingsProvider.notifier);
     final setup = ref.watch(aiSetupViewModelProvider);
-    final vm = ref.read(aiSetupViewModelProvider.notifier);
     final provider = aiProviderInfo(settings.provider);
     final hasKey = setup.providersWithKey.contains(provider.id);
     final storage = ref.watch(chatStorageProvider).value;

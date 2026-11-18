@@ -916,16 +916,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get browseTitle => 'Browse';
 
   @override
-  String get browsePsTitle => 'ps';
+  String get browsePsTitle => 'Pages';
 
   @override
-  String get browseSsTitle => 'ss';
+  String get browseSsTitle => 'Surahs';
 
   @override
   String get browseChTitle => 'ch';
-
-  @override
-  String get browseMoreDetails => 'More details';
 
   @override
   String get browseGroupBy => 'Group by';
@@ -937,7 +934,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get browseGroupCh => 'ch';
 
   @override
-  String get browseGroupS => 's';
+  String get browseGroupS => 'Surah';
 
   @override
   String sLabelOne(int s) {
@@ -945,13 +942,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String sLabelRun(int first, int last) {
-    return 's $first - $last';
-  }
-
-  @override
   String browsePageCount(int count) {
-    return '$count p';
+    return '$count pages';
   }
 
   @override
@@ -973,7 +965,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String browseSCount(int count) {
-    return '$count s';
+    return '$count surahs';
   }
 
   @override
@@ -1077,12 +1069,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noteAddSave => 'Add';
-
-  @override
-  String get pageSideInfo => 'Info';
-
-  @override
-  String get pageSideQuran => 'Quran';
 
   @override
   String get mushafNotInstalled =>
@@ -1192,6 +1178,31 @@ class AppLocalizationsEn extends AppLocalizations {
       'Download the Quran, its words and translations';
 
   @override
+  String get settingsRestartMemory => 'Restart memory manager';
+
+  @override
+  String get settingsRestartMemoryHint =>
+      'Set up your Q again and start from there';
+
+  @override
+  String get settingsRestartMemoryTitle => 'Restart the memory manager?';
+
+  @override
+  String get settingsRestartMemoryBody =>
+      'Your Q and today’s plan are replaced. You set up your Q again, as on the first run.\n\nYour notes and settings stay. Make a backup first if you may want the old Q back.';
+
+  @override
+  String get settingsRestartMemoryAction => 'Restart';
+
+  @override
+  String get settingsRestartMemoryDone =>
+      'Memory manager restarted. Set up your Q.';
+
+  @override
+  String get settingsRestartMemoryFailed =>
+      'Could not restart. Nothing was changed.';
+
+  @override
   String get quranEditionTitle => 'Mushaf print';
 
   @override
@@ -1216,13 +1227,62 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wordsFootnote => 'Note';
 
   @override
-  String get browseHintInfo => 'Tap a row to open its info';
+  String get browseJuzTitle => 'Juz';
 
   @override
-  String get browseHintQuran => 'Tap a row to read it';
+  String browsePageOne(int page) {
+    return 'Page $page';
+  }
 
   @override
-  String get browseJuzTitle => 'juz';
+  String browsePagesRange(int first, int last) {
+    return 'Pages $first–$last';
+  }
+
+  @override
+  String browseSurahOne(int s) {
+    return 'Surah $s';
+  }
+
+  @override
+  String browseSurahRun(int first, int last) {
+    return 'Surahs $first–$last';
+  }
+
+  @override
+  String get browsePageWord => 'Page';
+
+  @override
+  String get browsePageCountOne => '1 page';
+
+  @override
+  String get browseSurahCountOne => '1 surah';
+
+  @override
+  String get detailsTitle => 'Details';
+
+  @override
+  String detailsAyahOf(int ayah, int count) {
+    return 'Ayah $ayah of $count';
+  }
+
+  @override
+  String get detailsRead => 'Read';
+
+  @override
+  String get detailsPartsCh => 'Its ch';
+
+  @override
+  String get detailsPartsSurahs => 'Its surahs';
+
+  @override
+  String get browseHintDetails => 'Tap a row to open it in Details';
+
+  @override
+  String get browseHintMushaf => 'Tap a row to read it in the Mushaf';
+
+  @override
+  String get browseHintWords => 'Tap a row to read it word by word';
 
   @override
   String get browseGroupJuz => 'Juz';
@@ -1280,7 +1340,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goToProblemRange => 'That place does not exist';
 
   @override
-  String get goToThisS => 'This s';
+  String get goToThisS => 'This surah';
 
   @override
   String get goToThisCh => 'This ch';
@@ -1305,11 +1365,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get goToTabPage => 'Page';
-
-  @override
-  String goToInfoRow(String name) {
-    return '$name · Info';
-  }
 
   @override
   String goToRukuHeaderOne(String name) {
@@ -1714,7 +1769,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get unitEdgeGateTile => 'Scroll again or tap twice to go on';
 
   @override
-  String get unitEdgeLockedTile => 'Use the button, the arrows or a swipe to go on';
+  String get unitEdgeLockedTile =>
+      'Use the button, the arrows or a swipe to go on';
 
   @override
   String get askRetry => 'Retry';
@@ -1788,10 +1844,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get askNeedsKey => 'Save a key for this provider to use the assistant.';
+  String get askNeedsKey =>
+      'Save a key for this provider to use the assistant.';
 
   @override
-  String get askPrivacy => 'A question sends your message and what you attached (ayah text, translation, word glosses, tafsir) to the provider. Chats stay on this device and are not in backups.';
+  String get askPrivacy =>
+      'A question sends your message and what you attached (ayah text, translation, word glosses, tafsir) to the provider. Chats stay on this device and are not in backups.';
 
   @override
   String get autoReadSlower => 'Slower';
@@ -1806,7 +1864,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askNoMatches => 'No chat matches your search';
 
   @override
-  String get copyNoTafsirHere => 'Copied, but the tafsir source has nothing on this ayah';
+  String get copyNoTafsirHere =>
+      'Copied, but the tafsir source has nothing on this ayah';
 
   @override
   String get copyAskOneAyah => 'Ask AI works on one ayah at a time';

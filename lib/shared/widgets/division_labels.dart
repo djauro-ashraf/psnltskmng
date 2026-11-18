@@ -2,15 +2,37 @@ import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/l10n/app_localizations.dart';
 import 'package:personaltskmng/mushaf/models/page_ticks.dart';
 import 'package:personaltskmng/quran_data/models/ayah_sections.dart';
+import 'package:personaltskmng/quran_data/models/quran_view.dart';
 
 /// The title of a section of the ayah card (`Arabic`, `Word by word`,
-/// `Translation`): on the card and on the chips of the reading options.
+/// `Translation`, `Details`): on the card and on the chips of the reading
+/// options.
 String ayahSectionLabel(AppLocalizations l10n, AyahSection section) =>
     switch (section) {
       AyahSection.arabic => l10n.wordsSectionArabic,
       AyahSection.words => l10n.wordsSectionWords,
       AyahSection.translation => l10n.wordsTranslation,
+      AyahSection.details => l10n.detailsTitle,
     };
+
+/// The name of a way to read: `Details`, `Mushaf`, `Words`.
+String quranViewLabel(AppLocalizations l10n, QuranView view) => switch (view) {
+  QuranView.details => l10n.detailsTitle,
+  QuranView.mushaf => l10n.quranViewMushaf,
+  QuranView.words => l10n.quranViewWords,
+};
+
+/// The ways to read in the order the switch shows them (Details | Mushaf |
+/// Words): the same three, in the same order, at the top of Browse and in the
+/// reading line of the reader.
+List<(QuranView, String)> quranViewOptions(AppLocalizations l10n) => [
+  for (final view in const [
+    QuranView.details,
+    QuranView.mushaf,
+    QuranView.words,
+  ])
+    (view, quranViewLabel(l10n, view)),
+];
 
 /// "1 ayah" / "12 ayahs" (two texts, not a plural rule: they read the same in
 /// English and French and are easy to check).

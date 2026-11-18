@@ -2,59 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/domain/models/day.dart';
-import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/features/browse/domain/browse_data.dart';
 import 'package:personaltskmng/features/browse/domain/browse_index.dart';
 import 'package:personaltskmng/features/browse/presentation/providers/browse_providers.dart';
-import 'package:personaltskmng/features/browse/presentation/browse_texts.dart';
-import 'package:personaltskmng/features/browse/presentation/widgets/surah_labels.dart';
 import 'package:personaltskmng/quran_data/controller/quran_providers.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 import 'package:personaltskmng/shared/widgets/division_labels.dart';
 import 'package:personaltskmng/shared/widgets/page_state_widgets.dart';
 
-/// The tinted panel the info of a unit sits in (same surface as the Overview's
-/// summary card).
-class _InfoPanel extends StatelessWidget {
-  const _InfoPanel({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadius.panel),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.75),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: children,
-        ),
-      ),
-    );
-  }
-}
+// What a group says about itself in the Details view, as bare bodies (no card,
+// no title): the Details dropdowns and the group sheet put them where they
+// belong. A body never changes height with what it is told: a value that is not
+// there (no Q yet, the page lines of the print not downloaded) is a dash on its
+// line, not a missing line, because the rows of the stream must not change
+// height under the reader.
 
 /// The info of a page: its state label (capital while an L is active, see
-/// `LRules.label`), progress, prime, last R, L active and the next step down.
-/// The same facts as the Overview's page sheet.
-class PageInfoCard extends ConsumerWidget {
-  const PageInfoCard({super.key, required this.page});
+/// `LRules.label`), progress, prime, last R, L active and the next step down
+/// (the same facts as the Overview's page sheet), then the juz, hizb and rukus
+/// that begin on it.
+class PageInfoBody extends ConsumerWidget {
+  const PageInfoBody({super.key, required this.page});
 
   final int page;
 
@@ -62,42 +30,25 @@ class PageInfoCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(browseDataProvider);
     final record = data.record(page);
-    // The names do not depend on the Q, so they show even while it is not
-    // loaded.
-    final index = BrowseIndex.instance;
-    return _WithHeader(
-      header: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          PageSurahCard(
-            first: index.firstSOfPage(page),
-            last: index.lastSOfPage(page),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (record == null)
+          const InfoUnavailable()
+        else
+          PageFacts(
+            info: PageInfo.of(record, data.day, lMonthDays: data.lMonthDays),
+            day: data.day,
           ),
-          _PageDivisionsLine(page: page),
-        ],
-      ),
-      child: record == null
-          ? const _Unavailable()
-          : _InfoPanel(
-              children: [
-                PageFacts(
-                  info: PageInfo.of(
-                    record,
-                    data.day,
-                    lMonthDays: data.lMonthDays,
-                  ),
-                  day: data.day,
-                ),
-              ],
-            ),
+        _PageDivisionsLine(page: page),
+      ],
     );
   }
 }
 
 /// `Juz 15 · Hizb 29` and, when a ruku begins on the page, `Ruku 2 begins here`
-/// (`Rukus 2–3 begin here`), under the names of the s. Nothing until the page
-/// lines of the print are read (and nothing without them), so the card does not
-/// jump when they arrive.
+/// (`Rukus 2–3 begin here`). Nothing until the page lines of the print are read
+/// (and nothing without them), so the body does not jump when they arrive.
 class _PageDivisionsLine extends ConsumerWidget {
   const _PageDivisionsLine({required this.page});
 
@@ -125,93 +76,66 @@ class _PageDivisionsLine extends ConsumerWidget {
   }
 }
 
-/// The info of a juz, like an s's: its range (ayahs and pages), and whether its
-/// pages are complete, their worst state, and whether all are at least D3. The
-/// pages are those of the print the reader chose; a page the juz shares with the
-/// juz before is the earlier juz's for the state (the rule of a ch). A juz has no
-/// notes of its own.
-class JuzInfoCard extends ConsumerWidget {
-  const JuzInfoCard({super.key, required this.juz});
+/// The three lines every group but a page has: whether it is complete, its
+/// worst state, and whether all its pages are at least D3. [summary] null (no Q,
+/// or the pages are not known): a dash on each line.
+class SummaryRows extends StatelessWidget {
+  const SummaryRows({super.key, required this.summary});
+
+  final UnitSummary? summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final summary = this.summary;
+    Widget yesNo(bool? value) =>
+        Text(value == null ? '—' : (value ? l10n.infoYes : l10n.infoNo));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InfoRow(label: l10n.infoComplete, value: yesNo(summary?.complete)),
+        InfoRow(
+          label: l10n.infoWorstState,
+          value: summary == null
+              ? const Text('—')
+              : StateBadge(state: summary.worstState),
+        ),
+        InfoRow(
+          label: l10n.infoAllAtLeastD3,
+          value: yesNo(summary?.allAtLeastD3),
+        ),
+      ],
+    );
+  }
+}
+
+/// The info of a juz: whether its pages are complete, their worst state, and
+/// whether all are at least D3. The pages are those of the print the reader
+/// chose; a page the juz shares with the juz before is the earlier juz's for
+/// the state (the rule of a ch). A juz has no notes of its own.
+class JuzInfoBody extends ConsumerWidget {
+  const JuzInfoBody({super.key, required this.juz});
 
   final int juz;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final data = ref.watch(browseDataProvider);
     final ranges = ref.watch(juzPagesProvider).value;
-    final pages = ranges == null || juz > ranges.length
-        ? null
-        : ranges[juz - 1];
-    final summary = pages == null
-        ? null
-        : data.pagesSummary(pages.ownedFirst, pages.last);
-
-    final header = DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadius.panel),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.75),
-          width: 1.2,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              ayahRangeText(QuranDivisions.juzRange(juz)),
-              style: theme.textTheme.titleMedium,
-            ),
-            if (pages != null)
-              Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.xs),
-                child: Text(
-                  l10n.browseTrail(
-                    pagesLabel(l10n, pages.first, pages.last),
-                    l10n.browsePageCount(pages.pageCount),
-                  ),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (summary == null) {
-      return _WithHeader(header: header, child: const _Unavailable());
-    }
-    String yesNo(bool value) => value ? l10n.infoYes : l10n.infoNo;
-    return _WithHeader(
-      header: header,
-      child: _InfoPanel(
-        children: [
-          _Row(label: l10n.infoComplete, value: Text(yesNo(summary.complete))),
-          _Row(
-            label: l10n.infoWorstState,
-            value: StateBadge(state: summary.worstState),
-          ),
-          _Row(
-            label: l10n.infoAllAtLeastD3,
-            value: Text(yesNo(summary.allAtLeastD3)),
-          ),
-        ],
-      ),
+    final pages = ranges == null || juz > ranges.length ? null : ranges[juz - 1];
+    return SummaryRows(
+      summary: pages == null
+          ? null
+          : data.pagesSummary(pages.ownedFirst, pages.last),
     );
   }
 }
 
-/// The info of an s, a ch or a part: whether it is complete, its worst state,
-/// and whether all its pages are at least D3. A merged ch also shows its shared
-/// state (the state every page of it has).
-class ScopeInfoCard extends ConsumerWidget {
-  const ScopeInfoCard({super.key, required this.scope});
+/// The info of a surah, a ch or a part: whether it is complete, its worst
+/// state, and whether all its pages are at least D3. A merged ch also shows its
+/// shared state (the state every page of it has).
+class ScopeInfoBody extends ConsumerWidget {
+  const ScopeInfoBody({super.key, required this.scope});
 
   final BrowseScope scope;
 
@@ -225,75 +149,35 @@ class ScopeInfoCard extends ConsumerWidget {
       ChScope(:final ch) => data.chSummary(ch),
       PartScope(:final part) => data.pagesSummary(part.firstPage, part.lastPage),
     };
-    // The names do not depend on the Q; a ch has no name of its own to show.
-    final nameOf = switch (scope) {
-      SScope(:final s) => s,
-      PartScope(:final part) => part.s,
-      ChScope() => null,
-    };
-    if (summary == null) {
-      return _WithHeader(
-        header: nameOf == null ? null : SurahTitleCard(s: nameOf),
-        child: const _Unavailable(),
-      );
-    }
-
     final mergedCh = switch (scope) {
       ChScope(:final ch) => ch,
       PartScope(:final part) => part.ch,
       SScope() => null,
     };
-    final shared = mergedCh == null ? null : data.mergedState(mergedCh);
-
-    String yesNo(bool value) => value ? l10n.infoYes : l10n.infoNo;
-    return _WithHeader(
-      header: nameOf == null ? null : SurahTitleCard(s: nameOf),
-      child: _InfoPanel(
-        children: [
-          _Row(label: l10n.infoComplete, value: Text(yesNo(summary.complete))),
-          _Row(
-            label: l10n.infoWorstState,
-            value: StateBadge(state: summary.worstState),
-          ),
-          _Row(
-            label: l10n.infoAllAtLeastD3,
-            value: Text(yesNo(summary.allAtLeastD3)),
-          ),
-          if (shared != null) ...[
-            const Divider(height: AppSpacing.xl),
-            Text(l10n.infoMergedShared, style: theme.textTheme.titleSmall),
-            const SizedBox(height: AppSpacing.sm),
-            PageFacts(
-              info: PageInfo.of(shared, data.day, lMonthDays: data.lMonthDays),
-              day: data.day,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// [child] with an optional [header] card above it (the names of the s).
-class _WithHeader extends StatelessWidget {
-  const _WithHeader({required this.header, required this.child});
-
-  final Widget? header;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final header = this.header;
-    if (header == null) return child;
+    final shared = summary == null || mergedCh == null
+        ? null
+        : data.mergedState(mergedCh);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [header, const SizedBox(height: AppSpacing.md), child],
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SummaryRows(summary: summary),
+        if (shared != null) ...[
+          const Divider(height: AppSpacing.xl),
+          Text(l10n.infoMergedShared, style: theme.textTheme.titleSmall),
+          const SizedBox(height: AppSpacing.sm),
+          PageFacts(
+            info: PageInfo.of(shared, data.day, lMonthDays: data.lMonthDays),
+            day: data.day,
+          ),
+        ],
+      ],
     );
   }
 }
 
-class _Row extends StatelessWidget {
-  const _Row({required this.label, required this.value});
+/// One label and its value on a line.
+class InfoRow extends StatelessWidget {
+  const InfoRow({super.key, required this.label, required this.value});
 
   final String label;
   final Widget value;
@@ -321,21 +205,18 @@ class _Row extends StatelessWidget {
   }
 }
 
-class _Unavailable extends StatelessWidget {
-  const _Unavailable();
+/// "The state is not available until your Q is loaded."
+class InfoUnavailable extends StatelessWidget {
+  const InfoUnavailable({super.key});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return _InfoPanel(
-      children: [
-        Text(
-          context.l10n.infoUnavailable,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
+    return Text(
+      context.l10n.infoUnavailable,
+      style: theme.textTheme.bodyMedium?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
     );
   }
 }
@@ -366,7 +247,7 @@ class PageFacts extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _Row(
+        InfoRow(
           label: l10n.infoState,
           value: Row(
             mainAxisSize: MainAxisSize.min,

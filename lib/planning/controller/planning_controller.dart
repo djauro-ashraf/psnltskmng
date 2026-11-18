@@ -89,6 +89,11 @@ final class PlanningController {
   RulesEngine? _engine;
   DailyPlanningService? _service;
 
+  /// Bumped by [restartSetup]. A service made before it (a plan still being
+  /// made when the restart came) must not write its session over the fresh
+  /// state, so the service built below checks it before it saves.
+  int _epoch = 0;
+
   /// The days kept for logging late while a [backfill] is being saved: the
   /// save point writes these instead of the ones in [_state].
   List<PastDay>? _pendingRewind;
@@ -118,13 +123,15 @@ final class PlanningController {
 
   DailyPlanningService get service {
     _requireReady();
+    final epoch = _epoch;
     return _service ??= DailyPlanningService(
       engine: engine,
       planner: _plannerFactory(engine, _settings.config),
       store: dayRecords,
       qId: _state!.q.id,
       config: _settings.config,
-      onPersisted: _onPersisted,
+      onPersisted: (session, record) =>
+          epoch == _epoch ? _onPersisted(session, record) : Future<void>.value(),
       clock: clock,
     );
   }
@@ -246,6 +253,50 @@ final class PlanningController {
     _service = null;
     _status = PlanningLoaded(_status!.settingsProblems);
     return const [];
+  }
+
+  /// Starts the memory manager over: the setup runs again.
+  ///
+  /// The stored state (the Q, today's session and the kept days) is moved
+  /// aside as `state.json.replaced-<timestamp>`, never deleted; a fresh all-ND
+  /// Q with a NEW id is in use and the load result becomes
+  /// [PlanningEmptyStarted], so the screens show the setup. Nothing is written
+  /// until [completeSetup], exactly as on a first run: a start that is
+  /// interrupted here finds no state file and shows the setup again.
+  ///
+  /// What stays: the settings (the budget is asked again, with the current one
+  /// proposed), the notes, the Quran data and every day record. The day
+  /// records belong to the old Q id, so the new Q starts with an empty log and
+  /// the old days are left as they were.
+  ///
+  /// Allowed only while the load result is [PlanningLoaded]; returns the
+  /// problems (nothing changed) otherwise. If the state cannot be moved aside
+  /// the error is thrown and nothing has changed.
+  Future<List<SettingsProblem>> restartSetup() async {
+    final status = _status;
+    if (status is! PlanningLoaded) {
+      return const [
+        SettingsProblem(
+          'restart',
+          'only a loaded memory manager can be restarted',
+        ),
+      ];
+    }
+    await store.archiveState();
+    _epoch++;
+    _state = StoredState.fresh(id: _nextQId());
+    _pendingRewind = null;
+    _engine = null;
+    _service = null;
+    _status = PlanningEmptyStarted(status.settingsProblems);
+    return const [];
+  }
+
+  /// An id no earlier Q had, so the day records of the old Q are not read as
+  /// the log of the new one (they are kept per Q id).
+  String _nextQId() {
+    final now = (clock ?? DateTime.now)();
+    return '${StoredState.defaultQId}-${now.millisecondsSinceEpoch}';
   }
 
   /// The session for [today]. If the stored session is for today it is

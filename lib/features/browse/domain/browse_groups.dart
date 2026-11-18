@@ -66,17 +66,18 @@ final class BrowseGroup {
 /// Builds the groups of the three lists. Pure Dart. The results never change
 /// and are cached, so switching the grouping back and forth costs nothing.
 abstract final class BrowseGroups {
-  /// Groupings the ps list offers.
+  /// Groupings the Pages list offers: by Surah first, by Page never (it is the
+  /// list itself).
   static const List<BrowseGrouping> forPages = [
     BrowseGrouping.none,
-    BrowseGrouping.ch,
     BrowseGrouping.s,
+    BrowseGrouping.ch,
     BrowseGrouping.juz,
     BrowseGrouping.state,
     BrowseGrouping.notes,
   ];
 
-  /// Groupings the ss list offers.
+  /// Groupings the Surahs list offers.
   static const List<BrowseGrouping> forS = [
     BrowseGrouping.none,
     BrowseGrouping.ch,
@@ -92,7 +93,7 @@ abstract final class BrowseGroups {
     BrowseGrouping.notes,
   ];
 
-  /// Groupings the juz list offers.
+  /// Groupings the Juz list offers.
   static const List<BrowseGrouping> forJuz = [
     BrowseGrouping.none,
     BrowseGrouping.state,

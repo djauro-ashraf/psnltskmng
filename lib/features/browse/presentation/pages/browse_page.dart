@@ -3,33 +3,34 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:personaltskmng/features/browse/domain/browse_groups.dart';
 import 'package:personaltskmng/features/browse/presentation/browse_paths.dart';
+import 'package:personaltskmng/features/browse/presentation/browse_texts.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/browse_header.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/browse_rows.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/grouped_tab.dart';
-import 'package:personaltskmng/mushaf/controller/page_side.dart';
 import 'package:personaltskmng/quran_data/controller/quran_providers.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 
 /// The Browse tab: the four lists as screens of one tab, switched at the top,
-/// under the Info | Quran switch (what a tap on a row does) and the Continue row.
+/// under the Details | Mushaf | Words switch (how a tap on a row opens it) and
+/// the Continue row. Surahs first, Pages last.
 ///
-/// - ps: every page (604 by default), groupable by ch, by s, by juz, by state or
-///   by open notes;
-/// - ss: every s (114), groupable by ch, by state or by open notes;
-/// - ch: every ch (71), groupable by s, by state or by open notes;
-/// - juz: the 30 juz, groupable by state or by open notes. Hizb and ruku are not
-///   lists: they are places to jump to (Go to, banners, the context line).
+/// - Surahs: every surah (114), groupable by ch, by state or by open notes;
+/// - ch: every ch (71), groupable by surah, by state or by open notes;
+/// - Juz: the 30 juz, groupable by state or by open notes. Hizb and ruku are not
+///   lists: they are places to jump to (Go to, banners, the context line);
+/// - Pages: every page (604 by default), groupable by surah, by ch, by juz, by
+///   state or by open notes.
 ///
-/// Every row shows its open-note count. With Info chosen a row opens its detail
-/// screen, with Quran chosen it opens the reader (child routes, see
-/// `browse_routes.dart`). Read-only: nothing here changes the Q.
+/// Every row shows its open-note count. A tap on a row opens the reader (child
+/// routes, see `browse_routes.dart`) in the way to read the switch says; in
+/// Details the details of the group are the first thing under its banner.
+/// Read-only: nothing here changes the Q.
 class BrowsePage extends ConsumerWidget {
   const BrowsePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final reading = ref.watch(pageSideProvider) == PageSide.quran;
     // The pages of the juz in the chosen print: "Group by Juz" is offered once
     // they are known (it needs the page lines of the print).
     final juz = ref.watch(juzPagesProvider).value;
@@ -51,15 +52,32 @@ class BrowsePage extends ConsumerWidget {
             const BrowseReadingHeader(),
             TabBar(
               tabs: [
-                Tab(text: l10n.browsePsTitle),
                 Tab(text: l10n.browseSsTitle),
                 Tab(text: l10n.browseChTitle),
                 Tab(text: l10n.browseJuzTitle),
+                Tab(text: l10n.browsePsTitle),
               ],
             ),
             Expanded(
               child: TabBarView(
                 children: [
+                  GroupedTab(
+                    groupings: BrowseGroups.forS,
+                    groupsOf: (grouping, data) =>
+                        BrowseGroups.sList(grouping, data: data),
+                    countLabel: surahCountText,
+                    rowOf: (context, s) =>
+                        SRow(s: s, path: BrowsePaths.readSurah(s)),
+                  ),
+                  GroupedTab(
+                    groupings: BrowseGroups.forCh,
+                    groupsOf: (grouping, data) =>
+                        BrowseGroups.chList(grouping, data: data),
+                    countLabel: (l10n, count) => l10n.browseChCount(count),
+                    rowOf: (context, ch) =>
+                        ChRow(ch: ch, path: BrowsePaths.readCh(ch)),
+                  ),
+                  const _JuzTab(),
                   GroupedTab(
                     groupings: juz == null
                         ? [
@@ -69,39 +87,10 @@ class BrowsePage extends ConsumerWidget {
                         : BrowseGroups.forPages,
                     groupsOf: (grouping, data) =>
                         BrowseGroups.pages(grouping, data: data, juz: juz),
-                    countLabel: (l10n, count) => l10n.browsePageCount(count),
-                    rowOf: (context, page) => PageRow(
-                      page: page,
-                      path: reading
-                          ? BrowsePaths.readPage(page)
-                          : '${BrowsePaths.ps}/$page',
-                    ),
+                    countLabel: pageCountText,
+                    rowOf: (context, page) =>
+                        PageRow(page: page, path: BrowsePaths.readPage(page)),
                   ),
-                  GroupedTab(
-                    groupings: BrowseGroups.forS,
-                    groupsOf: (grouping, data) =>
-                        BrowseGroups.sList(grouping, data: data),
-                    countLabel: (l10n, count) => l10n.browseSCount(count),
-                    rowOf: (context, s) => SRow(
-                      s: s,
-                      path: reading
-                          ? BrowsePaths.readSurah(s)
-                          : '${BrowsePaths.ss}/$s',
-                    ),
-                  ),
-                  GroupedTab(
-                    groupings: BrowseGroups.forCh,
-                    groupsOf: (grouping, data) =>
-                        BrowseGroups.chList(grouping, data: data),
-                    countLabel: (l10n, count) => l10n.browseChCount(count),
-                    rowOf: (context, ch) => ChRow(
-                      ch: ch,
-                      path: reading
-                          ? BrowsePaths.readCh(ch)
-                          : '${BrowsePaths.ch}/$ch',
-                    ),
-                  ),
-                  _JuzTab(reading: reading),
                 ],
               ),
             ),
@@ -115,9 +104,7 @@ class BrowsePage extends ConsumerWidget {
 /// The 30 juz. Their pages come from the layout pack of the print the reader
 /// chose, so without it the tab says what to download.
 class _JuzTab extends ConsumerWidget {
-  const _JuzTab({required this.reading});
-
-  final bool reading;
+  const _JuzTab();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -150,9 +137,7 @@ class _JuzTab extends ConsumerWidget {
               countLabel: (l10n, count) => l10n.browseJuzCount(count),
               rowOf: (context, juz) => JuzRow(
                 pages: ranges[juz - 1],
-                path: reading
-                    ? BrowsePaths.readJuz(juz)
-                    : '${BrowsePaths.juz}/$juz',
+                path: BrowsePaths.readJuz(juz),
               ),
             );
           },

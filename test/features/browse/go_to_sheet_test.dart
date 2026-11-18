@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/domain/reference/surah_names.dart';
-import 'package:personaltskmng/features/browse/presentation/browse_paths.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/go_to_sheet.dart';
 import 'package:personaltskmng/l10n/app_localizations_en.dart';
 import 'package:personaltskmng/quran_data/models/reader_entry.dart';
@@ -12,8 +11,8 @@ import 'package:personaltskmng/shared/widgets/division_labels.dart';
 import '../../support/reader_harness.dart';
 
 /// The Go to sheet: what the small field reads, the tabs, the Ruku tab (one
-/// surah at a time), the info rows, and the note when the page lines are not
-/// downloaded.
+/// surah at a time), the full names on its rows, and the note when the page
+/// lines are not downloaded.
 ///
 /// The sheet is opened from a button the way the reader opens it
 /// ([showGoToSheet]) and what it answers is collected, so each test says "this
@@ -232,14 +231,14 @@ void main() {
         expect(x, greaterThan(left), reason: '$label is after the one before');
         left = x;
       }
-      for (final label in ['This s', 'This ch', 'This juz', 'This part']) {
+      for (final label in ['This surah', 'This ch', 'This juz', 'This part']) {
         expect(find.text(label), findsNothing, reason: label);
       }
     });
 
     final kinds = <(String, ReaderLimit)>[
       (
-        'This s',
+        'This surah',
         const ReaderLimit(
           kind: ReaderLimitKind.surah,
           number: 2,
@@ -314,13 +313,13 @@ void main() {
       );
 
       for (final page in [106, 107, 108]) {
-        expect(find.text('p $page'), findsOneWidget, reason: 'p $page');
+        expect(find.text('Page $page'), findsOneWidget, reason: 'Page $page');
       }
       // Only the pages of the unit.
-      expect(find.text('p 105'), findsNothing);
-      expect(find.text('p 109'), findsNothing);
+      expect(find.text('Page 105'), findsNothing);
+      expect(find.text('Page 109'), findsNothing);
 
-      await tester.tap(find.text('p 107'));
+      await tester.tap(find.text('Page 107'));
       await tester.pumpAndSettle();
 
       final jump = _pageOf(answers);
@@ -333,10 +332,10 @@ void main() {
     ) async {
       final answers = await _openSheet(tester);
 
-      expect(find.text('s 1'), findsOneWidget);
-      expect(find.text('s 2'), findsOneWidget);
+      expect(find.text('Surah 1'), findsOneWidget);
+      expect(find.text('Surah 2'), findsOneWidget);
 
-      await tester.tap(find.text('s 2'));
+      await tester.tap(find.text('Surah 2'));
       await tester.pumpAndSettle();
 
       final jump = _ayahOf(answers);
@@ -388,9 +387,9 @@ void main() {
       final answers = await _openSheet(tester);
       await _openTab(tester, 'Page');
 
-      expect(find.text('p 1'), findsOneWidget);
+      expect(find.text('Page 1'), findsOneWidget);
 
-      await tester.tap(find.text('p 2'));
+      await tester.tap(find.text('Page 2'));
       await tester.pumpAndSettle();
 
       final jump = _pageOf(answers);
@@ -437,9 +436,9 @@ void main() {
       await tester.tap(find.text('Change surah'));
       await tester.pumpAndSettle();
       expect(find.text('Choose a surah'), findsOneWidget);
-      expect(find.text('s 3'), findsOneWidget);
+      expect(find.text('Surah 3'), findsOneWidget);
 
-      await tester.tap(find.text('s 3'));
+      await tester.tap(find.text('Surah 3'));
       await tester.pumpAndSettle();
 
       // Nothing was answered yet: only the surah of the tab changed.
@@ -451,22 +450,16 @@ void main() {
     });
   });
 
-  group('The info rows', () {
-    testReader('the surah the reader is in, and nothing else without a unit', (
-      tester,
-    ) async {
-      final answers = await _openSheet(tester, place: const AyahRef(2, 255));
-
-      expect(find.byType(ActionChip), findsOneWidget);
-      await tester.tap(find.widgetWithText(ActionChip, '${_name(2)} · Info'));
-      await tester.pumpAndSettle();
-
-      expect(answers, hasLength(1));
-      expect((answers.single! as OpenInfo).location, '${BrowsePaths.info}/ss/2');
+  group('No info rows', () {
+    // The Info screens are gone: a group's details open from the Details view
+    // of the reader, so the sheet only goes to places.
+    testReader('there are no info chips, with or without a unit', (tester) async {
+      await _openSheet(tester, place: const AyahRef(2, 255));
+      expect(find.byType(ActionChip), findsNothing);
     });
 
-    testReader('through a juz: the surah and the juz', (tester) async {
-      final answers = await _openSheet(
+    testReader('through a juz: still no chips', (tester) async {
+      await _openSheet(
         tester,
         place: const AyahRef(17, 1),
         limit: const ReaderLimit(
@@ -477,77 +470,8 @@ void main() {
         ),
       );
 
-      expect(find.byType(ActionChip), findsNWidgets(2));
-      expect(find.widgetWithText(ActionChip, '${_name(17)} · Info'), findsOneWidget);
-
-      await tester.tap(find.widgetWithText(ActionChip, 'Juz 15 · Info'));
-      await tester.pumpAndSettle();
-
-      expect(
-        (answers.single! as OpenInfo).location,
-        '${BrowsePaths.info}/juz/15',
-      );
-    });
-
-    testReader('through a ch: the surah and the ch', (tester) async {
-      final answers = await _openSheet(
-        tester,
-        place: const AyahRef(5, 1),
-        limit: const ReaderLimit(
-          kind: ReaderLimitKind.ch,
-          number: 13,
-          firstPage: 106,
-          lastPage: 108,
-        ),
-      );
-
-      expect(find.byType(ActionChip), findsNWidgets(2));
-      await tester.tap(find.widgetWithText(ActionChip, 'ch 13 · Info'));
-      await tester.pumpAndSettle();
-
-      expect((answers.single! as OpenInfo).location, '${BrowsePaths.info}/ch/13');
-    });
-
-    testReader('through a part: the surah and the part (its s and ch)', (
-      tester,
-    ) async {
-      final answers = await _openSheet(
-        tester,
-        place: const AyahRef(5, 1),
-        limit: const ReaderLimit(
-          kind: ReaderLimitKind.part,
-          number: 13,
-          surah: 5,
-          firstPage: 106,
-          lastPage: 108,
-        ),
-      );
-
-      expect(find.byType(ActionChip), findsNWidgets(2));
-      await tester.tap(find.widgetWithText(ActionChip, 's 5 · ch 13 · Info'));
-      await tester.pumpAndSettle();
-
-      expect(
-        (answers.single! as OpenInfo).location,
-        '${BrowsePaths.info}/ss/5/ch/13',
-      );
-    });
-
-    testReader('through a surah or a range: just the surah (it has no info of its own)', (
-      tester,
-    ) async {
-      await _openSheet(
-        tester,
-        place: const AyahRef(2, 1),
-        limit: const ReaderLimit(
-          kind: ReaderLimitKind.surah,
-          number: 2,
-          firstPage: 2,
-          lastPage: 49,
-        ),
-      );
-
-      expect(find.byType(ActionChip), findsOneWidget);
+      expect(find.byType(ActionChip), findsNothing);
+      expect(find.textContaining('Info'), findsNothing);
     });
   });
 

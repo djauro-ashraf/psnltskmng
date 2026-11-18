@@ -4,8 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/domain/reference/surah_names.dart';
 import 'package:personaltskmng/quran_data/controller/quran_prefs.dart';
+import 'package:personaltskmng/quran_data/models/reading_banners.dart';
 import 'package:personaltskmng/quran_data/models/tafsir.dart';
 import 'package:personaltskmng/quran_data/models/words_stream.dart';
+import 'package:personaltskmng/shared/widgets/stream_details.dart';
 import 'package:personaltskmng/shared/widgets/words_rows.dart';
 import 'package:personaltskmng/shared/widgets/words_stream_view.dart';
 
@@ -36,11 +38,15 @@ Widget _stream(
   double textScale = 1,
   bool router = false,
   FakeTafsir? tafsir,
+
+  /// Given: the stream is the Details view's.
+  StreamDetails? details,
 }) {
   final view = WordsStreamView(
     jump: WordsJump(at, highlight: highlight),
     unit: unit,
     stop: stop,
+    details: details,
     onTop: seen.tops.add,
     onOpenInfo: ({surah, juz}) => seen.infos.add((surah, juz)),
     onTafsir: seen.tafsirs.add,
@@ -233,13 +239,15 @@ void main() {
     });
 
     testReader('the end of the Quran says so, and goes back to the start', (tester) async {
-      useWindow(tester, const Size(800, 1400));
+      useWindow(tester, const Size(800, 1600));
       final seen = _Seen();
       await tester.pumpWidget(_stream(seen, at: const AyahRef(114, 4)));
       await tester.pumpAndSettle();
 
       expect(find.text('ARABIC 114:6'), findsOneWidget);
       expect(find.text('End of the Quran'), findsOneWidget);
+      await tester.ensureVisible(find.text('Back to the start'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Back to the start'));
       await tester.pumpAndSettle();
 
@@ -470,7 +478,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Far below the 40 ayahs the first step made.
-      for (var i = 0; i < 12; i++) {
+      for (var i = 0; i < 18; i++) {
         await tester.drag(find.byType(CustomScrollView), const Offset(0, -1200));
         await tester.pumpAndSettle();
       }
@@ -539,6 +547,8 @@ void main() {
 
       // Another card's title opens it everywhere.
       await tester.tap(_title('1:7', 'Translation'));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(WordsStreamView), const Offset(0, 400));
       await tester.pumpAndSettle();
       expect(find.text('translation-sahih 1:6'), findsOneWidget);
       expect(find.text('translation-sahih 1:7'), findsOneWidget);
@@ -697,6 +707,143 @@ void main() {
 
       expect(find.text('translation-pickthall 1:6'), findsOneWidget);
       expect(find.text('word 1:6'), findsNothing);
+    });
+  });
+
+  group('the Details view (the same stream, with details in place of the text)', () {
+    // The stream does not know what a detail says (that is what the browse
+    // feature gives it): a stand-in shows what goes where.
+    final details = StreamDetails(
+      ayah: (context, ayah) => Text('DETAILS ${ayah.key}'),
+      banner: (context, banner) =>
+          banner.kind == BannerKind.surah
+              ? Text('BANNER DETAILS ${banner.at.key}')
+              : null,
+    );
+
+    testReader('a card has word by word and Details, and no Arabic or translation', (
+      tester,
+    ) async {
+      useWindow(tester, const Size(800, 1400));
+      await tester.pumpWidget(_stream(_Seen(), at: opening, details: details));
+      await tester.pumpAndSettle();
+
+      for (final key in ['1:6', '1:7']) {
+        expect(_title(key, 'Word by word'), findsOneWidget, reason: key);
+        expect(_title(key, 'Details'), findsOneWidget, reason: key);
+        expect(_title(key, 'Arabic'), findsNothing, reason: key);
+        expect(_title(key, 'Translation'), findsNothing, reason: key);
+        // The words are there, the whole ayah and its translation are not.
+        expect(find.text('word $key'), findsOneWidget, reason: key);
+        expect(find.text('ARABIC $key'), findsNothing, reason: key);
+        expect(find.text('translation-sahih $key'), findsNothing, reason: key);
+        // What the details say is in the Details section.
+        expect(find.text('DETAILS $key'), findsOneWidget, reason: key);
+      }
+      expect(tester.takeException(), isNull);
+    });
+
+    testReader('the Tafsir button is still on the card', (tester) async {
+      useWindow(tester, const Size(800, 1400));
+      final fake = FakeTafsir(
+        sources: const [TafsirSource(id: 'tafsir-kathir', title: 'Ibn Kathir')],
+      )..add('tafsir-kathir', [
+          fakePassage('tafsir-kathir', const AyahRef(1, 6), const AyahRef(1, 7)),
+        ]);
+      final seen = _Seen();
+      await tester.pumpWidget(
+        _stream(seen, at: opening, details: details, tafsir: fake),
+      );
+      await tester.pumpAndSettle();
+
+      final button = find.descendant(
+        of: _card('1:6'),
+        matching: find.text('Tafsir · 1:6–7'),
+      );
+      expect(button, findsOneWidget);
+      await tester.tap(button);
+      expect(seen.tafsirs, [opening]);
+    });
+
+    testReader('closing Details on one ayah closes it on every ayah', (
+      tester,
+    ) async {
+      useWindow(tester, const Size(800, 1400));
+      await tester.pumpWidget(_stream(_Seen(), at: opening, details: details));
+      await tester.pumpAndSettle();
+
+      await tester.tap(_title('1:6', 'Details'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('DETAILS 1:6'), findsNothing);
+      expect(find.text('DETAILS 1:7'), findsNothing);
+      // The titles stay, to open it again, and word by word is as it was.
+      expect(_title('1:6', 'Details'), findsOneWidget);
+      expect(_title('1:7', 'Details'), findsOneWidget);
+      expect(find.text('word 1:6'), findsOneWidget);
+
+      await tester.tap(_title('1:7', 'Details'));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(WordsStreamView), const Offset(0, 400));
+      await tester.pumpAndSettle();
+      expect(find.text('DETAILS 1:6'), findsOneWidget);
+      expect(find.text('DETAILS 1:7'), findsOneWidget);
+    });
+
+    testReader('closing word by word leaves Details open', (tester) async {
+      useWindow(tester, const Size(800, 1400));
+      await tester.pumpWidget(_stream(_Seen(), at: opening, details: details));
+      await tester.pumpAndSettle();
+
+      await tester.tap(_title('1:6', 'Word by word'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('word 1:6'), findsNothing);
+      expect(find.text('word 1:7'), findsNothing);
+      expect(find.text('DETAILS 1:6'), findsOneWidget);
+      expect(find.text('DETAILS 1:7'), findsOneWidget);
+    });
+
+    testReader('a surah banner has its Details under it, and a tap on it stays here', (
+      tester,
+    ) async {
+      useWindow(tester, const Size(800, 1400));
+      final seen = _Seen();
+      await tester.pumpWidget(_stream(seen, at: const AyahRef(2, 1), details: details));
+      await tester.pumpAndSettle();
+
+      expect(find.text('BANNER DETAILS 2:1'), findsOneWidget);
+      // The banner is just a banner here: the details are what open a group.
+      await tester.tap(find.text(SurahNames.of(2).arabic));
+      expect(seen.infos, isEmpty);
+    });
+
+    testReader('a banner the details have nothing for has no Details under it', (
+      tester,
+    ) async {
+      useWindow(tester, const Size(800, 1400));
+      await tester.pumpWidget(
+        _stream(_Seen(), at: const AyahRef(2, 142), details: details),
+      );
+      await tester.pumpAndSettle();
+
+      // The juz banner is there, and so is no banner dropdown (the stand-in
+      // only has one for a surah).
+      expect(find.text('Juz 2'), findsOneWidget);
+      expect(find.textContaining('BANNER DETAILS'), findsNothing);
+    });
+
+    testReader('a banner of the Words view still opens its group (no details given)', (
+      tester,
+    ) async {
+      useWindow(tester, const Size(800, 1400));
+      final seen = _Seen();
+      await tester.pumpWidget(_stream(seen, at: const AyahRef(2, 1)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('BANNER DETAILS 2:1'), findsNothing);
+      await tester.tap(find.text(SurahNames.of(2).arabic));
+      expect(seen.infos, [(2, null)]);
     });
   });
 

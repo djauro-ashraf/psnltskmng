@@ -1649,13 +1649,13 @@ abstract class AppLocalizations {
   /// No description provided for @browsePsTitle.
   ///
   /// In en, this message translates to:
-  /// **'ps'**
+  /// **'Pages'**
   String get browsePsTitle;
 
   /// No description provided for @browseSsTitle.
   ///
   /// In en, this message translates to:
-  /// **'ss'**
+  /// **'Surahs'**
   String get browseSsTitle;
 
   /// No description provided for @browseChTitle.
@@ -1663,12 +1663,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'ch'**
   String get browseChTitle;
-
-  /// No description provided for @browseMoreDetails.
-  ///
-  /// In en, this message translates to:
-  /// **'More details'**
-  String get browseMoreDetails;
 
   /// No description provided for @browseGroupBy.
   ///
@@ -1691,7 +1685,7 @@ abstract class AppLocalizations {
   /// No description provided for @browseGroupS.
   ///
   /// In en, this message translates to:
-  /// **'s'**
+  /// **'Surah'**
   String get browseGroupS;
 
   /// No description provided for @sLabelOne.
@@ -1700,16 +1694,10 @@ abstract class AppLocalizations {
   /// **'s {s}'**
   String sLabelOne(int s);
 
-  /// No description provided for @sLabelRun.
-  ///
-  /// In en, this message translates to:
-  /// **'s {first} - {last}'**
-  String sLabelRun(int first, int last);
-
   /// No description provided for @browsePageCount.
   ///
   /// In en, this message translates to:
-  /// **'{count} p'**
+  /// **'{count} pages'**
   String browsePageCount(int count);
 
   /// No description provided for @browseTrail.
@@ -1745,7 +1733,7 @@ abstract class AppLocalizations {
   /// No description provided for @browseSCount.
   ///
   /// In en, this message translates to:
-  /// **'{count} s'**
+  /// **'{count} surahs'**
   String browseSCount(int count);
 
   /// No description provided for @browseChCount.
@@ -1927,18 +1915,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add'**
   String get noteAddSave;
-
-  /// No description provided for @pageSideInfo.
-  ///
-  /// In en, this message translates to:
-  /// **'Info'**
-  String get pageSideInfo;
-
-  /// No description provided for @pageSideQuran.
-  ///
-  /// In en, this message translates to:
-  /// **'Quran'**
-  String get pageSideQuran;
 
   /// No description provided for @mushafNotInstalled.
   ///
@@ -2132,6 +2108,48 @@ abstract class AppLocalizations {
   /// **'Download the Quran, its words and translations'**
   String get settingsQuranDataHint;
 
+  /// No description provided for @settingsRestartMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart memory manager'**
+  String get settingsRestartMemory;
+
+  /// No description provided for @settingsRestartMemoryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up your Q again and start from there'**
+  String get settingsRestartMemoryHint;
+
+  /// No description provided for @settingsRestartMemoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart the memory manager?'**
+  String get settingsRestartMemoryTitle;
+
+  /// No description provided for @settingsRestartMemoryBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Q and today’s plan are replaced. You set up your Q again, as on the first run.\n\nYour notes and settings stay. Make a backup first if you may want the old Q back.'**
+  String get settingsRestartMemoryBody;
+
+  /// No description provided for @settingsRestartMemoryAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart'**
+  String get settingsRestartMemoryAction;
+
+  /// No description provided for @settingsRestartMemoryDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory manager restarted. Set up your Q.'**
+  String get settingsRestartMemoryDone;
+
+  /// No description provided for @settingsRestartMemoryFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not restart. Nothing was changed.'**
+  String get settingsRestartMemoryFailed;
+
   /// No description provided for @quranEditionTitle.
   ///
   /// In en, this message translates to:
@@ -2174,23 +2192,101 @@ abstract class AppLocalizations {
   /// **'Note'**
   String get wordsFootnote;
 
-  /// No description provided for @browseHintInfo.
-  ///
-  /// In en, this message translates to:
-  /// **'Tap a row to open its info'**
-  String get browseHintInfo;
-
-  /// No description provided for @browseHintQuran.
-  ///
-  /// In en, this message translates to:
-  /// **'Tap a row to read it'**
-  String get browseHintQuran;
-
   /// No description provided for @browseJuzTitle.
   ///
   /// In en, this message translates to:
-  /// **'juz'**
+  /// **'Juz'**
   String get browseJuzTitle;
+
+  /// No description provided for @browsePageOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Page {page}'**
+  String browsePageOne(int page);
+
+  /// No description provided for @browsePagesRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Pages {first}–{last}'**
+  String browsePagesRange(int first, int last);
+
+  /// No description provided for @browseSurahOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Surah {s}'**
+  String browseSurahOne(int s);
+
+  /// No description provided for @browseSurahRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Surahs {first}–{last}'**
+  String browseSurahRun(int first, int last);
+
+  /// No description provided for @browsePageWord.
+  ///
+  /// In en, this message translates to:
+  /// **'Page'**
+  String get browsePageWord;
+
+  /// No description provided for @browsePageCountOne.
+  ///
+  /// In en, this message translates to:
+  /// **'1 page'**
+  String get browsePageCountOne;
+
+  /// No description provided for @browseSurahCountOne.
+  ///
+  /// In en, this message translates to:
+  /// **'1 surah'**
+  String get browseSurahCountOne;
+
+  /// No description provided for @detailsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get detailsTitle;
+
+  /// No description provided for @detailsAyahOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Ayah {ayah} of {count}'**
+  String detailsAyahOf(int ayah, int count);
+
+  /// No description provided for @detailsRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Read'**
+  String get detailsRead;
+
+  /// No description provided for @detailsPartsCh.
+  ///
+  /// In en, this message translates to:
+  /// **'Its ch'**
+  String get detailsPartsCh;
+
+  /// No description provided for @detailsPartsSurahs.
+  ///
+  /// In en, this message translates to:
+  /// **'Its surahs'**
+  String get detailsPartsSurahs;
+
+  /// No description provided for @browseHintDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a row to open it in Details'**
+  String get browseHintDetails;
+
+  /// No description provided for @browseHintMushaf.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a row to read it in the Mushaf'**
+  String get browseHintMushaf;
+
+  /// No description provided for @browseHintWords.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a row to read it word by word'**
+  String get browseHintWords;
 
   /// No description provided for @browseGroupJuz.
   ///
@@ -2297,7 +2393,7 @@ abstract class AppLocalizations {
   /// No description provided for @goToThisS.
   ///
   /// In en, this message translates to:
-  /// **'This s'**
+  /// **'This surah'**
   String get goToThisS;
 
   /// No description provided for @goToThisCh.
@@ -2347,12 +2443,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Page'**
   String get goToTabPage;
-
-  /// No description provided for @goToInfoRow.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} · Info'**
-  String goToInfoRow(String name);
 
   /// No description provided for @goToRukuHeaderOne.
   ///

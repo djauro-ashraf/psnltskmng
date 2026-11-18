@@ -32,10 +32,9 @@ final class BrowsePart {
   int get pageCount => lastPage - firstPage + 1;
 }
 
-/// What a detail screen of the browse feature is about. Each scope has an exact
-/// page range; "more details" lists the pages of that range, or, when the
-/// scope is built from several parts, first the parts (see
-/// [BrowseIndex.children]).
+/// What a group of the browse feature is about (a surah, a ch, a part of both).
+/// Each scope has an exact page range; when it is built from several parts, the
+/// group sheet lists the parts (see [BrowseIndex.children]).
 sealed class BrowseScope {
   const BrowseScope();
 
@@ -71,7 +70,7 @@ final class ChScope extends BrowseScope {
   int get lastPage => ChTable.instance.byNumber(ch).lastPage;
 }
 
-/// One part (an s inside a ch): the second level of "more details".
+/// One part (a surah inside a ch).
 final class PartScope extends BrowseScope {
   const PartScope(this.part);
 

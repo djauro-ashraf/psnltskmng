@@ -22,6 +22,7 @@ import 'package:personaltskmng/quran_data/models/words_stream.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 import 'package:personaltskmng/shared/widgets/division_labels.dart';
 import 'package:personaltskmng/shared/widgets/quran_notice.dart';
+import 'package:personaltskmng/shared/widgets/stream_details.dart';
 import 'package:personaltskmng/shared/widgets/words_rows.dart';
 
 /// A request to put the Words stream on an ayah. A new object each time, so
@@ -64,10 +65,17 @@ final class WordsJump {
 /// old ones stay, so no wrong content shows for a moment. It reports the ayah at
 /// the top of the screen with [onTop], at most every 120 ms while scrolling.
 ///
-/// The sections of the ayah card (Arabic, word by word, translation) are opened
-/// and closed from the title row of any card; the choice is ONE for the whole
-/// stream (`ayahSectionsProvider`), so closing the translation closes it on every
-/// ayah. Cards change height when that happens, and rows above the screen would
+/// Given [details] the same stream is the DETAILS view: the cards are the
+/// Details view's (word by word and a Details dropdown, see [AyahCard]), the
+/// banners of a surah, a juz, a ch and a page carry a Details dropdown of their
+/// own, and a tap on a banner does not leave the stream. Switching between
+/// Words and Details makes a new stream on the ayah at the top, like a change of
+/// unit.
+///
+/// The sections of the ayah card (Arabic, word by word, translation, details)
+/// are opened and closed from the title row of any card; the choice is ONE for
+/// the whole stream (`ayahSectionsProvider`), so closing the translation closes
+/// it on every ayah. Cards change height when that happens, and rows above the screen would
 /// push what the reader is looking at out of place, so it makes a new stream
 /// too: on the ayah whose title was tapped (or, when the change came from the
 /// reading options, the ayah at the top), which then sits at the top.
@@ -84,10 +92,15 @@ class WordsStreamView extends ConsumerStatefulWidget {
     this.onSelecting,
     this.stop,
     this.onReleaseStop,
+    this.details,
   });
 
   final WordsJump jump;
   final WordsUnit unit;
+
+  /// What the Details dropdowns hold. Given: this is the Details view; null:
+  /// the Words view.
+  final StreamDetails? details;
 
   /// The run the stream stops at, with a "Keep reading" tile (a part, a range);
   /// null: it only stops at the ends of the Quran.
@@ -212,7 +225,10 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView>
     super.didUpdateWidget(oldWidget);
     if (widget.jump != oldWidget.jump) {
       _open(widget.jump.ayah, highlight: widget.jump.highlight);
-    } else if (widget.unit != oldWidget.unit) {
+    } else if (widget.unit != oldWidget.unit ||
+        (widget.details == null) != (oldWidget.details == null)) {
+      // Another unit, or Words became Details (or the other way round): the
+      // rows are made again, on the ayah the reader is at.
       _open(_top ?? widget.jump.ayah);
     }
   }
@@ -892,13 +908,36 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView>
       };
     }
 
-    Widget row(StreamItem item) => switch (item) {
-      BannerItem(:final banner) => StreamBanner(
-        banner: banner,
+    final details = widget.details;
+
+    // A banner; in the Details view with the Details dropdown of what starts
+    // there under it (a tap on the banner itself stays in the stream).
+    Widget bannerRow(BannerItem item) {
+      final banner = StreamBanner(
+        banner: item.banner,
         fontFamily: font,
         scale: _scale,
-        onOpenInfo: widget.onOpenInfo,
-      ),
+        onOpenInfo: details == null ? widget.onOpenInfo : null,
+      );
+      final body = details?.banner(context, item.banner);
+      if (body == null) return banner;
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          banner,
+          DetailsPanel(
+            label: l10n.detailsTitle,
+            open: _sections.isOpen(AyahSection.details),
+            onToggle: () => _toggleSection(item.banner.at, AyahSection.details),
+            child: body,
+          ),
+        ],
+      );
+    }
+
+    Widget row(StreamItem item) => switch (item) {
+      final BannerItem bannerItem => bannerRow(bannerItem),
       final AyahItem ayahItem => _AyahRow(
         item: ayahItem,
         translationId: _translationId,
@@ -907,6 +946,7 @@ class _WordsStreamViewState extends ConsumerState<WordsStreamView>
         fontFamily: font,
         tafsirOn: tafsirOn,
         highlighted: _highlight == ayahItem.at,
+        details: details,
         onTafsir: widget.onTafsir,
         onAskAi: widget.onAskAi,
         onToggleSection: _toggleSection,
@@ -1008,6 +1048,7 @@ class _AyahRow extends ConsumerWidget {
     this.onAskAi,
     required this.onToggleSection,
     required this.onSelecting,
+    this.details,
   });
 
   final AyahItem item;
@@ -1019,6 +1060,9 @@ class _AyahRow extends ConsumerWidget {
   final String? fontFamily;
   final bool tafsirOn;
   final bool highlighted;
+
+  /// Given: the Details view's card (see [WordsStreamView.details]).
+  final StreamDetails? details;
   final void Function(AyahRef ayah) onTafsir;
   final void Function(AyahRef ayah, String? focus)? onAskAi;
 
@@ -1062,6 +1106,7 @@ class _AyahRow extends ConsumerWidget {
     return AyahCard(
       ayah: words,
       translation: translation,
+      detailsBody: details?.ayah(context, at),
       fontFamily: fontFamily,
       scale: scale,
       sections: sections,

@@ -56,7 +56,7 @@ NoteHome preselectedHome(List<NoteHome> homes, {int? s, int? ch}) {
   return homes.first;
 }
 
-/// Which notes a unit screen shows and what its "+" may add. A page shows the
+/// Which notes the sheet of a group shows and what its "+" may add. A page shows the
 /// notes of that page; an s the notes filed under it (its pages' notes); a ch
 /// the notes filed under it; a part the notes filed under both. Pure Dart.
 ///
@@ -102,7 +102,7 @@ final class NoteUnit {
   final int firstPage;
   final int lastPage;
 
-  /// Set for a page screen.
+  /// Set for a page.
   final int? page;
 
   /// The s / ch the unit is (null when the screen is not about one).

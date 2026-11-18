@@ -295,8 +295,9 @@ TransitionBuilder _scaled(double textScale) => (context, child) => MediaQuery(
 /// A router with [home] at `/` and stub screens for the places the reading
 /// screens go to, each saying where it is:
 ///
-/// - `/browse/info/ps/:page`, `/browse/info/ss/:s`, `/browse/info/juz/:juz` show
-///   `INFO p 106`, `INFO s 2`, `INFO juz 15`;
+/// - `/browse/read/:kind/:a` and `/browse/read/:kind/:a/:b` (a reader opened
+///   over this one: from the sheet of a group, "Read" or one of its parts) show
+///   where they are, `READ /browse/read/s/2`, `READ /browse/read/part/5/13`;
 /// - `/browse/tafsir/:s/:a` shows `TAFSIR 2:255` and a button `SHOW IN READING`
 ///   that goes back with the ayah [tafsirAnswer] (the way the real screen
 ///   answers "Show in reading");
@@ -324,19 +325,12 @@ GoRouter stubRouter({
     routes: [
       GoRoute(path: '/', builder: (context, state) => home),
       GoRoute(
-        path: '${AppRoutes.browse}/info/ps/:page',
-        builder: (context, state) =>
-            stub('INFO p ${state.pathParameters['page']}', state),
+        path: '${AppRoutes.browse}/read/:kind/:a',
+        builder: (context, state) => stub('READ ${state.uri}', state),
       ),
       GoRoute(
-        path: '${AppRoutes.browse}/info/ss/:s',
-        builder: (context, state) =>
-            stub('INFO s ${state.pathParameters['s']}', state),
-      ),
-      GoRoute(
-        path: '${AppRoutes.browse}/info/juz/:juz',
-        builder: (context, state) =>
-            stub('INFO juz ${state.pathParameters['juz']}', state),
+        path: '${AppRoutes.browse}/read/:kind/:a/:b',
+        builder: (context, state) => stub('READ ${state.uri}', state),
       ),
       GoRoute(
         path: '${AppRoutes.browse}/tafsir/:s/:a',

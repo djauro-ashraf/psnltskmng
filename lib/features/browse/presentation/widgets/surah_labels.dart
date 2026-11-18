@@ -4,7 +4,7 @@ import 'package:personaltskmng/core/theme/app_theme.dart';
 import 'package:personaltskmng/domain/reference/surah_names.dart';
 import 'package:personaltskmng/shared/widgets/surah_arabic_text.dart';
 
-/// The trailing side of a list row of an s: the Arabic name over the English
+/// The trailing side of a list row of a surah: the Arabic name over the English
 /// one. [BrowseRowCard] shrinks it to fit, it never makes the row overflow.
 class SurahRowAside extends StatelessWidget {
   const SurahRowAside({super.key, required this.s});
@@ -129,68 +129,6 @@ class SurahTitleCard extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The s that are on one page (one, two or, on the last page, three): each as
-/// "s 5 · Al-Ma’idah" with its Arabic name. For the page screen.
-class PageSurahCard extends StatelessWidget {
-  const PageSurahCard({super.key, required this.first, required this.last});
-
-  /// The first and the last s on the page (equal when only one is there).
-  final int first;
-  final int last;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadius.panel),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.75),
-          width: 1.2,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) => Column(
-            children: [
-              for (var s = first; s <= last; s++)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          's $s · ${SurahNames.of(s).transliteration}',
-                          style: theme.textTheme.titleSmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      _EndArabic(
-                        s: s,
-                        maxWidth: constraints.maxWidth * 0.4,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
             ],
           ),
         ),

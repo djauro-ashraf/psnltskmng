@@ -7,12 +7,14 @@ import 'package:personaltskmng/ask/controller/ask_providers.dart';
 import 'package:personaltskmng/core/constants/app_breakpoints.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
+import 'package:personaltskmng/features/browse/domain/details_group.dart';
 import 'package:personaltskmng/features/browse/domain/reader_request.dart';
 import 'package:personaltskmng/features/browse/presentation/browse_paths.dart';
 import 'package:personaltskmng/features/browse/presentation/pages/browse_not_found_page.dart';
 import 'package:personaltskmng/features/browse/presentation/providers/browse_providers.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/auto_read_pill.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/context_line_bar.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/details_blocks.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/go_to_sheet.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/mushaf_reader.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/reader_bar.dart';
@@ -32,29 +34,36 @@ import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 import 'package:personaltskmng/shared/widgets/quran_notice.dart';
 import 'package:personaltskmng/shared/widgets/words_stream_view.dart';
 
-/// The reader: the one screen the Quran is read on, in Mushaf (the page as
-/// printed) or in Words (one continuous scroll of ayahs).
+/// The reader: the one screen the Quran is read on, in Details, in Mushaf (the
+/// page as printed) or in Words.
+///
+/// Details and Words are the same continuous scroll of ayahs: Words shows each
+/// ayah with its Arabic, its words and its translation, Details shows only its
+/// word by word and a Details dropdown (where the ayah is: its surah, its juz,
+/// its ch, its page), and puts the same kind of dropdown under the banner of a
+/// surah, a juz or a ch. A tap on a line of a dropdown opens the details of that
+/// group on a sheet (see `details_blocks.dart`).
 ///
 /// It is opened by a route that carries only ids (see `ReaderRequest`); what an
 /// id means (the first page of an s, the ayah a juz starts at, the limit of the
 /// unit) is worked out once, in [ReaderResolver].
 ///
 /// What the screen holds, and what it leaves to the two views:
-/// - the reading line on top (back, Info | Mushaf | Words, the position pill that
-///   opens the Go to sheet) and, under it, the context line that opens the
+/// - the reading line on top (back, Details | Mushaf | Words, the position pill
+///   that opens the Go to sheet) and, under it, the context line that opens the
 ///   reading options. In Mushaf both go away together with a tap on the page.
 /// - the place the reader is at, as an ayah, so a switch between the two views
 ///   (and the Continue row of Browse) keeps it. It is kept in notifiers, never in
 ///   state that rebuilds the screen: the views report the ayah at the top while
 ///   scrolling and only the strips that show it are rebuilt.
-/// - in Words, one step to the next or the previous unit: the arrows of the
-///   reading line (wide screens) or a swipe sideways over the words (any
+/// - in Details and Words, one step to the next or the previous unit: the arrows
+///   of the reading line (wide screens) or a swipe sideways over the words (any
 ///   screen, see `UnitSwipe`).
 /// - the limit the reader was entered through. Leaving it (a jump outside it, the
 ///   end card of Mushaf, "Keep reading" of Words) removes it for both views.
 ///
-/// Info opens the info of the page as an ordinary screen on top of this one, so
-/// Back returns to the same spot, nothing reloaded. So does the Tafsir screen.
+/// The sheets of the details of a group, and the Tafsir screen, open on top of
+/// this one, so Back returns to the same spot, nothing reloaded.
 ///
 /// The place is saved (Continue reading) when the app pauses and when the reader
 /// leaves, not on scroll ticks.
@@ -263,8 +272,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     final locator = ref.read(pageLocatorProvider);
     final viewNotifier = ref.read(quranViewProvider.notifier);
     final page = _page.value;
-    if (next == QuranView.words) {
-      // Words opens on the first ayah of the page the reader was on.
+    final wasStream = _view != QuranView.mushaf;
+    if (next == QuranView.mushaf) {
+      // Mushaf opens on the page the ayah at the top is on.
+      if (_limit != null && !_limit!.containsPage(page)) _limit = null;
+      _mushafJump = MushafJump(page);
+    } else if (!wasStream) {
+      // Details and Words open on the first ayah of the page the reader was
+      // on. (From one of them to the other the stream keeps its place: it is
+      // the same stream with another card.)
       final ayah =
           await WordsStream.firstStartingOn(page, locator) ??
           _place ??
@@ -273,10 +289,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
       _wordsJump = WordsJump(ayah);
       _place = ayah;
       _context.value = ContextLine.at(ayah);
-    } else {
-      // Mushaf opens on the page the ayah at the top is on.
-      if (_limit != null && !_limit!.containsPage(page)) _limit = null;
-      _mushafJump = MushafJump(page);
     }
     unawaited(viewNotifier.set(next));
     if (!mounted) return;
@@ -320,15 +332,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     setState(() => _limit = null);
   }
 
-  // -- Go to, info, tafsir ----------------------------------------------------
+  // -- Go to, details, tafsir -------------------------------------------------
 
   Future<void> _openGoTo() async {
     final place = _place ?? QuranDivisions.fromIndex(0);
     final choice = await showGoToSheet(context, place: place, limit: _limit);
     if (choice == null || !mounted) return;
     switch (choice) {
-      case OpenInfo(:final location):
-        unawaited(context.push(location));
       case JumpToAyah(:final ayah, :final unit):
         await _jumpToAyah(ayah, unit);
       case JumpToPage(:final page, :final unit):
@@ -352,7 +362,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
       }
       _place = ayah;
       _barHidden = false;
-      if (_view == QuranView.words) {
+      if (_view != QuranView.mushaf) {
         _wordsJump = WordsJump(ayah, highlight: true);
       } else {
         _mushafJump = MushafJump(page ?? _page.value, ayah: ayah.key);
@@ -369,7 +379,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     final locator = ref.read(pageLocatorProvider);
     final unitNotifier = ref.read(wordsUnitProvider.notifier);
     if (unit != null) await unitNotifier.set(unit);
-    final ayah = _view == QuranView.words
+    final ayah = _view != QuranView.mushaf
         ? await WordsStream.firstStartingOn(page, locator)
         : null;
     if (!mounted) return;
@@ -377,7 +387,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
       final limit = _limit;
       if (limit != null && !limit.containsPage(page)) _limit = null;
       _barHidden = false;
-      if (_view == QuranView.words) {
+      if (_view != QuranView.mushaf) {
         if (ayah != null) {
           _place = ayah;
           _wordsJump = WordsJump(ayah);
@@ -391,17 +401,19 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     if (_view == QuranView.mushaf) unawaited(_refreshMushafContext(page));
   }
 
-  /// The info of the page the reader is on, as an ordinary screen on top.
-  void _openInfo() =>
-      unawaited(context.push('${BrowsePaths.info}/ps/${_page.value}'));
+  /// The details of the page the reader is on (its state and its notes), on a
+  /// sheet over the reader: the badge of the open notes opens it.
+  void _openPageDetails() => unawaited(
+    showGroupDetailsSheet(context, PageGroup(_page.value)),
+  );
 
-  /// A surah banner or a juz banner of Words was tapped.
-  void _openUnitInfo({int? surah, int? juz}) {
-    if (surah != null) {
-      unawaited(context.push('${BrowsePaths.info}/ss/$surah'));
-    } else if (juz != null) {
-      unawaited(context.push('${BrowsePaths.info}/juz/$juz'));
-    }
+  /// A surah banner or a juz banner of Words was tapped: the details of that
+  /// group, on a sheet. (In Details the banner has its dropdown instead.)
+  void _openUnitDetails({int? surah, int? juz}) {
+    final DetailsGroup? group = surah != null
+        ? SurahGroup(surah)
+        : (juz != null ? JuzGroup(juz) : null);
+    if (group != null) unawaited(showGroupDetailsSheet(context, group));
   }
 
   /// Tafsir opens on a screen of its own, over this one: Back (button, system
@@ -556,8 +568,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
       );
     }
 
-    final words = _view == QuranView.words;
-    final hidden = !words && _barHidden;
+    // Details and Words are one stream of ayahs; Mushaf is the pages.
+    final stream = _view != QuranView.mushaf;
+    final hidden = !stream && _barHidden;
     final unit = _effectiveUnit();
     final limit = _limit;
     // The Ask buttons are there only when the assistant is on and has a key.
@@ -578,15 +591,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
                     builder: (context, page, _) => ReaderBar(
                       view: _view,
                       onView: (view) => unawaited(_switchView(view)),
-                      onInfo: _openInfo,
                       positionLabel: _positionLabel(page),
                       onPosition: () => unawaited(_openGoTo()),
-                      onPrevious: words
+                      onPrevious: stream
                           ? () => unawaited(_stepUnit(forward: false))
                           : (page > (limit?.firstPage ?? 1)
                                 ? () => _stepPage(page - 1)
                                 : null),
-                      onNext: words
+                      onNext: stream
                           ? () => unawaited(_stepUnit(forward: true))
                           : (page < (limit?.lastPage ?? MushafPage.pageCount)
                                 ? () => _stepPage(page + 1)
@@ -600,7 +612,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
                     fit: StackFit.expand,
                     children: [
                       Positioned.fill(
-                        child: words
+                        child: stream
                             // A swipe sideways is the arrows' step, on screens of
                             // every width (the arrows need 480px). The Whole
                             // Quran is one unit: nothing to step to.
@@ -616,7 +628,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
                                       ? limit.ayahs
                                       : null,
                                   onTop: _onWordsTop,
-                                  onOpenInfo: _openUnitInfo,
+                                  details: _view == QuranView.details
+                                      ? browseStreamDetails
+                                      : null,
+                                  onOpenInfo: _openUnitDetails,
                                   onTafsir: (ayah) =>
                                       unawaited(_openTafsir(ayah)),
                                   onAskAi: askOn
@@ -648,15 +663,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
                                     setState(() => _barHidden = !_barHidden),
                               ),
                       ),
-                      // The open notes of the page the reader is on: a tap goes
-                      // to the info of that page, where the notes are.
+                      // The open notes of the page the reader is on: a tap opens
+                      // the details of that page, where the notes are.
                       PositionedDirectional(
-                        end: words ? AppSpacing.xl + 16 : AppSpacing.lg,
+                        end: stream ? AppSpacing.xl + 16 : AppSpacing.lg,
                         bottom: AppSpacing.lg + 52,
                         child: ValueListenableBuilder<int>(
                           valueListenable: _page,
                           builder: (context, page, _) =>
-                              _NotesBadge(page: page, onTap: _openInfo),
+                              _NotesBadge(page: page, onTap: _openPageDetails),
                         ),
                       ),
                       // Auto-read floating pill
@@ -694,7 +709,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
 }
 
 /// A small badge with the number of open notes of the page the reader is on
-/// (nothing when there are none). A tap goes to the page's info.
+/// (nothing when there are none). A tap opens the details of the page.
 class _NotesBadge extends ConsumerWidget {
   const _NotesBadge({required this.page, required this.onTap});
 

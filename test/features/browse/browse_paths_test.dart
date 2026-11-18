@@ -4,78 +4,6 @@ import 'package:personaltskmng/features/browse/presentation/browse_paths.dart';
 import 'package:personaltskmng/quran_data/models/quran_view.dart';
 
 void main() {
-  group('BrowsePaths.isPageScreen', () {
-    test('is true for the screen of a page, wherever it is reached from', () {
-      for (final path in [
-        '/browse/ps/1',
-        '/browse/ps/604',
-        '/browse/ss/2/ps/48',
-        '/browse/ss/2/ch/3/ps/48',
-        '/browse/ch/7/ps/120',
-        '/browse/ch/7/ss/5/ps/120/',
-        '/browse/juz/15/ps/282',
-        '/browse/info/ps/12',
-      ]) {
-        expect(BrowsePaths.isPageScreen(path), isTrue, reason: path);
-      }
-    });
-
-    test('is false for everything else', () {
-      for (final path in [
-        '/browse',
-        '/browse/ps',
-        '/browse/ss/2',
-        '/browse/ss/2/ps',
-        '/browse/ch/7/ss',
-        '/browse/juz/15/ps',
-        '/browse/ps/abc',
-        '/today',
-        '/settings',
-        '/overview',
-        '/ps/12',
-      ]) {
-        expect(BrowsePaths.isPageScreen(path), isFalse, reason: path);
-      }
-    });
-  });
-
-  group('BrowsePaths.isScopeScreen', () {
-    test('is true for the screen of an s, a ch, a juz or a part', () {
-      for (final path in [
-        '/browse/ss/5',
-        '/browse/ss/5/',
-        '/browse/ss/5/ch/14',
-        '/browse/ch/13',
-        '/browse/ch/13/ss/4',
-        '/browse/juz/15',
-        '/browse/juz/15/',
-      ]) {
-        expect(BrowsePaths.isScopeScreen(path), isTrue, reason: path);
-      }
-    });
-
-    test('is false for their lists, their pages and the rest', () {
-      for (final path in [
-        '/browse',
-        '/browse/ss/5/ch',
-        '/browse/ss/5/ps',
-        '/browse/ss/5/ch/14/ps',
-        '/browse/ss/5/ps/106',
-        '/browse/ch/13/ss',
-        '/browse/ch/13/ps',
-        '/browse/juz',
-        '/browse/juz/15/ps',
-        '/browse/juz/x',
-        '/browse/ps/12',
-        '/browse/ss/x',
-        '/browse/read/s/5',
-        '/today',
-      ]) {
-        expect(BrowsePaths.isScopeScreen(path), isFalse, reason: path);
-      }
-    });
-  });
-
   group('BrowsePaths.isReadingScreen', () {
     test('is true for the reader and the tafsir screen', () {
       for (final path in [
@@ -93,20 +21,8 @@ void main() {
       }
     });
 
-    test('is false for the lists and every info screen (the bar stays)', () {
-      for (final path in [
-        '/browse',
-        '/browse/ps',
-        '/browse/ps/12',
-        '/browse/ss/5',
-        '/browse/ss/5/ps/106',
-        '/browse/ch/13/ss/4',
-        '/browse/juz/3',
-        '/browse/info/ps/12',
-        '/browse/info/ss/5',
-        '/today',
-        '/overview',
-      ]) {
+    test('is false for the lists and the rest (the bar stays)', () {
+      for (final path in ['/browse', '/today', '/overview']) {
         expect(BrowsePaths.isReadingScreen(path), isFalse, reason: path);
       }
     });
@@ -136,6 +52,10 @@ void main() {
         BrowsePaths.readAyah(const AyahRef(2, 255), view: QuranView.mushaf),
         '/browse/read/a/2/255?view=mushaf',
       );
+      expect(
+        BrowsePaths.readAyah(const AyahRef(2, 255), view: QuranView.details),
+        '/browse/read/a/2/255?view=details',
+      );
     });
 
     test('every path of the reader is a reading screen', () {
@@ -161,12 +81,23 @@ void main() {
       }
     });
 
-    test('the info-only locations sit under /browse/info', () {
-      expect(BrowsePaths.info, '/browse/info');
-      expect('${BrowsePaths.info}/ps/12', '/browse/info/ps/12');
-      expect(BrowsePaths.juz, '/browse/juz');
+    test('the reader and the tafsir sit under the tab root', () {
       expect(BrowsePaths.read, '/browse/read');
       expect(BrowsePaths.tafsir, '/browse/tafsir');
+    });
+
+    test('the details of a group are not screens: no path for them', () {
+      // A surah, a juz, a ch or a page has no screen of its own any more: the
+      // Details view of the reader and its sheets are where they are read.
+      for (final path in [
+        '/browse/ps/12',
+        '/browse/ss/5',
+        '/browse/ch/13',
+        '/browse/juz/15',
+        '/browse/info/ps/12',
+      ]) {
+        expect(BrowsePaths.isReadingScreen(path), isFalse, reason: path);
+      }
     });
   });
 }

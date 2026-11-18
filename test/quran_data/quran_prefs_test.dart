@@ -66,6 +66,22 @@ void main() {
     expect(container.read(quranViewProvider), QuranView.words);
   });
 
+  test('every view survives the round trip, Details included', () async {
+    for (final view in QuranView.values) {
+      final store = MemoryQuranPrefsStore();
+      await _container(store).read(quranViewProvider.notifier).set(view);
+      expect(store.get(QuranPrefKeys.view), view.name, reason: '$view');
+      expect(_container(store).read(quranViewProvider), view, reason: '$view');
+    }
+  });
+
+  test('Details is read back from what the app seeds on the first run', () {
+    final container = _container(
+      MemoryQuranPrefsStore({QuranPrefKeys.view: QuranView.details.name}),
+    );
+    expect(container.read(quranViewProvider), QuranView.details);
+  });
+
   test('a value that means nothing falls back to the default', () {
     final container = _container(
       MemoryQuranPrefsStore({QuranPrefKeys.view: 'poster'}),
@@ -74,9 +90,9 @@ void main() {
   });
 
   group('the unit Words follows', () {
-    test('is the page until the reader chooses another', () {
+    test('is the surah until the reader chooses another', () {
       final container = _container(MemoryQuranPrefsStore());
-      expect(container.read(wordsUnitProvider), WordsUnit.page);
+      expect(container.read(wordsUnitProvider), WordsUnit.surah);
     });
 
     test('is kept by its name and read back', () async {
@@ -96,11 +112,11 @@ void main() {
       }
     });
 
-    test('a value that means nothing falls back to the page', () {
+    test('a value that means nothing falls back to the surah', () {
       final container = _container(
         MemoryQuranPrefsStore({QuranPrefKeys.wordsUnit: 'chapter'}),
       );
-      expect(container.read(wordsUnitProvider), WordsUnit.page);
+      expect(container.read(wordsUnitProvider), WordsUnit.surah);
     });
 
     test('holds for the session even if it cannot be saved', () async {

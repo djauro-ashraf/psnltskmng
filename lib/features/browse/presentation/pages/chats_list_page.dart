@@ -79,30 +79,13 @@ class _ChatsListPageState extends ConsumerState<ChatsListPage> {
   }
 
   Future<void> _showRenameDialog(AskChatHeader header) async {
-    final l10n = context.l10n;
-    final controller = TextEditingController(text: header.title);
     final newTitle = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.askRenameTitle),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(hintText: header.title),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: Text(l10n.settingsSave),
-          ),
-        ],
+      builder: (context) => _RenameDialog(
+        initialText: header.title,
+        hintText: header.title,
       ),
     );
-    controller.dispose();
 
     if (newTitle != null && newTitle.isNotEmpty && mounted) {
       await ref.read(chatListProvider.notifier).rename(header.id, newTitle);
@@ -501,6 +484,54 @@ class _ChatsListPageState extends ConsumerState<ChatsListPage> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _RenameDialog extends StatefulWidget {
+  const _RenameDialog({required this.initialText, required this.hintText});
+  final String initialText;
+  final String hintText;
+
+  @override
+  State<_RenameDialog> createState() => _RenameDialogState();
+}
+
+class _RenameDialogState extends State<_RenameDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialText);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return AlertDialog(
+      title: Text(l10n.askRenameTitle),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        decoration: InputDecoration(hintText: widget.hintText),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l10n.cancel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _controller.text.trim()),
+          child: Text(l10n.settingsSave),
+        ),
+      ],
     );
   }
 }

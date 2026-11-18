@@ -108,7 +108,7 @@ void main() {
     final store = InMemoryChatStore([chat('a', 'Ayat al-Kursi')]);
     await openList(tester, store);
 
-    await tester.tap(find.byIcon(Icons.more_vert).last);
+    await tester.tap(find.byIcon(Icons.more_vert).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Rename'));
     await tester.pumpAndSettle();

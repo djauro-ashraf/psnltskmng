@@ -8,7 +8,7 @@ import 'package:personaltskmng/notes/models/note.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 import 'package:personaltskmng/shared/widgets/app_snackbar.dart';
 
-/// Opens the archive of [unit]. Quiet by design: a sheet over the unit screen,
+/// Opens the archive of [unit]. Quiet by design: a sheet over the group sheet,
 /// not a screen of the app, and only reachable from a small link that shows
 /// when the unit has archived notes.
 Future<void> showArchiveSheet(BuildContext context, NoteUnit unit) =>

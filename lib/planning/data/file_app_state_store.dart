@@ -65,6 +65,22 @@ final class FileAppStateStore implements AppStateStore {
   Future<void> saveState(StoredState state) =>
       _writeAtomic(stateFileName, AppStateCodec.stateToText(state));
 
+  /// Renames `state.json` to `state.json.replaced-<timestamp>`. Goes through
+  /// the same queue as the saves, so a save in progress finishes first and
+  /// none can land after it by accident.
+  @override
+  Future<String?> archiveState() {
+    final job = _tail.then<String?>((_) async {
+      final file = _file(stateFileName);
+      if (!await file.exists()) return null;
+      final name = '$stateFileName.replaced-${_clock().millisecondsSinceEpoch}';
+      await file.rename(_path(name));
+      return name;
+    });
+    _tail = job.then<void>((_) {}, onError: (Object _) {});
+    return job;
+  }
+
   @override
   Future<SettingsLoadResult> loadSettings() async {
     final read = await _read(settingsFileName);

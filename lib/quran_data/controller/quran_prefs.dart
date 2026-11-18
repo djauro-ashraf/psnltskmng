@@ -94,7 +94,9 @@ Future<void> _save(Ref ref, String key, String? value) async {
   }
 }
 
-/// Mushaf (the page as printed) or Words (ayah by ayah).
+/// How the reader shows the Quran: Mushaf (the page as printed), Words (ayah by
+/// ayah) or Details. Mushaf until the app says otherwise (`app/dependencies.dart`
+/// seeds Details for a reader who never chose).
 class QuranViewNotifier extends Notifier<QuranView> {
   @override
   QuranView build() =>
@@ -104,7 +106,10 @@ class QuranViewNotifier extends Notifier<QuranView> {
       QuranView.mushaf;
 
   Future<void> set(QuranView view) async {
-    if (view == state) return;
+    if (view == state &&
+        ref.read(quranPrefsStoreProvider).get(QuranPrefKeys.view) == view.name) {
+      return;
+    }
     state = view;
     await _save(ref, QuranPrefKeys.view, view.name);
   }
@@ -152,15 +157,16 @@ final manifestUrlProvider = NotifierProvider<ManifestUrlNotifier, String>(
   ManifestUrlNotifier.new,
 );
 
-/// The unit Words follows: what it crosses one after another while the reader
-/// scrolls on. The Page unit until the reader chooses another.
+/// The unit the stream (Details and Words) follows: what it crosses one after
+/// another while the reader scrolls on. The Surah unit until the reader chooses
+/// another (Page is the last of the choices, not the first).
 class WordsUnitNotifier extends Notifier<WordsUnit> {
   @override
   WordsUnit build() =>
       WordsUnit.values.asNameMap()[ref
           .watch(quranPrefsStoreProvider)
           .get(QuranPrefKeys.wordsUnit)] ??
-      WordsUnit.page;
+      WordsUnit.surah;
 
   Future<void> set(WordsUnit unit) async {
     if (unit == state) return;

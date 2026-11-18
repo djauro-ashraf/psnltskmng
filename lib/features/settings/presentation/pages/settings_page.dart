@@ -295,6 +295,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         const _AppearanceSection(),
         const SizedBox(height: AppSpacing.md),
         const _BackupSection(),
+        const _MemorySection(),
         const _QuranDataSection(),
         const SizedBox(height: AppSpacing.lg),
         Card(
@@ -847,6 +848,73 @@ class _BackupSection extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Restart the memory manager: the first-run setup is shown again on Today. The
+/// stored Q and today's plan are moved aside (see
+/// `PlanningController.restartSetup`); the settings, the notes and the Quran
+/// data stay. Only offered once the setup is done.
+class _MemorySection extends ConsumerWidget {
+  const _MemorySection();
+
+  Future<void> _restart(BuildContext context, WidgetRef ref) async {
+    final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: Text(l10n.settingsRestartMemoryTitle),
+        content: Text(l10n.settingsRestartMemoryBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: scheme.error,
+              foregroundColor: scheme.onError,
+            ),
+            onPressed: () => Navigator.of(dialog).pop(true),
+            child: Text(l10n.settingsRestartMemoryAction),
+          ),
+        ],
+      ),
+    );
+    if (yes != true || !context.mounted) return;
+    try {
+      final problems = await ref
+          .read(planningViewModelProvider.notifier)
+          .restartSetup();
+      if (!context.mounted) return;
+      if (problems.isNotEmpty) {
+        showAppSnackBar(context, problems.first.toString(), isError: true);
+        return;
+      }
+      showAppSnackBar(context, l10n.settingsRestartMemoryDone);
+      context.go(AppRoutes.today);
+    } catch (_) {
+      if (context.mounted) {
+        showAppSnackBar(context, l10n.settingsRestartMemoryFailed, isError: true);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final loaded = ref.watch(planningViewModelProvider) is PlanningLoaded;
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: ListTile(
+        enabled: loaded,
+        leading: const Icon(Icons.restart_alt_rounded),
+        title: Text(l10n.settingsRestartMemory),
+        subtitle: Text(l10n.settingsRestartMemoryHint),
+        onTap: loaded ? () => _restart(context, ref) : null,
       ),
     );
   }

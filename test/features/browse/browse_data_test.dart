@@ -229,6 +229,18 @@ void main() {
       }
     });
 
+    test('the page list offers Surah first, then ch, juz, state and notes', () {
+      // Surah comes before the ch (it is the unit the reader knows best).
+      expect(BrowseGroups.forPages, [
+        BrowseGrouping.none,
+        BrowseGrouping.s,
+        BrowseGrouping.ch,
+        BrowseGrouping.juz,
+        BrowseGrouping.state,
+        BrowseGrouping.notes,
+      ]);
+    });
+
     test('groups are cached: the same list comes back', () {
       expect(
         identical(

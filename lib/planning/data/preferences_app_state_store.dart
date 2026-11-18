@@ -39,6 +39,16 @@ final class PreferencesAppStateStore implements AppStateStore {
   }
 
   @override
+  Future<String?> archiveState() async {
+    final text = _prefs.getString(_stateKey);
+    if (text == null) return null;
+    final name = '$_stateKey.replaced_${_clock().millisecondsSinceEpoch}';
+    await _prefs.setString(name, text);
+    await _prefs.remove(_stateKey);
+    return name;
+  }
+
+  @override
   Future<SettingsLoadResult> loadSettings() async {
     final text = _prefs.getString(_settingsKey);
     if (text == null) return const SettingsNotFound();

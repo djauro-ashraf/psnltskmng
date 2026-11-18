@@ -12,7 +12,6 @@ import 'package:personaltskmng/features/daily_plan/presentation/viewmodels/plann
 import 'package:personaltskmng/features/daily_plan/presentation/viewmodels/today_view_model.dart';
 import 'package:personaltskmng/l10n/app_localizations.dart';
 import 'package:personaltskmng/planning/data/planning_settings.dart';
-import 'package:personaltskmng/planning/data/stored_state.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 import 'package:personaltskmng/shared/widgets/page_state_widgets.dart';
 
@@ -165,10 +164,9 @@ class _SetupViewState extends ConsumerState<SetupView> {
   bool _busy = false;
   final List<String> _problems = [];
 
-  // Step 1: Budget
-  final TextEditingController _minutes = TextEditingController(
-    text: '${PlanningSettings.defaultBaseBudgetMinutes.round()}',
-  );
+  // Step 1: Budget. The budget in the settings is proposed: the default on a
+  // first run, the one the user had when the memory manager is restarted.
+  late final TextEditingController _minutes;
 
   // Step 2: All memorized pages
   final TextEditingController _allMemorizedCtrl = TextEditingController();
@@ -184,6 +182,14 @@ class _SetupViewState extends ConsumerState<SetupView> {
 
   // Step 5: Forgotten (F3) — pages that were once memorized but lost
   final TextEditingController _forgottenCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _minutes = TextEditingController(
+      text: _budgetText(ref.read(planningControllerProvider).settings),
+    );
+  }
 
   @override
   void dispose() {
@@ -210,6 +216,13 @@ class _SetupViewState extends ConsumerState<SetupView> {
     remaining = _subtractSpans(remaining, _d2Spans);
     remaining = _subtractSpans(remaining, _forgottenSpans);
     return remaining;
+  }
+
+  static String _budgetText(PlanningSettings settings) {
+    final minutes = settings.baseBudgetMinutes;
+    return minutes == minutes.roundToDouble()
+        ? '${minutes.round()}'
+        : '$minutes';
   }
 
   double? _budget() {
@@ -361,7 +374,7 @@ class _SetupViewState extends ConsumerState<SetupView> {
     final controller = ref.read(planningControllerProvider);
     final today = Day.fromDateTime(ref.read(todayClockProvider)());
     final built = QSetup.build(
-      id: StoredState.defaultQId,
+      id: controller.state.q.id,
       rows: rows,
       today: today,
       constraints: controller.settings.constraints,

@@ -13,7 +13,7 @@ import 'package:personaltskmng/l10n/app_localizations.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 import 'package:personaltskmng/shared/widgets/division_labels.dart';
 
-/// One of the three lists (ps, ss, ch): a group-by bar (only when the list
+/// One of the four lists (Surahs, ch, Juz, Pages): a group-by bar (only when the list
 /// offers more than one grouping) over a [BrowseList]. The chosen grouping and
 /// the scroll position survive a switch to another tab.
 ///
@@ -37,10 +37,10 @@ class GroupedTab extends ConsumerStatefulWidget {
   final List<BrowseGroup> Function(BrowseGrouping grouping, BrowseData data)
   groupsOf;
 
-  /// The row for a page, s or ch number.
+  /// The row for a page, surah, juz or ch number.
   final Widget Function(BuildContext context, int number) rowOf;
 
-  /// "12 p", "5 s", "3 ch": how many items a state or notes group holds.
+  /// "12 pages", "5 surahs", "3 ch": how many items a state or notes group holds.
   final String Function(AppLocalizations l10n, int count) countLabel;
 
   @override

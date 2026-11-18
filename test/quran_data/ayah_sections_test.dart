@@ -5,7 +5,7 @@ import 'package:personaltskmng/quran_data/models/ayah_sections.dart';
 ///
 /// NOT RUN: written without being able to run Flutter.
 
-/// Every way of closing some of the sections (8 of them: each is in or out).
+/// Every way of closing some of the sections (16 of them: each is in or out).
 Iterable<List<AyahSection>> _everyCombination() sync* {
   final sections = AyahSection.values;
   for (var mask = 0; mask < (1 << sections.length); mask++) {
@@ -22,7 +22,27 @@ void main() {
       AyahSection.arabic,
       AyahSection.words,
       AyahSection.translation,
+      AyahSection.details,
     ]);
+  });
+
+  test('Details is a section like the others: it can be closed and kept', () {
+    final closed = AyahSections.allOpen.toggled(AyahSection.details);
+    expect(closed.isClosed(AyahSection.details), isTrue);
+    // The sections of the Words card are not touched.
+    expect(closed.isOpen(AyahSection.arabic), isTrue);
+    expect(closed.isOpen(AyahSection.words), isTrue);
+    expect(closed.isOpen(AyahSection.translation), isTrue);
+    expect(closed.encode(), 'details');
+    expect(AyahSections.decode('details'), closed);
+  });
+
+  test('word by word is one section for Words and for Details', () {
+    // Closing it closes it in both: the value is one for the whole reader.
+    final closed = AyahSections.allOpen.toggled(AyahSection.words);
+    expect(closed.isClosed(AyahSection.words), isTrue);
+    expect(closed.isOpen(AyahSection.details), isTrue);
+    expect(closed.isOpen(AyahSection.translation), isTrue);
   });
 
   group('AyahSections', () {

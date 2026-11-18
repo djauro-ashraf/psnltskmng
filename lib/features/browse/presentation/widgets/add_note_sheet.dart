@@ -18,11 +18,11 @@ Future<void> showAddNoteSheet(BuildContext context, NoteUnit unit) =>
       builder: (context) => AddNoteSheet(unit: unit),
     );
 
-/// The "+" of a unit screen: the text of the note, the page (fixed on a page
-/// screen, typed within the unit's range elsewhere) and, when that page is
+/// The "+" of the notes of a group: the text of the note, the page (fixed for
+/// a page, typed within the unit's range elsewhere) and, when that page is
 /// shared by several s or ch, which one the note is filed under, with the
-/// earlier ch pre-selected (the unit the screen is about, when it has one, wins
-/// over that default so the new card stays on the screen it was added on).
+/// earlier ch pre-selected (the unit the sheet is about, when it has one, wins
+/// over that default so the new card stays on the sheet it was added on).
 class AddNoteSheet extends ConsumerStatefulWidget {
   const AddNoteSheet({super.key, required this.unit});
 
@@ -85,8 +85,8 @@ class _AddNoteSheetState extends ConsumerState<AddNoteSheet> {
     final sameS = _homes.every((h) => h.s == _homes.first.s);
     final sameCh = _homes.every((h) => h.ch == _homes.first.ch);
     if (sameS) return l10n.chLabelOne(home.ch);
-    if (sameCh) return l10n.sLabelOne(home.s);
-    return l10n.browseTrail(l10n.sLabelOne(home.s), l10n.chLabelOne(home.ch));
+    if (sameCh) return l10n.browseSurahOne(home.s);
+    return l10n.browseTrail(l10n.browseSurahOne(home.s), l10n.chLabelOne(home.ch));
   }
 
   Future<void> _save() async {
@@ -131,7 +131,7 @@ class _AddNoteSheetState extends ConsumerState<AddNoteSheet> {
             const SizedBox(height: AppSpacing.lg),
             if (unit.isPage)
               Text(
-                l10n.pagesSingle(unit.firstPage),
+                l10n.browsePageOne(unit.firstPage),
                 style: theme.textTheme.titleMedium,
               )
             else

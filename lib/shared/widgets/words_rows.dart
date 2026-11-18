@@ -34,6 +34,11 @@ const EdgeInsets _rowPadding = EdgeInsets.fromLTRB(
 /// markers open the footnote); and "continues on p 44" when the ayah goes on
 /// over the next page.
 ///
+/// With [detailsBody] the card is the card of the Details view: the same number
+/// and Tafsir button, but only two sections, the word by word and the Details
+/// dropdown (the body is what goes in it). The Arabic and the translation are
+/// the Words view's.
+///
 /// Each section has a title row that opens and closes it ([onToggleSection]);
 /// which sections are open is [sections], the same for every card of the stream,
 /// so what the reader closes stays closed on all of them. A closed section keeps
@@ -62,10 +67,15 @@ class AyahCard extends StatefulWidget {
     this.onAskAi,
     this.onSelecting,
     this.highlighted = false,
+    this.detailsBody,
   });
 
   final AyahWords ayah;
   final TranslationText? translation;
+
+  /// What goes in the Details dropdown. Given: the card is the Details view's
+  /// (word by word and Details only); null: the Words view's card.
+  final Widget? detailsBody;
 
   /// Which sections are open (all of them until the reader closes one).
   final AyahSections sections;
@@ -206,6 +216,7 @@ class _AyahCardState extends State<AyahCard> {
     final scale = widget.scale;
     final highlighted = widget.highlighted;
     final toggle = widget.onToggleSection;
+    final detailsBody = widget.detailsBody;
 
     Widget section(AyahSection kind, Widget body) => _Section(
       label: ayahSectionLabel(l10n, kind),
@@ -235,33 +246,39 @@ class _AyahCardState extends State<AyahCard> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                InkWell(
-                  onTap: widget.onCopy,
-                  borderRadius: BorderRadius.circular(AppRadius.chip),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xs,
-                      vertical: 2,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          ayah.key,
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: scheme.primary,
-                            fontWeight: FontWeight.w700,
+                Builder(
+                  builder: (context) {
+                    final label = Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs,
+                        vertical: 2,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            ayah.key,
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              color: scheme.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Icon(
-                          Icons.copy_rounded,
-                          size: 14,
-                          color: scheme.primary.withValues(alpha: 0.7),
-                        ),
-                      ],
-                    ),
-                  ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Icon(
+                            Icons.copy_rounded,
+                            size: 14,
+                            color: scheme.primary.withValues(alpha: 0.7),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (widget.onCopy == null) return label;
+                    return InkWell(
+                      onTap: widget.onCopy,
+                      borderRadius: BorderRadius.circular(AppRadius.chip),
+                      child: label,
+                    );
+                  },
                 ),
                 if (tafsirLabel != null)
                   Flexible(
@@ -281,29 +298,31 @@ class _AyahCardState extends State<AyahCard> {
               ],
             ),
             const SizedBox(height: AppSpacing.xs),
-            // The whole ayah, as it is read (selectable).
-            section(
-              AyahSection.arabic,
-              _selectable(
-                l10n: l10n,
-                selected: () => _selectedArabic,
-                onChanged: (text) {
-                  _selectedArabic = text;
-                  _checkSelection();
-                },
-                child: Text(
-                  ayah.arabic,
-                  textDirection: TextDirection.rtl,
-                  locale: const Locale('ar'),
-                  style: TextStyle(
-                    fontFamily: fontFamily,
-                    fontSize: 26 * scale,
-                    height: 1.9,
-                    color: scheme.onSurface,
+            // The whole ayah, as it is read (selectable). Not in the Details
+            // view, which is about the words and where the ayah is.
+            if (detailsBody == null)
+              section(
+                AyahSection.arabic,
+                _selectable(
+                  l10n: l10n,
+                  selected: () => _selectedArabic,
+                  onChanged: (text) {
+                    _selectedArabic = text;
+                    _checkSelection();
+                  },
+                  child: Text(
+                    ayah.arabic,
+                    textDirection: TextDirection.rtl,
+                    locale: const Locale('ar'),
+                    style: TextStyle(
+                      fontFamily: fontFamily,
+                      fontSize: 26 * scale,
+                      height: 1.9,
+                      color: scheme.onSurface,
+                    ),
                   ),
                 ),
               ),
-            ),
             // Word by word: the Arabic, and under it what it means. Not
             // selectable (a grid of cells copies as a jumble); the copy sheet
             // has the words.
@@ -326,8 +345,10 @@ class _AyahCardState extends State<AyahCard> {
               ),
             ),
             // No translation chosen (or none for this ayah): no section, so
-            // there is no title to open on nothing.
-            if (translation != null && translation.text.isNotEmpty)
+            // there is no title to open on nothing. Not in the Details view.
+            if (detailsBody == null &&
+                translation != null &&
+                translation.text.isNotEmpty)
               section(
                 AyahSection.translation,
                 _selectable(
@@ -343,6 +364,8 @@ class _AyahCardState extends State<AyahCard> {
                   ),
                 ),
               ),
+            // Where the ayah is, and the state of its page (the Details view).
+            if (detailsBody != null) section(AyahSection.details, detailsBody),
             if (continues != null) ...[
               const SizedBox(height: AppSpacing.md),
               Align(
@@ -399,6 +422,7 @@ class _Section extends StatelessWidget {
     required this.open,
     required this.onToggle,
     required this.child,
+    this.divider = true,
   });
 
   final String label;
@@ -408,12 +432,15 @@ class _Section extends StatelessWidget {
   final VoidCallback? onToggle;
   final Widget child;
 
+  /// The hairline above the title (a card made of one section has none).
+  final bool divider;
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Divider(height: 1),
+        if (divider) const Divider(height: 1),
         _SectionTitle(label: label, open: open, onTap: onToggle),
         if (open) ...[
           const SizedBox(height: AppSpacing.xs),
@@ -421,6 +448,60 @@ class _Section extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
         ],
       ],
+    );
+  }
+}
+
+/// The Details dropdown under a banner of the Details view: a card of its own,
+/// in the look of an ayah card, made of one section. Opening and closing it is
+/// the same choice as the Details section of the ayah cards (one for the whole
+/// stream), so [onToggle] is the stream's.
+class DetailsPanel extends StatelessWidget {
+  const DetailsPanel({
+    super.key,
+    required this.label,
+    required this.open,
+    required this.onToggle,
+    required this.child,
+  });
+
+  final String label;
+  final bool open;
+
+  /// Null: the title is not a button.
+  final VoidCallback? onToggle;
+
+  /// What the panel holds while it is open.
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: _rowPadding,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(AppRadius.panel),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: 0.75),
+            width: 1.2,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.xs,
+          ),
+          child: _Section(
+            label: label,
+            open: open,
+            onToggle: onToggle,
+            divider: false,
+            child: child,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -658,8 +739,9 @@ class _FootnoteMark extends StatelessWidget {
 /// one element per start position, never two stacked. A page that starts at the
 /// same ayah is a chip on a surah, juz or hizb banner, `p 43` at the end of the
 /// ruku line, or a slim `p 43` divider when nothing else starts there. A surah
-/// or a juz banner opens that unit's info when tapped ([onOpenInfo]); the others
-/// do nothing.
+/// or a juz banner opens that unit's details when tapped ([onOpenInfo], the
+/// Words view; the Details view has a dropdown under the banner instead); the
+/// others do nothing.
 /// Every banner is a heading for a screen reader, grows with the text size and
 /// never cuts anything off (no fixed heights).
 class StreamBanner extends StatelessWidget {
@@ -677,7 +759,7 @@ class StreamBanner extends StatelessWidget {
   final String? fontFamily;
   final double scale;
 
-  /// Open the info of a surah (first argument) or a juz (second).
+  /// Open the details of a surah (first argument) or a juz (second): a sheet.
   final void Function({int? surah, int? juz})? onOpenInfo;
 
   @override

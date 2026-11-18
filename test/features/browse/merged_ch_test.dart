@@ -7,11 +7,12 @@ import 'package:personaltskmng/domain/models/day.dart';
 import 'package:personaltskmng/domain/models/page_record.dart';
 import 'package:personaltskmng/domain/models/page_state.dart';
 import 'package:personaltskmng/domain/models/q.dart';
-import 'package:personaltskmng/features/browse/browse.dart';
 import 'package:personaltskmng/features/browse/domain/browse_data.dart';
 import 'package:personaltskmng/features/browse/domain/browse_index.dart';
+import 'package:personaltskmng/features/browse/domain/details_group.dart';
 import 'package:personaltskmng/features/browse/domain/note_unit.dart';
 import 'package:personaltskmng/features/browse/presentation/providers/browse_providers.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/details_blocks.dart';
 import 'package:personaltskmng/features/daily_plan/presentation/providers/planning_providers.dart';
 import 'package:personaltskmng/features/notes/presentation/providers/notes_providers.dart';
 import 'package:personaltskmng/features/notes/presentation/viewmodels/notes_view_model.dart';
@@ -25,7 +26,9 @@ import 'package:personaltskmng/notes/models/note_book.dart';
 import '../../planning/support.dart';
 
 // ch 30 (pages 282-293) touches s 17 and s 18. It is the merged ch of these tests: one unit, with notes on several pages and in two
-// s. ch 31 (293-304) is its neighbour and stays a plain ch.
+// s. They are looked at on the sheet of a group (what a line of a Details
+// dropdown opens). NOT RUN: written without being able to run Flutter.
+// ch 31 (293-304) is its neighbour and stays a plain ch.
 
 /// The example Q with ch 30 merged: a merged ch is one unit with ONE shared
 /// state, so every owned page of it (282-293) holds the same record, here D2.
@@ -115,19 +118,42 @@ Widget _app({required Q q, required NotesController notes, required GoRouter rou
   );
 }
 
-Future<void> _openAt(
+/// A screen with one button: it opens the details of [group] on a sheet, the way
+/// the Details view of the reader does.
+class _SheetHost extends StatelessWidget {
+  const _SheetHost({required this.group});
+
+  final DetailsGroup group;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Center(
+      child: TextButton(
+        onPressed: () => showGroupDetailsSheet(context, group),
+        child: const Text('OPEN GROUP'),
+      ),
+    ),
+  );
+}
+
+/// The sheet of [group], open.
+Future<void> _openGroup(
   WidgetTester tester,
-  String location, {
+  DetailsGroup group, {
   required Q q,
   required NotesController notes,
 }) async {
-  // A tall window, so the unit screen and a bottom sheet fit without scrolling.
+  // A tall window, so the sheet and the sheets over it fit without scrolling.
   tester.view.physicalSize = const Size(900, 1800);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
-  final router = GoRouter(initialLocation: location, routes: [browseRoute()]);
+  final router = GoRouter(
+    routes: [GoRoute(path: '/', builder: (c, s) => _SheetHost(group: group))],
+  );
   addTearDown(router.dispose);
   await tester.pumpWidget(_app(q: q, notes: notes, router: router));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('OPEN GROUP'));
   await tester.pumpAndSettle();
 }
 
@@ -214,19 +240,19 @@ void main() {
     });
   });
 
-  group('the merged ch screen', () {
+  group('the sheet of the merged ch', () {
     testWidgets('says its shared state; a plain ch and its neighbour do not', (
       tester,
     ) async {
       final notes = await _controllerWith(const []);
 
-      await _openAt(tester, '/browse/ch/30', q: _mergedQ(), notes: notes);
+      await _openGroup(tester, const ChGroup(30), q: _mergedQ(), notes: notes);
       expect(find.text('Merged ch: shared state'), findsOneWidget);
 
-      await _openAt(tester, '/browse/ch/31', q: _mergedQ(), notes: notes);
+      await _openGroup(tester, const ChGroup(31), q: _mergedQ(), notes: notes);
       expect(find.text('Merged ch: shared state'), findsNothing);
 
-      await _openAt(tester, '/browse/ch/30', q: freshQ(), notes: notes);
+      await _openGroup(tester, const ChGroup(30), q: freshQ(), notes: notes);
       expect(find.text('Merged ch: shared state'), findsNothing);
     });
 
@@ -234,14 +260,14 @@ void main() {
       tester,
     ) async {
       final notes = await _controllerWith(_openNotes());
-      await _openAt(tester, '/browse/ch/30', q: _mergedQ(), notes: notes);
+      await _openGroup(tester, const ChGroup(30), q: _mergedQ(), notes: notes);
 
       expect(find.text('verb A'), findsOneWidget);
       expect(find.text('verb B'), findsOneWidget);
       expect(find.text('verb C'), findsNothing); // ch 31
-      // One list: no header per page, the card names where it is filed.
-      expect(find.text('p 285'), findsNothing);
-      expect(find.text('p 293'), findsNothing);
+      // One list: no header per page, the card names where it is filed (a note
+      // card says it with the short p, ch and s, as everywhere in the notes).
+      expect(find.text('Page 285'), findsNothing);
       expect(find.text('p 285 · ch 30 · s 17'), findsOneWidget);
       expect(find.text('p 293 · ch 30 · s 18'), findsOneWidget);
     });
@@ -250,18 +276,19 @@ void main() {
       tester,
     ) async {
       final notes = await _controllerWith(_openNotes());
-      await _openAt(tester, '/browse/ch/30', q: freshQ(), notes: notes);
+      await _openGroup(tester, const ChGroup(30), q: freshQ(), notes: notes);
 
       expect(find.text('verb A'), findsOneWidget);
       expect(find.text('verb B'), findsOneWidget);
-      expect(find.text('p 285'), findsOneWidget);
-      expect(find.text('p 293'), findsOneWidget);
+      expect(find.text('Page 285'), findsOneWidget);
+      // (The part of surah 18 may say "Page 293" too, so: at least one.)
+      expect(find.text('Page 293'), findsWidgets);
       expect(find.text('p 285 · ch 30 · s 17'), findsNothing);
     });
 
     testWidgets('+ files a new note under the merged ch', (tester) async {
       final notes = await _controllerWith(const []);
-      await _openAt(tester, '/browse/ch/30', q: _mergedQ(), notes: notes);
+      await _openGroup(tester, const ChGroup(30), q: _mergedQ(), notes: notes);
 
       await tester.tap(find.byTooltip('Add a note'));
       await tester.pumpAndSettle();
@@ -282,7 +309,7 @@ void main() {
         _note('n2', 293, 18, 30, 'old B', resolvedOn: const Day(4)),
         _note('n3', 300, 18, 31, 'old C', resolvedOn: const Day(5)),
       ]);
-      await _openAt(tester, '/browse/ch/30', q: _mergedQ(), notes: notes);
+      await _openGroup(tester, const ChGroup(30), q: _mergedQ(), notes: notes);
 
       expect(find.text('Archive (2)'), findsOneWidget);
       await tester.tap(find.text('Archive (2)'));
@@ -302,7 +329,7 @@ void main() {
       final notes = await _controllerWith([
         _note('n1', 285, 17, 30, 'old A', resolvedOn: const Day(3)),
       ]);
-      await _openAt(tester, '/browse/ch/30', q: _mergedQ(), notes: notes);
+      await _openGroup(tester, const ChGroup(30), q: _mergedQ(), notes: notes);
 
       await tester.tap(find.text('Archive (1)'));
       await tester.pumpAndSettle();
@@ -314,13 +341,14 @@ void main() {
       expect(note.count, 0);
     });
 
-    testWidgets('a part of the merged ch shows the shared state but only its own s', (
+    testWidgets('the surah of a merged ch has no shared state, and only its own notes', (
       tester,
     ) async {
       final notes = await _controllerWith(_openNotes());
-      await _openAt(tester, '/browse/ss/17/ch/30', q: _mergedQ(), notes: notes);
+      await _openGroup(tester, const SurahGroup(17), q: _mergedQ(), notes: notes);
 
-      expect(find.text('Merged ch: shared state'), findsOneWidget);
+      // The shared state is a thing of the ch, not of a surah in it.
+      expect(find.text('Merged ch: shared state'), findsNothing);
       expect(find.text('verb A'), findsOneWidget);
       expect(find.text('verb B'), findsNothing); // s 18
     });

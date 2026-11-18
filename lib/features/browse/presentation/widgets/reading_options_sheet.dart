@@ -24,8 +24,8 @@ Future<void> showReadingOptions(BuildContext context) =>
       builder: (context) => const ReadingOptionsSheet(),
     );
 
-/// The unit of Words, the translation (or none), the sections of the ayah card
-/// that are open, the text size, keep the screen on, and the ruku ticks of the
+/// The unit of the stream (Details and Words), the translation (or none), the
+/// sections of the ayah card that are open (the ones of the way to read), the text size, keep the screen on, and the ruku ticks of the
 /// Mushaf.
 class ReadingOptionsSheet extends ConsumerWidget {
   const ReadingOptionsSheet({super.key});
@@ -33,13 +33,40 @@ class ReadingOptionsSheet extends ConsumerWidget {
   /// The sizes of the "A" of the four steps of the text size.
   static const List<double> _sampleSizes = [14, 17, 20, 24];
 
-  /// The unit words are never translated, like `p`, `s` and `ch`.
+  /// The units in the order the chips list them: the big ones first, Surah
+  /// before all, and Page last. (The enum keeps its own order: it is what is
+  /// stored, by name.)
+  static const List<WordsUnit> unitOrder = [
+    WordsUnit.surah,
+    WordsUnit.ch,
+    WordsUnit.juz,
+    WordsUnit.hizb,
+    WordsUnit.ruku,
+    WordsUnit.quran,
+    WordsUnit.page,
+  ];
+
+  /// The sections the cards of a way to read have: Words shows the Arabic, the
+  /// words and the translation; Details shows the words and the Details
+  /// dropdown. (Mushaf has no cards: the Words ones are offered, they are what
+  /// the stream shows when the reader switches to it.)
+  static List<AyahSection> sectionsOf(QuranView view) => switch (view) {
+    QuranView.details => const [AyahSection.words, AyahSection.details],
+    QuranView.mushaf || QuranView.words => const [
+      AyahSection.arabic,
+      AyahSection.words,
+      AyahSection.translation,
+    ],
+  };
+
+  /// The names of the units. The full names (Surah, Page, Juz...), only `ch`
+  /// stays short, and none is translated.
   String _unitLabel(BuildContext context, WordsUnit unit) => switch (unit) {
-    WordsUnit.page => 'p',
+    WordsUnit.page => 'Page',
     WordsUnit.ruku => 'Ruku',
     WordsUnit.hizb => 'Hizb',
     WordsUnit.juz => 'Juz',
-    WordsUnit.surah => 's',
+    WordsUnit.surah => 'Surah',
     WordsUnit.ch => 'ch',
     WordsUnit.quran => context.l10n.readerUnitQuran,
   };
@@ -54,7 +81,7 @@ class ReadingOptionsSheet extends ConsumerWidget {
     // ch is not defined in the 1421 print: Page is what a stored ch means there.
     final unit = stored == WordsUnit.ch && v2 ? WordsUnit.page : stored;
     final units = [
-      for (final u in WordsUnit.values)
+      for (final u in unitOrder)
         if (!(u == WordsUnit.ch && v2)) u,
     ];
     final choice = ref.watch(translationChoiceProvider);
@@ -63,6 +90,7 @@ class ReadingOptionsSheet extends ConsumerWidget {
     final off = choice == quranTranslationOff;
     final step = ref.watch(textSizeProvider);
     final sections = ref.watch(ayahSectionsProvider);
+    final view = ref.watch(quranViewProvider);
 
     Widget heading(String text) => Padding(
       padding: const EdgeInsets.only(
@@ -172,7 +200,7 @@ class ReadingOptionsSheet extends ConsumerWidget {
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.xs,
             children: [
-              for (final section in AyahSection.values)
+              for (final section in sectionsOf(view))
                 FilterChip(
                   label: Text(ayahSectionLabel(l10n, section)),
                   selected: sections.isOpen(section),
@@ -318,7 +346,7 @@ class _UnitEdgesSection extends ConsumerWidget {
               ref.read(unitEdgesProvider.notifier).setShared(value),
         ),
         if (!edges.shared)
-          for (final u in WordsUnit.values)
+          for (final u in ReadingOptionsSheet.unitOrder)
             if (u != WordsUnit.quran)
               Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),

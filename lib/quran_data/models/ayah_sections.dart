@@ -1,7 +1,11 @@
-/// The three parts of an ayah card in the Words view, top to bottom: the whole
-/// ayah in Arabic, the same ayah word by word (each word with its English under
-/// it), and the translation.
-enum AyahSection { arabic, words, translation }
+/// The parts of an ayah card, top to bottom: the whole ayah in Arabic, the same
+/// ayah word by word (each word with its English under it), the translation, and
+/// the details (where the ayah is, the state of its page).
+///
+/// The Words view shows [arabic], [words] and [translation]; the Details view
+/// shows [words] and [details]. [words] is the same section in both, so closing
+/// it in one closes it in the other.
+enum AyahSection { arabic, words, translation, details }
 
 /// Which sections of the ayah card are open and which are closed.
 ///

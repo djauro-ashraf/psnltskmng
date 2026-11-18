@@ -11,7 +11,7 @@ import 'package:personaltskmng/features/notes/presentation/widgets/note_actions.
 import 'package:personaltskmng/features/notes/presentation/widgets/note_cards.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 
-/// The notes block of a unit screen, as slivers: a pinned header with the
+/// The notes block of the sheet of a group, as slivers: a pinned header with the
 /// count and the "+", the open note cards (a scrollable list), and a quiet link
 /// to the archive when there is one.
 ///
@@ -49,7 +49,7 @@ class NotesSlivers extends ConsumerWidget {
               bottom: AppSpacing.xs,
             ),
             child: Text(
-              l10n.pagesSingle(note.page),
+              l10n.browsePageOne(note.page),
               style: theme.textTheme.titleSmall,
             ),
           ),

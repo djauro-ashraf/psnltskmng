@@ -926,16 +926,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String get browseTitle => 'Parcourir';
 
   @override
-  String get browsePsTitle => 'ps';
+  String get browsePsTitle => 'Pages';
 
   @override
-  String get browseSsTitle => 'ss';
+  String get browseSsTitle => 'Sourates';
 
   @override
   String get browseChTitle => 'ch';
-
-  @override
-  String get browseMoreDetails => 'Plus de détails';
 
   @override
   String get browseGroupBy => 'Grouper par';
@@ -947,7 +944,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get browseGroupCh => 'ch';
 
   @override
-  String get browseGroupS => 's';
+  String get browseGroupS => 'Sourate';
 
   @override
   String sLabelOne(int s) {
@@ -955,13 +952,8 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String sLabelRun(int first, int last) {
-    return 's $first - $last';
-  }
-
-  @override
   String browsePageCount(int count) {
-    return '$count p';
+    return '$count pages';
   }
 
   @override
@@ -983,7 +975,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String browseSCount(int count) {
-    return '$count s';
+    return '$count sourates';
   }
 
   @override
@@ -1087,12 +1079,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get noteAddSave => 'Ajouter';
-
-  @override
-  String get pageSideInfo => 'Infos';
-
-  @override
-  String get pageSideQuran => 'Coran';
 
   @override
   String get mushafNotInstalled =>
@@ -1203,6 +1189,33 @@ class AppLocalizationsFr extends AppLocalizations {
       'Télécharger le Coran, ses mots et ses traductions';
 
   @override
+  String get settingsRestartMemory =>
+      'Redémarrer le gestionnaire de mémorisation';
+
+  @override
+  String get settingsRestartMemoryHint =>
+      'Reconfigurer votre Q et repartir de là';
+
+  @override
+  String get settingsRestartMemoryTitle =>
+      'Redémarrer le gestionnaire de mémorisation ?';
+
+  @override
+  String get settingsRestartMemoryBody =>
+      'Votre Q et le plan du jour sont remplacés. Vous reconfigurez votre Q, comme au premier lancement.\n\nVos notes et vos réglages restent. Faites d’abord une sauvegarde si vous pensez vouloir retrouver l’ancien Q.';
+
+  @override
+  String get settingsRestartMemoryAction => 'Redémarrer';
+
+  @override
+  String get settingsRestartMemoryDone =>
+      'Gestionnaire redémarré. Configurez votre Q.';
+
+  @override
+  String get settingsRestartMemoryFailed =>
+      'Impossible de redémarrer. Rien n’a été modifié.';
+
+  @override
   String get quranEditionTitle => 'Édition du mushaf';
 
   @override
@@ -1227,13 +1240,62 @@ class AppLocalizationsFr extends AppLocalizations {
   String get wordsFootnote => 'Note';
 
   @override
-  String get browseHintInfo => 'Touche une ligne pour ouvrir ses infos';
+  String get browseJuzTitle => 'Juz';
 
   @override
-  String get browseHintQuran => 'Touche une ligne pour la lire';
+  String browsePageOne(int page) {
+    return 'Page $page';
+  }
 
   @override
-  String get browseJuzTitle => 'juz';
+  String browsePagesRange(int first, int last) {
+    return 'Pages $first–$last';
+  }
+
+  @override
+  String browseSurahOne(int s) {
+    return 'Sourate $s';
+  }
+
+  @override
+  String browseSurahRun(int first, int last) {
+    return 'Sourates $first–$last';
+  }
+
+  @override
+  String get browsePageWord => 'Page';
+
+  @override
+  String get browsePageCountOne => '1 page';
+
+  @override
+  String get browseSurahCountOne => '1 sourate';
+
+  @override
+  String get detailsTitle => 'Détails';
+
+  @override
+  String detailsAyahOf(int ayah, int count) {
+    return 'Verset $ayah sur $count';
+  }
+
+  @override
+  String get detailsRead => 'Lire';
+
+  @override
+  String get detailsPartsCh => 'Ses ch';
+
+  @override
+  String get detailsPartsSurahs => 'Ses sourates';
+
+  @override
+  String get browseHintDetails => 'Touche une ligne pour l’ouvrir dans Détails';
+
+  @override
+  String get browseHintMushaf => 'Touche une ligne pour la lire dans le Mushaf';
+
+  @override
+  String get browseHintWords => 'Touche une ligne pour la lire mot à mot';
 
   @override
   String get browseGroupJuz => 'Juz';
@@ -1291,7 +1353,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get goToProblemRange => 'Cet endroit n’existe pas';
 
   @override
-  String get goToThisS => 'Cette s';
+  String get goToThisS => 'Cette sourate';
 
   @override
   String get goToThisCh => 'Ce ch';
@@ -1316,11 +1378,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get goToTabPage => 'Page';
-
-  @override
-  String goToInfoRow(String name) {
-    return '$name · Infos';
-  }
 
   @override
   String goToRukuHeaderOne(String name) {
@@ -1725,10 +1782,12 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get unitEdgeGateTile => 'Faites défiler encore ou touchez deux fois pour continuer';
+  String get unitEdgeGateTile =>
+      'Faites défiler encore ou touchez deux fois pour continuer';
 
   @override
-  String get unitEdgeLockedTile => 'Utilisez le bouton, les flèches ou un balayage pour continuer';
+  String get unitEdgeLockedTile =>
+      'Utilisez le bouton, les flèches ou un balayage pour continuer';
 
   @override
   String get askRetry => 'Réessayer';
@@ -1802,10 +1861,12 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get askNeedsKey => 'Enregistrez une clé pour ce fournisseur pour utiliser l’assistant.';
+  String get askNeedsKey =>
+      'Enregistrez une clé pour ce fournisseur pour utiliser l’assistant.';
 
   @override
-  String get askPrivacy => 'Une question envoie votre message et ce que vous avez joint (texte du verset, traduction, mots, tafsir) au fournisseur. Les discussions restent sur cet appareil et ne sont pas dans les sauvegardes.';
+  String get askPrivacy =>
+      'Une question envoie votre message et ce que vous avez joint (texte du verset, traduction, mots, tafsir) au fournisseur. Les discussions restent sur cet appareil et ne sont pas dans les sauvegardes.';
 
   @override
   String get autoReadSlower => 'Plus lent';
@@ -1817,10 +1878,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get autoReadStop => 'Fermer la lecture automatique';
 
   @override
-  String get askNoMatches => 'Aucune conversation ne correspond à votre recherche';
+  String get askNoMatches =>
+      'Aucune conversation ne correspond à votre recherche';
 
   @override
-  String get copyNoTafsirHere => 'Copié, mais la source de tafsir n\'a rien sur ce verset';
+  String get copyNoTafsirHere =>
+      'Copié, mais la source de tafsir n\'a rien sur ce verset';
 
   @override
   String get copyAskOneAyah => 'L\'IA répond sur un verset à la fois';

@@ -5,11 +5,13 @@ import 'package:personaltskmng/l10n/app_localizations.dart';
 import 'package:personaltskmng/core/theme/app_theme.dart';
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/domain/reference/s_table.dart';
+import 'package:personaltskmng/domain/reference/surah_names.dart';
 import 'package:personaltskmng/features/browse/domain/browse_index.dart';
 import 'package:personaltskmng/features/browse/domain/reader_request.dart';
 import 'package:personaltskmng/features/browse/presentation/pages/browse_not_found_page.dart';
 import 'package:personaltskmng/features/browse/presentation/pages/reader_page.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/context_line_bar.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/details_blocks.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/reader_bar.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/unit_swipe.dart';
 import 'package:personaltskmng/mushaf/controller/mushaf_edition.dart';
@@ -102,10 +104,12 @@ void main() {
 
       expect(find.byType(AppBar), findsNothing);
       expect(find.byType(ReaderBar), findsOneWidget);
-      // One switch: out to the info, or one of the two ways to read the page.
-      expect(find.text('Info'), findsOneWidget);
+      // One switch: the three ways to read, the same as at the top of Browse.
+      // (There is no Info any more: the details are in Details.)
+      expect(find.text('Details'), findsOneWidget);
       expect(find.text('Mushaf'), findsOneWidget);
       expect(find.text('Words'), findsOneWidget);
+      expect(find.text('Info'), findsNothing);
       expect(find.text('106 / 604'), findsOneWidget);
       expect(tester.getSize(find.byType(ReaderBar)).height, ReaderBar.height);
 
@@ -229,7 +233,7 @@ void main() {
   });
 
   group('the notes badge', () {
-    testReader('shows the open notes of the page and goes to them', (tester) async {
+    testReader('shows the open notes of the page and opens them on a sheet', (tester) async {
       useWindow(tester, _window);
       final notes = await notesWith([noteOn(106, 'The banner')]);
       final visited = <String>[];
@@ -241,9 +245,13 @@ void main() {
       expect(find.text('1'), findsOneWidget);
       await tester.tap(find.text('1'));
       await tester.pumpAndSettle();
-      // The notes are on the info of the page.
-      expect(find.text('INFO p 106'), findsOneWidget);
-      expect(visited, ['/browse/info/ps/106']);
+      // The notes are on the sheet of the page, over the reader: no screen of
+      // its own is opened, and the reader keeps its place under it.
+      expect(find.byType(GroupDetailsSheet), findsOneWidget);
+      expect(find.text('Page 106'), findsOneWidget);
+      expect(find.text('The banner'), findsOneWidget);
+      expect(visited, isEmpty);
+      expect(find.byType(ReaderBar), findsOneWidget);
     });
 
     testReader('is not there when the page has no open note', (tester) async {
@@ -363,18 +371,18 @@ void main() {
       expect(find.text('Reading options'), findsOneWidget);
     });
 
-    testReader('Info opens the info of the page, and Back returns to the same spot', (tester) async {
+    testReader('the page sheet closes with a tap outside, on the same spot', (tester) async {
       useWindow(tester, _window);
-      final visited = <String>[];
-      await _open(tester, _reader(const ReadPage(106), visited: visited));
+      final notes = await notesWith([noteOn(106, 'The banner')]);
+      await _open(tester, _reader(const ReadPage(106), notes: notes));
 
-      await tester.tap(find.text('Info'));
+      await tester.tap(find.text('1'));
       await tester.pumpAndSettle();
-      expect(find.text('INFO p 106'), findsOneWidget);
-      expect(visited, ['/browse/info/ps/106']);
+      expect(find.byType(GroupDetailsSheet), findsOneWidget);
 
-      await tester.tap(find.byType(BackButton));
+      await tester.tapAt(const Offset(400, 20)); // the barrier, above the sheet
       await tester.pumpAndSettle();
+      expect(find.byType(GroupDetailsSheet), findsNothing);
       expect(find.byType(ReaderBar), findsOneWidget);
       expect(find.text('106 / 604'), findsOneWidget);
       expect(_word(106, 1), findsOneWidget);
@@ -446,6 +454,119 @@ void main() {
     });
   });
 
+  group('Details, the third way to read', () {
+    testReader('the same stream as Words, with the details in place of the text', (
+      tester,
+    ) async {
+      useWindow(tester, _window);
+      final prefs = MemoryQuranPrefsStore();
+      await _open(tester, _reader(const ReadPage(106), prefs: prefs));
+
+      await tester.tap(find.text('Details'));
+      await tester.pumpAndSettle();
+      expect(find.byType(MushafPageCanvas), findsNothing);
+      expect(find.byType(WordsStreamView), findsOneWidget);
+      expect(prefs.get(QuranPrefKeys.view), 'details');
+
+      // The same first ayah as Words, but a card has word by word and Details
+      // only: no Arabic text of the ayah, no translation.
+      expect(find.text('ARABIC 4:176'), findsNothing);
+      expect(find.text('Ayah 176 of 176'), findsOneWidget);
+      expect(find.text('Surah 4 · An-Nisa’'), findsWidgets);
+      final inStream = find.descendant(
+        of: find.byType(WordsStreamView),
+        matching: find.text('Details'),
+      );
+      expect(inStream, findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+
+    testReader('one tap from Details to Words and back keeps the place', (
+      tester,
+    ) async {
+      useWindow(tester, _window);
+      await _open(
+        tester,
+        _reader(
+          const ReadPage(106),
+          prefs: MemoryQuranPrefsStore({QuranPrefKeys.view: 'details'}),
+        ),
+      );
+      expect(find.byType(WordsStreamView), findsOneWidget);
+      expect(find.text('ARABIC 4:176'), findsNothing);
+
+      await tester.tap(find.text('Words'));
+      await tester.pumpAndSettle();
+      expect(find.text('ARABIC 4:176'), findsOneWidget);
+      expect(find.text('Ayah 176 of 176'), findsNothing);
+
+      await tester.tap(find.descendant(
+        of: find.byType(ReaderBar),
+        matching: find.text('Details'),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.text('ARABIC 4:176'), findsNothing);
+      expect(find.text('Ayah 176 of 176'), findsOneWidget);
+    });
+
+    testReader('a line of the details opens that group on a sheet, over the reader', (
+      tester,
+    ) async {
+      useWindow(tester, _window);
+      await _open(
+        tester,
+        _reader(
+          const ReadPage(106),
+          prefs: MemoryQuranPrefsStore({QuranPrefKeys.view: 'details'}),
+        ),
+      );
+
+      await tester.tap(find.text('Surah 4 · An-Nisa’').first);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(GroupDetailsSheet), findsOneWidget);
+      // The stream is still there, under the sheet.
+      expect(find.byType(WordsStreamView), findsOneWidget);
+    });
+
+    testReader('Read, on the sheet, reads the group in a reader of its own', (
+      tester,
+    ) async {
+      useWindow(tester, _window);
+      final visited = <String>[];
+      await _open(
+        tester,
+        _reader(
+          const ReadPage(106),
+          prefs: MemoryQuranPrefsStore({QuranPrefKeys.view: 'details'}),
+          visited: visited,
+        ),
+      );
+
+      await tester.tap(find.text('Surah 4 · An-Nisa’').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Read'));
+      await tester.pumpAndSettle();
+
+      expect(visited, ['/browse/read/s/4']);
+      expect(find.text('READ /browse/read/s/4'), findsOneWidget);
+      expect(find.byType(GroupDetailsSheet), findsNothing);
+    });
+
+    testReader('a banner of Words opens its group on a sheet', (tester) async {
+      useWindow(tester, _window);
+      // A tap on the banner of surah 5 opens the sheet of surah 5 (in Details
+      // the banner has its own dropdown instead).
+      await _open(
+        tester,
+        _reader(const ReadAyah(AyahRef(5, 1), view: QuranView.words)),
+      );
+      await tester.tap(find.text(SurahNames.of(5).arabic).first);
+      await tester.pumpAndSettle();
+      expect(find.byType(GroupDetailsSheet), findsOneWidget);
+    });
+  });
+
   group('a swipe over the words', () {
     // Too narrow for the arrows of the reading line (they need 480px).
     const narrow = Size(400, 900);
@@ -458,8 +579,14 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    // These swipes are about the Page unit (the unit nothing was chosen for is
+    // the Surah now), so it is chosen here unless a test chooses another.
     MemoryQuranPrefsStore wordsPrefs([Map<String, String> more = const {}]) =>
-        MemoryQuranPrefsStore({QuranPrefKeys.view: 'words', ...more});
+        MemoryQuranPrefsStore({
+          QuranPrefKeys.view: 'words',
+          QuranPrefKeys.wordsUnit: 'page',
+          ...more,
+        });
 
     testReader('turns to the next unit and back, where the arrows do not fit', (
       tester,

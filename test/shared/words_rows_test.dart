@@ -236,6 +236,7 @@ void main() {
         void Function(AyahSection section)? onToggle,
         TranslationText? translation = translated,
         double textScale = 1,
+        Widget? details,
       }) => _host(
         AyahCard(
           ayah: _ayah,
@@ -243,9 +244,12 @@ void main() {
           fontFamily: null,
           sections: sections,
           onToggleSection: onToggle,
+          detailsBody: details,
         ),
         textScale: textScale,
       );
+
+      const detailsBody = Text('THE DETAILS');
 
       testWidgets('each has a title: Arabic, Word by word, Translation', (
         tester,
@@ -324,6 +328,87 @@ void main() {
         for (final text in ['ARABIC FIRST', 'wordone', 'gloss one', 'The translation']) {
           expect(find.text(text), findsNothing, reason: text);
         }
+      });
+
+      testWidgets('a card with details is word by word and Details, and nothing else', (
+        tester,
+      ) async {
+        useWindow(tester, const Size(800, 1000));
+        await tester.pumpWidget(card(details: detailsBody));
+
+        expect(find.text('Word by word'), findsOneWidget);
+        expect(find.text('Details'), findsOneWidget);
+        expect(find.text('THE DETAILS'), findsOneWidget);
+        expect(find.text('wordone'), findsOneWidget);
+        // The whole Arabic and the translation are for the other views.
+        for (final text in ['Arabic', 'Translation', 'ARABIC FIRST', 'The translation']) {
+          expect(find.text(text), findsNothing, reason: text);
+        }
+        // Word by word is above Details.
+        final words = tester.getTopLeft(find.text('Word by word')).dy;
+        final details = tester.getTopLeft(find.text('Details')).dy;
+        expect(words, lessThan(details));
+      });
+
+      testWidgets('a card without details has no Details section', (tester) async {
+        useWindow(tester, const Size(800, 1000));
+        await tester.pumpWidget(card());
+        expect(find.text('Details'), findsNothing);
+      });
+
+      testWidgets('Details is closed by its title, word by word stays open', (
+        tester,
+      ) async {
+        useWindow(tester, const Size(800, 1000));
+        final taps = <AyahSection>[];
+        await tester.pumpWidget(
+          card(details: detailsBody, onToggle: taps.add),
+        );
+        await tester.tap(find.text('Details'));
+        expect(taps, [AyahSection.details]);
+
+        await tester.pumpWidget(
+          card(
+            details: detailsBody,
+            sections: AyahSections.closing([AyahSection.details]),
+          ),
+        );
+        expect(find.text('Details'), findsOneWidget);
+        expect(find.text('THE DETAILS'), findsNothing);
+        expect(find.text('wordone'), findsOneWidget);
+
+        await tester.pumpWidget(
+          card(
+            details: detailsBody,
+            sections: AyahSections.closing([AyahSection.words]),
+          ),
+        );
+        expect(find.text('wordone'), findsNothing);
+        expect(find.text('THE DETAILS'), findsOneWidget);
+      });
+
+      testWidgets('with everything closed the Details card is its number and two titles', (
+        tester,
+      ) async {
+        useWindow(tester, const Size(800, 1000));
+        await tester.pumpWidget(
+          card(
+            details: detailsBody,
+            sections: AyahSections.closing(AyahSection.values),
+          ),
+        );
+        for (final text in ['5:1', 'Word by word', 'Details']) {
+          expect(find.text(text), findsOneWidget, reason: text);
+        }
+        for (final text in ['wordone', 'THE DETAILS']) {
+          expect(find.text(text), findsNothing, reason: text);
+        }
+      });
+
+      testWidgets('the Details card fits at 320px and 2x text', (tester) async {
+        useWindow(tester, const Size(320, 800));
+        await tester.pumpWidget(card(details: detailsBody, textScale: 2));
+        expect(tester.takeException(), isNull);
       });
 
       testWidgets('closing sections makes the card shorter', (tester) async {

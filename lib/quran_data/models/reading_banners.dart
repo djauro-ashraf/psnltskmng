@@ -73,8 +73,8 @@ final class ReadingBanner {
   /// The page that starts here (the first ayah that starts on it), in any unit.
   final int? page;
 
-  /// Tapping the element opens that unit's info: a surah or a juz banner does,
-  /// the others do nothing.
+  /// Tapping the element opens that unit's details (the sheet of the group): a
+  /// surah or a juz banner does, the others do nothing.
   bool get opensInfo => kind == BannerKind.surah || kind == BannerKind.juz;
 
   /// The surah of a surah banner.

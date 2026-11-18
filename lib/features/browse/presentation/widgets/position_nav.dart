@@ -5,8 +5,7 @@ import 'package:personaltskmng/shared/widgets/text_flow.dart';
 /// "Previous, position, next" for a screen that pages through its siblings
 /// (e.g. "12 / 604"). The arrows sit and point the way the text runs: with it
 /// running right to left, previous is on the right and next on the left.
-/// Shown in the title bar of a unit screen and in the reading line of the
-/// Quran side.
+/// Shown in the reading line of the reader.
 class PositionNav extends StatelessWidget {
   const PositionNav({
     super.key,

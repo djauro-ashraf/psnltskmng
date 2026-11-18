@@ -21,6 +21,8 @@ import 'package:personaltskmng/notes/data/note_codec.dart';
 import 'package:personaltskmng/notes/data/note_store.dart';
 import 'package:personaltskmng/notes/models/note.dart';
 import 'package:personaltskmng/notes/models/note_book.dart';
+import 'package:personaltskmng/quran_data/controller/quran_providers.dart';
+import 'package:personaltskmng/quran_data/models/juz_pages.dart';
 
 import '../../planning/support.dart';
 
@@ -87,6 +89,19 @@ Widget _wrapRuntime({
           notes: ref.watch(notesViewModelProvider.select((s) => s.index)),
         ),
       ),
+      juzPagesProvider.overrideWith(
+        (ref) => Future.value(
+          List.generate(
+            30,
+            (i) => JuzPages(
+              juz: i + 1,
+              first: i * 20 + 1,
+              last: (i + 1) * 20,
+              sharesFirstPage: false,
+            ),
+          ),
+        ),
+      ),
     ],
     child: MediaQuery(
       data: MediaQueryData(
@@ -103,29 +118,6 @@ void _setViewport(WidgetTester tester, {double width = 320, double height = 568}
   addTearDown(tester.view.reset);
 }
 
-Future<void> _openLocation(
-  WidgetTester tester,
-  String location, {
-  NotesController? notes,
-  ThemeData? theme,
-  double textScale = 1.0,
-}) async {
-  final router = GoRouter(
-    initialLocation: location,
-    routes: [browseRoute()],
-  );
-  addTearDown(router.dispose);
-  await tester.pumpWidget(
-    _wrapRuntime(
-      router: router,
-      notes: notes,
-      theme: theme,
-      textScale: textScale,
-    ),
-  );
-  await tester.pumpAndSettle();
-}
-
 void main() {
   group('Runtime Layout & Overflow Checks on Smallest Screen (320x568)', () {
     testWidgets('BrowsePage tabs render without overflow on 320px width', (
@@ -135,16 +127,30 @@ void main() {
       await tester.pumpWidget(_wrapRuntime(home: const BrowsePage()));
       await tester.pumpAndSettle();
 
-      // Check ps tab
+      // It opens on the Surahs tab.
       expect(find.byType(BrowsePage), findsOneWidget);
+      expect(find.text('Surah 1'), findsOneWidget);
+      expect(tester.takeException(), isNull);
 
-      // Tap ss tab
-      await tester.tap(find.text('ss'));
+      for (final tab in ['ch', 'Juz', 'Pages', 'Surahs']) {
+        await tester.tap(find.widgetWithText(Tab, tab));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: tab);
+      }
+    });
+
+    testWidgets('the view switch fits on 320px, whichever way is chosen', (
+      tester,
+    ) async {
+      _setViewport(tester, width: 320, height: 568);
+      await tester.pumpWidget(_wrapRuntime(home: const BrowsePage()));
       await tester.pumpAndSettle();
 
-      // Tap ch tab
-      await tester.tap(find.widgetWithText(Tab, 'ch'));
-      await tester.pumpAndSettle();
+      for (final view in ['Details', 'Mushaf', 'Words']) {
+        await tester.tap(find.text(view));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: view);
+      }
     });
 
     testWidgets('Grouping buttons work on 320px screen without overflow', (
@@ -152,6 +158,10 @@ void main() {
     ) async {
       _setViewport(tester, width: 320, height: 568);
       await tester.pumpWidget(_wrapRuntime(home: const BrowsePage()));
+      await tester.pumpAndSettle();
+
+      // The grouping of the pages is on the Pages tab.
+      await tester.tap(find.widgetWithText(Tab, 'Pages'));
       await tester.pumpAndSettle();
 
       // Tap State
@@ -176,62 +186,6 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('No open notes'), findsOneWidget);
     });
-
-    testWidgets('PageDetailPage renders without overflow on 320px screen', (
-      tester,
-    ) async {
-      _setViewport(tester, width: 320, height: 568);
-
-      final notes = await _controllerWith([
-        _sampleNote('n1', 300, 18, 31, 'Note on small screen'),
-      ]);
-
-      for (final location in [
-        '/browse/ps/1',
-        '/browse/ps/12',
-        '/browse/ps/300',
-        '/browse/ps/604',
-      ]) {
-        await _openLocation(tester, location, notes: notes);
-        expect(tester.takeException(), isNull, reason: 'Failed on $location');
-      }
-    });
-
-    testWidgets('ScopeDetailPage renders without overflow on 320px screen', (
-      tester,
-    ) async {
-      _setViewport(tester, width: 320, height: 568);
-
-      for (final location in [
-        '/browse/ss/1',
-        '/browse/ss/5',
-        '/browse/ss/114',
-        '/browse/ch/1',
-        '/browse/ch/13',
-        '/browse/ch/71',
-        '/browse/ss/5/ch/13',
-        '/browse/ch/13/ss/5',
-      ]) {
-        await _openLocation(tester, location);
-        expect(tester.takeException(), isNull);
-      }
-    });
-
-    testWidgets('Children and ScopePages pages render cleanly on 320px screen', (
-      tester,
-    ) async {
-      _setViewport(tester, width: 320, height: 568);
-
-      for (final location in [
-        '/browse/ss/5/ch',
-        '/browse/ch/13/ss',
-        '/browse/ss/5/ps',
-        '/browse/ch/13/ps',
-      ]) {
-        await _openLocation(tester, location);
-        expect(tester.takeException(), isNull);
-      }
-    });
   });
 
   group('Runtime Checks: Large Accessibility Text Scale (1.5x)', () {
@@ -246,59 +200,58 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('PageDetailPage with 1.5x text scale renders cleanly', (
-      tester,
-    ) async {
+    testWidgets('every tab with 1.5x text scale renders cleanly', (tester) async {
       _setViewport(tester, width: 360, height: 640);
-      await _openLocation(tester, '/browse/ps/300', textScale: 1.5);
-      expect(tester.takeException(), isNull);
-    });
+      await tester.pumpWidget(
+        _wrapRuntime(home: const BrowsePage(), textScale: 1.5),
+      );
+      await tester.pumpAndSettle();
 
-    testWidgets('ScopeDetailPage with 1.5x text scale renders cleanly', (
-      tester,
-    ) async {
-      _setViewport(tester, width: 360, height: 640);
-      await _openLocation(tester, '/browse/ch/13', textScale: 1.5);
-      expect(tester.takeException(), isNull);
+      for (final tab in ['ch', 'Juz', 'Pages']) {
+        await tester.tap(find.widgetWithText(Tab, tab));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: tab);
+      }
     });
   });
 
   group('Runtime Checks: Dark Theme Layout', () {
-    testWidgets('Browse screens render cleanly in dark theme', (tester) async {
+    testWidgets('Browse renders cleanly in dark theme, on every tab', (
+      tester,
+    ) async {
       _setViewport(tester, width: 360, height: 640);
-      await _openLocation(
-        tester,
-        '/browse/ps/300',
-        theme: AppTheme.dark,
+      await tester.pumpWidget(
+        _wrapRuntime(home: const BrowsePage(), theme: AppTheme.dark),
       );
+      await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
 
-      await _openLocation(
-        tester,
-        '/browse/ch/13',
-        theme: AppTheme.dark,
-      );
-      expect(tester.takeException(), isNull);
+      for (final tab in ['ch', 'Juz', 'Pages']) {
+        await tester.tap(find.widgetWithText(Tab, tab));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: tab);
+      }
     });
   });
 
   group('Runtime Checks: Gesture and Scroll Physics Stress', () {
-    testWidgets('Rapid horizontal swiping does not throw assertions', (
+    testWidgets('Rapid horizontal swiping between the tabs does not throw', (
       tester,
     ) async {
       _setViewport(tester, width: 360, height: 640);
-      await _openLocation(tester, '/browse/ps/5');
+      await tester.pumpWidget(_wrapRuntime(home: const BrowsePage()));
+      await tester.pumpAndSettle();
 
       // Swipe forward twice
-      await tester.drag(find.byType(PageView), const Offset(-400, 0));
+      await tester.drag(find.byType(TabBarView), const Offset(-400, 0));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-      await tester.drag(find.byType(PageView), const Offset(-400, 0));
+      await tester.drag(find.byType(TabBarView), const Offset(-400, 0));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
 
       // Swipe backward
-      await tester.drag(find.byType(PageView), const Offset(400, 0));
+      await tester.drag(find.byType(TabBarView), const Offset(400, 0));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     });
@@ -345,7 +298,7 @@ void main() {
                     for (var s = 1; s <= 114; s++)
                       SizedBox(
                         height: BrowseMetrics.rowExtent * scale,
-                        child: SRow(s: s, path: '/browse/ss/$s'),
+                        child: SRow(s: s, path: BrowsePaths.readSurah(s)),
                       ),
                   ],
                 ),
@@ -368,8 +321,8 @@ void main() {
               sections: [
                 for (final s in [3, 63, 77, 83])
                   BrowseSection(
-                    title: 's $s',
-                    subtitle: 'p 106 - 127',
+                    title: 'Surah $s',
+                    subtitle: 'Pages 106–127',
                     aside: SurahHeaderAside(s: s),
                     itemCount: 1,
                     itemBuilder: (context, index) => const SizedBox(),
@@ -384,18 +337,40 @@ void main() {
       expect(find.text('Al-Munafiqun'), findsOneWidget);
     });
 
-    testWidgets('page and s screens with names fit on 320px', (tester) async {
+    testWidgets('page and s rows with long names fit on 320px at 1.5x', (
+      tester,
+    ) async {
       _setViewport(tester, width: 320, height: 568);
-      for (final location in [
-        '/browse/ps/604', // three s
-        '/browse/ps/106', // two s
-        '/browse/ss/63', // a long Arabic name
-        '/browse/ss/60', // the longest meaning
-        '/browse/ch/13/ss/4',
-      ]) {
-        await _openLocation(tester, location);
-        expect(tester.takeException(), isNull, reason: location);
-      }
+      await tester.pumpWidget(
+        _wrapRuntime(
+          textScale: 1.5,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: Column(
+                children: [
+                  // The full names are longer than the short ones were: a page
+                  // with three surahs, one with two, a long Arabic name, the
+                  // longest meaning.
+                  for (final page in [604, 106])
+                    SizedBox(
+                      height: BrowseMetrics.rowExtent * 1.5,
+                      child: PageRow(page: page, path: BrowsePaths.readPage(page)),
+                    ),
+                  for (final s in [63, 60])
+                    SizedBox(
+                      height: BrowseMetrics.rowExtent * 1.5,
+                      child: SRow(s: s, path: BrowsePaths.readSurah(s)),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('Page 604'), findsOneWidget);
+      expect(find.text('Surah 60'), findsOneWidget);
     });
   });
 }

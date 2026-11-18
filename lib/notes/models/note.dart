@@ -9,8 +9,8 @@ const int noteDaysToResolve = 5;
 ///
 /// A note belongs to one [page]. Its [s] and [ch] are the unit pair it is filed
 /// under (the page's own pair, or the one the user chose when the page is
-/// shared by several s or ch). They decide which s, ch and part screens show
-/// the note; the page screen always shows it.
+/// shared by several s or ch). They decide which s and ch (and part) sheets show
+/// the note; the sheet of its page always shows it.
 ///
 /// "I remembered": one tap per note per day. A tap is first only PENDING
 /// ([pending]); it becomes a counted day ([counted]) at the end of its day if a

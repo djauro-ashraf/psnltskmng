@@ -195,7 +195,7 @@ final class BrowseData {
   }
 }
 
-/// Everything a page screen shows about a page (the same facts as the
+/// Everything the sheet of a page shows about a page (the same facts as the
 /// Overview's page sheet): its label, progress, prime flag, last R, the L
 /// marker and the next step down.
 final class PageInfo {

@@ -4,7 +4,6 @@ import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/domain/reference/surah_names.dart';
 import 'package:personaltskmng/features/browse/domain/browse_index.dart';
-import 'package:personaltskmng/features/browse/presentation/browse_paths.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/browse_list.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/browse_row_card.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/browse_rows.dart';
@@ -39,21 +38,14 @@ final class JumpToPage extends GoToChoice {
   final WordsUnit? unit;
 }
 
-/// Open the info of a unit as a normal screen ([location] is its path); the
-/// reader stays under it, so Back returns to the same spot.
-final class OpenInfo extends GoToChoice {
-  const OpenInfo(this.location);
-
-  final String location;
-}
-
 /// Opens the Go to sheet: a bottom sheet, not a screen. It answers with what the
 /// reader chose (null when it was dismissed); the reader does the jump.
 ///
-/// [place] is where the reader is now (the ayah at the top in Words, the first
-/// ayah of the page in Mushaf): the Ruku tab opens on its surah and the info
-/// row is its surah's. [limit] is the unit the reader was entered through: with
-/// one, the first tab lists its pages.
+/// [place] is where the reader is now (the ayah at the top in Words and Details,
+/// the first ayah of the page in Mushaf): the Ruku tab opens on its surah.
+/// [limit] is the unit the reader was entered through: with one, the first tab
+/// lists its pages. (The details of a surah, a juz, a ch or a page are not here:
+/// they are the Details view of the reader and the sheets it opens.)
 Future<GoToChoice?> showGoToSheet(
   BuildContext context, {
   required AyahRef place,
@@ -150,45 +142,6 @@ class _GoToSheetState extends ConsumerState<GoToSheet>
     };
   }
 
-  /// The rows that open the info of the units the reader is in: the s (always)
-  /// and, when entered through one, its ch, juz or part. Back from there returns
-  /// to the same reading spot (the reader stays under the info screen).
-  List<Widget> _infoChips() {
-    final l10n = context.l10n;
-    final limit = widget.limit;
-    final surah = widget.place.surah;
-    Widget chip(String name, String location) => ActionChip(
-      avatar: const Icon(Icons.info_outline_rounded, size: 18),
-      label: Text(l10n.goToInfoRow(name)),
-      onPressed: () => _pick(OpenInfo(location)),
-    );
-    return [
-      chip(
-        SurahNames.of(surah).transliteration,
-        '${BrowsePaths.info}/ss/$surah',
-      ),
-      if (limit != null)
-        switch (limit.kind) {
-          ReaderLimitKind.ch => chip(
-            l10n.chLabelOne(limit.number),
-            '${BrowsePaths.info}/ch/${limit.number}',
-          ),
-          ReaderLimitKind.juz => chip(
-            'Juz ${limit.number}',
-            '${BrowsePaths.info}/juz/${limit.number}',
-          ),
-          ReaderLimitKind.part when limit.surah != null => chip(
-            l10n.browseTrail(
-              l10n.sLabelOne(limit.surah!),
-              l10n.chLabelOne(limit.number),
-            ),
-            '${BrowsePaths.info}/ss/${limit.surah}/ch/${limit.number}',
-          ),
-          _ => const SizedBox.shrink(),
-        },
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -233,16 +186,6 @@ class _GoToSheetState extends ConsumerState<GoToSheet>
                     icon: const Icon(Icons.arrow_forward_rounded),
                     onPressed: () => _submit(_field.text),
                   ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: Wrap(
-                  spacing: AppSpacing.sm,
-                  children: _infoChips(),
                 ),
               ),
             ),
@@ -318,7 +261,7 @@ class _GoToSheetState extends ConsumerState<GoToSheet>
     return _list(QuranDivisions.surahCount, (context, index) {
       final s = index + 1;
       return BrowseRowCard(
-        title: l10n.sLabelOne(s),
+        title: l10n.browseSurahOne(s),
         subtitle: readerAyahsText(l10n, QuranDivisions.ayahCountOf(s)),
         aside: SurahRowAside(s: s),
         onTap: () => onTap(s),

@@ -36,6 +36,18 @@ class PlanningViewModel extends Notifier<PlanningLoad> {
     return problems;
   }
 
+  /// Starts the memory manager over (Settings): the stored state is moved
+  /// aside and the screens show the first-run setup again. Returns the
+  /// problems (empty = done, nothing changed otherwise); throws when the state
+  /// could not be moved aside (then nothing has changed either). See
+  /// [PlanningController.restartSetup].
+  Future<List<SettingsProblem>> restartSetup() async {
+    final controller = ref.read(planningControllerProvider);
+    final problems = await controller.restartSetup();
+    if (problems.isEmpty && ref.mounted) state = controller.status!;
+    return problems;
+  }
+
   /// Saves new settings; returns the problems (empty = saved). The settings
   /// screen shows them and saves nothing when there are any.
   Future<List<SettingsProblem>> updateSettings(

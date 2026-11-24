@@ -173,7 +173,7 @@ final class PageInputError extends PageInputResult {
 /// in the table, shared boundary pages included (ch 13 is p 106 - 115). That
 /// is the same page range the rest of the app shows for it, and the rules then
 /// treat the pages as any other log (a shared page is logged twice, see
-/// RULES.md).
+/// docs/old/RULES.md).
 ///
 /// An empty To means "the same as From": `12` is page 12 alone, `ch 3` is the
 /// whole of ch 3.

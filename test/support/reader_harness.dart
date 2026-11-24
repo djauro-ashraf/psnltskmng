@@ -8,7 +8,10 @@ import 'package:personaltskmng/domain/models/day.dart';
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/features/browse/domain/browse_data.dart';
 import 'package:personaltskmng/features/browse/presentation/providers/browse_providers.dart';
-import 'package:personaltskmng/features/daily_plan/presentation/providers/planning_providers.dart';
+import 'package:personaltskmng/features/memo/presentation/providers/memo_providers.dart';
+import 'package:personaltskmng/memo/models/memo_settings.dart';
+import 'package:personaltskmng/memo/models/memo_view.dart';
+import 'package:personaltskmng/memo/models/page_map.dart';
 import 'package:personaltskmng/features/notes/presentation/providers/notes_providers.dart';
 import 'package:personaltskmng/features/notes/presentation/viewmodels/notes_view_model.dart';
 import 'package:personaltskmng/l10n/app_localizations.dart';
@@ -30,7 +33,6 @@ import 'package:personaltskmng/quran_data/models/page_content.dart';
 import 'package:personaltskmng/quran_data/models/quran_pack.dart';
 import 'package:personaltskmng/quran_data/models/tafsir.dart';
 
-import '../planning/support.dart';
 import 'divisions_fixture.dart';
 
 /// What the widget tests of the reading screens share: a Quran that is "on the
@@ -254,10 +256,14 @@ Widget testApp({
       notesControllerProvider.overrideWithValue(
         notes ?? NotesController(store: InMemoryNoteStore()),
       ),
-      todayClockProvider.overrideWithValue(() => _now),
+      memoClockProvider.overrideWithValue(() => _now),
       browseDataProvider.overrideWith(
         (ref) => BrowseData.build(
-          q: freshQ(),
+          view: MemoView.empty(
+            settings: const MemoSettings(),
+            today: Day.fromDateTime(_now),
+          ),
+          pages: PageMap.standard,
           day: Day.fromDateTime(_now),
           notes: ref.watch(notesViewModelProvider.select((s) => s.index)),
         ),

@@ -11,7 +11,7 @@ import 'package:personaltskmng/features/browse/presentation/widgets/view_mode_to
 import 'package:personaltskmng/notes/controller/notes_controller.dart';
 import 'package:personaltskmng/quran_data/controller/quran_prefs.dart';
 import 'package:personaltskmng/quran_data/models/reading_banners.dart';
-import 'package:personaltskmng/shared/widgets/page_state_widgets.dart';
+import 'package:personaltskmng/shared/widgets/status_widgets.dart';
 
 import '../../support/reader_harness.dart';
 
@@ -170,7 +170,7 @@ void main() {
       final surah = _line('Surah 5 · Al-Ma’idah');
       expect(surah, findsOneWidget);
       expect(
-        find.descendant(of: surah, matching: find.byType(StateBadge)),
+        find.descendant(of: surah, matching: find.byType(StatusBadge)),
         findsOneWidget,
       );
       expect(
@@ -214,7 +214,7 @@ void main() {
 
       expect(find.text('NO DROPDOWN'), findsNothing);
       expect(find.text('Surah 2 · Al-Baqarah'), findsOneWidget);
-      expect(find.text('Complete'), findsWidgets);
+      expect(find.text('Not learned'), findsWidgets);
 
       await tester.tap(_line('Surah 2 · Al-Baqarah'));
       await _settle(tester);
@@ -408,24 +408,15 @@ void main() {
 
     test('the notes a group lists: a surah, a ch, a page; a juz has none', () {
       expect(
-        noteUnitOf(const SurahGroup(5), mergedCh: false),
+        noteUnitOf(const SurahGroup(5)),
         NoteUnit.of(const SScope(5)),
       );
       expect(
-        noteUnitOf(const ChGroup(13), mergedCh: false),
+        noteUnitOf(const ChGroup(13)),
         NoteUnit.of(const ChScope(13)),
       );
-      expect(
-        noteUnitOf(const ChGroup(30), mergedCh: true),
-        NoteUnit.of(const ChScope(30), merged: true),
-      );
-      expect(
-        noteUnitOf(const ChGroup(30), mergedCh: true) ==
-            noteUnitOf(const ChGroup(30), mergedCh: false),
-        isFalse,
-      );
-      expect(noteUnitOf(const PageGroup(106), mergedCh: false), NoteUnit.page(106));
-      expect(noteUnitOf(const JuzGroup(15), mergedCh: false), isNull);
+      expect(noteUnitOf(const PageGroup(106)), NoteUnit.page(106));
+      expect(noteUnitOf(const JuzGroup(15)), isNull);
     });
 
     test('a surah of one ch and a ch of several surahs have parts to list', () {

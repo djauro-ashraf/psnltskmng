@@ -1,8 +1,9 @@
-import 'package:personaltskmng/domain/models/page_state.dart';
 import 'package:personaltskmng/domain/reference/ch_table.dart';
 import 'package:personaltskmng/domain/reference/s_table.dart';
 import 'package:personaltskmng/features/browse/domain/browse_data.dart';
 import 'package:personaltskmng/features/browse/domain/browse_index.dart';
+import 'package:personaltskmng/memo/models/memo_status.dart';
+import 'package:personaltskmng/memo/models/span.dart';
 import 'package:personaltskmng/quran_data/models/juz_pages.dart';
 
 /// How a list can be grouped. Which of these a list offers is in
@@ -12,8 +13,8 @@ import 'package:personaltskmng/quran_data/models/juz_pages.dart';
 /// - [ch] and [s]: by that unit (fixed reference data).
 /// - [juz]: by juz, in the pages of the print the reader chose (a page list
 ///   only; it needs the layout pack, so a list without it does not offer it).
-/// - [state]: by state. A page by its own state; an s or a ch by its worst
-///   state (ND when nothing of it is entered).
+/// - [state]: by status. A unit goes by the
+///   worst band of its memorised ayahs (not learned when it has none).
 /// - [notes]: by whether the item has open notes.
 enum BrowseGrouping { none, ch, s, juz, state, notes }
 
@@ -35,7 +36,7 @@ final class BrowseGroup {
     this.number = 0,
     this.firstPage = 0,
     this.lastPage = 0,
-    this.state,
+    this.status,
     this.hasNotes,
     required this.items,
   });
@@ -52,8 +53,8 @@ final class BrowseGroup {
   /// Exact last page of the header's s or ch (0 without a header).
   final int lastPage;
 
-  /// The state of a group made by "group by state"; null for any other group.
-  final PageState? state;
+  /// The status of a group made by "group by state"; null for any other group.
+  final MemoStatus? status;
 
   /// Set for a group made by "group by notes": whether its items have open
   /// notes; null for any other group.
@@ -100,15 +101,18 @@ abstract final class BrowseGroups {
     BrowseGrouping.notes,
   ];
 
-  /// The states a group of an s or a ch can have, in the order they are
-  /// listed (a unit's worst state is never F1 or F2, see `UnitSummary`).
-  static const List<PageState> _unitStates = [
-    PageState.nd,
-    PageState.d1,
-    PageState.d2,
-    PageState.d3,
-    PageState.c,
-    PageState.f3,
+  /// The statuses a group can have, weakest first. A unit's weakest status is
+  /// never fading (it counts at the level it faded from).
+  /// Every status, for a page (which can be fading).
+  static const List<MemoStatus> _allStatuses = MemoStatus.values;
+
+  static const List<MemoStatus> _statuses = [
+    MemoStatus.notLearned,
+    MemoStatus.forgotten,
+    MemoStatus.learning1,
+    MemoStatus.learning2,
+    MemoStatus.learning3,
+    MemoStatus.consolidated,
   ];
 
   static final Map<BrowseGrouping, List<BrowseGroup>> _pages = {};
@@ -148,8 +152,8 @@ abstract final class BrowseGroups {
         final d = data ?? BrowseData.empty;
         return _byState(
           _flat(BrowseIndex.pageCount).items,
-          d.stateOfPage,
-          PageState.values,
+          d.worstOfPage,
+          _allStatuses,
         );
       case BrowseGrouping.notes:
         final d = data ?? BrowseData.empty;
@@ -168,7 +172,7 @@ abstract final class BrowseGroups {
     switch (grouping) {
       case BrowseGrouping.state:
         final d = data ?? BrowseData.empty;
-        return _byState(_flat(BrowseIndex.sCount).items, d.stateOfS, _unitStates);
+        return _byState(_flat(BrowseIndex.sCount).items, d.worstOfS, _statuses);
       case BrowseGrouping.notes:
         final d = data ?? BrowseData.empty;
         return _byNotes(_flat(BrowseIndex.sCount).items, d.notes.inS);
@@ -190,8 +194,8 @@ abstract final class BrowseGroups {
         final d = data ?? BrowseData.empty;
         return _byState(
           _flat(BrowseIndex.chCount).items,
-          d.stateOfCh,
-          _unitStates,
+          d.worstOfCh,
+          _statuses,
         );
       case BrowseGrouping.notes:
         final d = data ?? BrowseData.empty;
@@ -222,10 +226,12 @@ abstract final class BrowseGroups {
       case BrowseGrouping.state:
         return _byState(items, (juz) {
           final r = ranges[juz - 1];
-          return BrowseData.stateOfLevel(
-            d.pagesSummary(r.ownedFirst, r.last)?.worst,
+          final span = Span(
+            d.spanOfPage(r.first).first,
+            d.spanOfPage(r.last).last,
           );
-        }, _unitStates);
+          return d.statusNameOf(d.statusOf(span));
+        }, _statuses);
       case BrowseGrouping.notes:
         return _byNotes(items, (juz) => juzNotes(ranges[juz - 1], d));
       case BrowseGrouping.none:
@@ -250,17 +256,17 @@ abstract final class BrowseGroups {
   /// order; an empty group is left out. Items keep their order.
   static List<BrowseGroup> _byState(
     List<int> items,
-    PageState Function(int item) stateOf,
-    List<PageState> order,
+    MemoStatus Function(int item) statusOf,
+    List<MemoStatus> order,
   ) {
-    final buckets = {for (final state in order) state: <int>[]};
+    final buckets = {for (final status in order) status: <int>[]};
     for (final item in items) {
-      buckets[stateOf(item)]?.add(item);
+      buckets[statusOf(item)]?.add(item);
     }
     return List<BrowseGroup>.unmodifiable([
-      for (final state in order)
-        if (buckets[state]!.isNotEmpty)
-          BrowseGroup(state: state, items: buckets[state]!),
+      for (final status in order)
+        if (buckets[status]!.isNotEmpty)
+          BrowseGroup(status: status, items: buckets[status]!),
     ]);
   }
 

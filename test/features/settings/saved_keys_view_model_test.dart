@@ -4,12 +4,12 @@ import 'package:personaltskmng/ai/ai_runtime.dart';
 import 'package:personaltskmng/ai/api_key_store.dart';
 import 'package:personaltskmng/ai/saved_key_store.dart';
 import 'package:personaltskmng/domain/models/day.dart';
-import 'package:personaltskmng/features/daily_plan/presentation/providers/planning_providers.dart';
+import 'package:personaltskmng/features/memo/presentation/providers/memo_providers.dart';
 import 'package:personaltskmng/features/settings/presentation/providers/ai_providers.dart';
 import 'package:personaltskmng/features/settings/presentation/viewmodels/saved_keys_view_model.dart';
-import 'package:personaltskmng/planning/day/day_record.dart';
+import 'package:personaltskmng/memo/controller/memo_controller.dart';
+import 'package:personaltskmng/memo/data/memo_store.dart';
 
-import '../../support/loaded_planning.dart';
 
 /// The keys saved under a name: added and listed by name, used (made the key in
 /// use and handed back to fill the field), deleted without touching the key in
@@ -27,15 +27,14 @@ void main() {
   Future<void> build({Map<String, String>? seed}) async {
     keys = InMemoryApiKeyStore(seed);
     runtime = AiRuntime();
-    final planning = await loadedPlanning(
-      records: InMemoryDayRecordStore(),
-      clock: () => const Day(5).toDateTime(),
-    );
+    final memo = MemoController(store: InMemoryMemoStore());
+    await memo.load();
     container = ProviderContainer(
       overrides: [
         apiKeyStoreProvider.overrideWithValue(keys),
         aiRuntimeProvider.overrideWithValue(runtime),
-        planningControllerProvider.overrideWithValue(planning),
+        memoControllerProvider.overrideWithValue(memo),
+        memoClockProvider.overrideWithValue(() => const Day(5).toDateTime()),
       ],
     );
     addTearDown(container.dispose);

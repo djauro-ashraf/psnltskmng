@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
-import 'package:personaltskmng/domain/models/page_state.dart';
 import 'package:personaltskmng/domain/reference/ch_table.dart';
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/domain/reference/s_table.dart';
@@ -20,7 +19,8 @@ import 'package:personaltskmng/quran_data/controller/quran_providers.dart';
 import 'package:personaltskmng/quran_data/models/reading_banners.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 import 'package:personaltskmng/shared/widgets/division_labels.dart';
-import 'package:personaltskmng/shared/widgets/page_state_widgets.dart';
+import 'package:personaltskmng/memo/models/memo_status.dart';
+import 'package:personaltskmng/shared/widgets/status_widgets.dart';
 import 'package:personaltskmng/shared/widgets/stream_details.dart';
 
 // What the Details view puts in its Details dropdowns.
@@ -80,10 +80,10 @@ final ayahPlaceProvider = FutureProvider.autoDispose.family<AyahPlace, AyahRef>(
 
 /// The notes of a group: what its notes block lists. Null for a juz (it has no
 /// notes of its own).
-NoteUnit? noteUnitOf(DetailsGroup group, {required bool mergedCh}) =>
+NoteUnit? noteUnitOf(DetailsGroup group) =>
     switch (group) {
       SurahGroup(:final s) => NoteUnit.of(SScope(s)),
-      ChGroup(:final ch) => NoteUnit.of(ChScope(ch), merged: mergedCh),
+      ChGroup(:final ch) => NoteUnit.of(ChScope(ch)),
       PageGroup(:final page) => NoteUnit.page(page),
       JuzGroup() => null,
     };
@@ -128,7 +128,7 @@ class AyahDetailsBody extends ConsumerWidget {
             SurahNames.of(s).transliteration,
           ),
           subtitle: l10n.detailsAyahOf(ayah.ayah, QuranDivisions.ayahCountOf(s)),
-          state: data.hasQ ? data.stateOfS(s) : null,
+          status: data.hasData ? data.worstOfS(s) : null,
           notes: data.notes.inS(s),
           onTap: () => showGroupDetailsSheet(context, SurahGroup(s)),
         ),
@@ -142,7 +142,7 @@ class AyahDetailsBody extends ConsumerWidget {
           subtitle: chRange == null
               ? '—'
               : pagesLabel(l10n, chRange.start, chRange.end),
-          state: ch != null && data.hasQ ? data.stateOfCh(ch) : null,
+          status: ch != null && data.hasData ? data.worstOfCh(ch) : null,
           notes: ch == null ? 0 : data.notes.inCh(ch),
           onTap: ch == null
               ? null
@@ -151,7 +151,7 @@ class AyahDetailsBody extends ConsumerWidget {
         GroupLine(
           title: page == null ? l10n.browsePageWord : l10n.browsePageOne(page),
           subtitle: page == null ? '—' : pageSubtitle(l10n, page),
-          state: page != null && data.hasQ ? data.stateOfPage(page) : null,
+          status: page != null && data.hasData ? data.worstOfPage(page) : null,
           notes: page == null ? 0 : data.notes.onPage(page),
           onTap: page == null
               ? null
@@ -173,7 +173,7 @@ class GroupLine extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
-    this.state,
+    this.status,
     this.notes = 0,
   });
 
@@ -183,8 +183,8 @@ class GroupLine extends StatelessWidget {
   /// Null: the line is not a button (what it is about is not known yet).
   final VoidCallback? onTap;
 
-  /// The state mark of the group, null for none.
-  final PageState? state;
+  /// The status mark of the group, null for none.
+  final MemoStatus? status;
 
   /// How many open notes the group has; nothing is shown for 0.
   final int notes;
@@ -193,7 +193,7 @@ class GroupLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final state = this.state;
+    final status = this.status;
     // Its own Material: the panel it sits in is opaque, and the ripple of an
     // InkWell is painted on the Material under it.
     return Material(
@@ -236,9 +236,9 @@ class GroupLine extends StatelessWidget {
                   const SizedBox(width: AppSpacing.sm),
                   _NotesMark(count: notes),
                 ],
-                if (state != null) ...[
+                if (status != null) ...[
                   const SizedBox(width: AppSpacing.sm),
-                  StateBadge(state: state, dense: true),
+                  StatusBadge(status: status, dense: true),
                 ],
                 if (onTap != null) ...[
                   const SizedBox(width: AppSpacing.xs),
@@ -457,12 +457,7 @@ class GroupDetailsSheet extends ConsumerWidget {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final group = this.group;
-    final merged =
-        group is ChGroup &&
-        ref.watch(
-          browseDataProvider.select((data) => data.isMerged(group.ch)),
-        );
-    final unit = noteUnitOf(group, mergedCh: merged);
+    final unit = noteUnitOf(group);
     final scope = scopeOfGroup(group);
     final parts = scope == null
         ? const <BrowsePart>[]

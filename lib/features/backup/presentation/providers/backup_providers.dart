@@ -3,12 +3,6 @@ import 'package:personaltskmng/features/backup/services/backup_files.dart';
 import 'package:personaltskmng/features/backup/services/backup_service.dart';
 import 'package:personaltskmng/features/backup/services/drive_backup_service.dart';
 import 'package:personaltskmng/features/backup/services/file_picker_backup_files.dart';
-import 'package:personaltskmng/planning/day/day_record.dart';
-
-/// Provider for the active [DayRecordStore].
-final dayRecordStoreProvider = Provider<DayRecordStore>(
-  (ref) => throw UnimplementedError('override in app/dependencies.dart'),
-);
 
 /// Provider for the [BackupService].
 final backupServiceProvider = Provider<BackupService>(

@@ -4,7 +4,7 @@ import 'package:personaltskmng/domain/models/day.dart';
 import 'package:personaltskmng/domain/reference/ch_table.dart';
 import 'package:personaltskmng/notes/models/note.dart';
 import 'package:personaltskmng/notes/models/note_book.dart';
-import 'package:personaltskmng/planning/data/json_reader.dart';
+import 'package:personaltskmng/core/json_reader.dart';
 
 /// Text <-> [NoteBook] for `notes.json`, shared by every store so that the
 /// in-memory store and the file store read exactly the same way. Pure Dart.

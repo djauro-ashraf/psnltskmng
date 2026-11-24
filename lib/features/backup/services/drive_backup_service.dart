@@ -4,9 +4,8 @@ import 'package:personaltskmng/features/backup/services/drive_auth.dart';
 import 'package:personaltskmng/features/backup/services/drive_exceptions.dart';
 import 'package:personaltskmng/features/backup/services/drive_file_api.dart';
 import 'package:personaltskmng/features/settings/domain/repositories/settings_repository.dart';
+import 'package:personaltskmng/memo/controller/memo_controller.dart';
 import 'package:personaltskmng/notes/controller/notes_controller.dart';
-import 'package:personaltskmng/planning/controller/planning_controller.dart';
-import 'package:personaltskmng/planning/day/day_record.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Status of the Google Drive connection on this device.
@@ -93,20 +92,18 @@ class DriveBackupService {
 
   /// Writes the current state, settings, day records and notes to Drive.
   Future<BackupData> uploadBackupToDrive({
-    required PlanningController controller,
+    required MemoController memo,
     required SettingsRepository settingsRepo,
-    required DayRecordStore dayRecordsStore,
     NotesController? notes,
   }) async {
-    // Never replace a good backup with an empty state (a new install that is
-    // still in its first-run setup, or whose data failed to load).
-    if (controller.status is! PlanningLoaded) {
+    // Never replace a good backup with an empty log (a new install that has
+    // logged nothing yet, or whose data failed to load).
+    if (memo.data.events.isEmpty) {
       throw const DriveNothingToBackUpException();
     }
     final backup = await backupService.createBackup(
-      controller: controller,
+      memo: memo,
       settingsRepo: settingsRepo,
-      dayRecordsStore: dayRecordsStore,
       notes: notes,
     );
     await files.save(backup.toJsonString());
@@ -146,18 +143,16 @@ class DriveBackupService {
   /// the state, settings, day records and, when the backup has them, the
   /// notes). Nothing is changed when the file cannot be read.
   Future<BackupData> restoreFromDrive({
-    required PlanningController controller,
+    required MemoController memo,
     required SettingsRepository settingsRepo,
-    required DayRecordStore dayRecordsStore,
     NotesController? notes,
   }) async {
     final text = await files.read();
     if (text.trim().isEmpty) throw const DriveNoBackupException();
     return backupService.restoreFromJson(
       text,
-      controller: controller,
+      memo: memo,
       settingsRepo: settingsRepo,
-      dayRecordsStore: dayRecordsStore,
       notes: notes,
     );
   }
@@ -194,18 +189,16 @@ class DriveBackupService {
   /// next try is the next time the app asks. Returns whether it wrote one.
   Future<bool> backupIfDue({
     required String frequency,
-    required PlanningController controller,
+    required MemoController memo,
     required SettingsRepository settingsRepo,
-    required DayRecordStore dayRecordsStore,
     NotesController? notes,
   }) async {
     try {
       if (!await isAutoBackupDue(frequency)) return false;
       await uploadBackupToDrive(
-        controller: controller,
+        memo: memo,
         settingsRepo: settingsRepo,
-        dayRecordsStore: dayRecordsStore,
-        notes: notes,
+          notes: notes,
       );
       return true;
     } catch (_) {

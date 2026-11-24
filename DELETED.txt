@@ -1,0 +1,175 @@
+DELETED.txt
+===========
+Everything that was in the project you uploaded and is no longer in this zip.
+The originals are still in the zip you uploaded (psnltskmng-main (4).zip).
+
+117 files deleted, about 25610 lines.
+
+
+## The old AI planner (lib/ai/). Kept: providers, key stores, chat  (3 files, 362 lines)
+  - lib/ai/ai_planner.dart  (162 lines)
+  - lib/ai/plan_parser.dart  (121 lines)
+  - lib/ai/prompt_builder.dart  (79 lines)
+
+## Replaced by status equivalents (page-state colors and widgets)  (2 files, 305 lines)
+  - lib/core/theme/page_state_colors.dart  (129 lines)
+  - lib/shared/widgets/page_state_widgets.dart  (176 lines)
+
+## Old page-based domain models: Q, PageRecord, PageState, operations... (lib/domain/models/). Kept: day.dart, page_range.dart  (12 files, 1582 lines)
+  - lib/domain/models/d_range.dart  (21 lines)
+  - lib/domain/models/domain_constants.dart  (185 lines)
+  - lib/domain/models/engine_result.dart  (36 lines)
+  - lib/domain/models/expansion_tracker.dart  (58 lines)
+  - lib/domain/models/operation.dart  (30 lines)
+  - lib/domain/models/operation_record.dart  (29 lines)
+  - lib/domain/models/page_record.dart  (153 lines)
+  - lib/domain/models/page_state.dart  (23 lines)
+  - lib/domain/models/planner_constraints.dart  (123 lines)
+  - lib/domain/models/q.dart  (209 lines)
+  - lib/domain/models/state_transition.dart  (130 lines)
+  - lib/domain/models/time_model.dart  (585 lines)
+
+## Old reference code only the planner used (lib/domain/reference/)  (5 files, 883 lines)
+  - lib/domain/reference/catch_up_groups.dart  (182 lines)
+  - lib/domain/reference/ch_segments.dart  (235 lines)
+  - lib/domain/reference/ch_status.dart  (284 lines)
+  - lib/domain/reference/merged_spans.dart  (136 lines)
+  - lib/domain/reference/shared_pages.dart  (46 lines)
+
+## The page-state rules engine (lib/domain/rules/)  (13 files, 1865 lines)
+  - lib/domain/rules/catch_up.dart  (10 lines)
+  - lib/domain/rules/d_range_rules.dart  (128 lines)
+  - lib/domain/rules/degradation_rules.dart  (172 lines)
+  - lib/domain/rules/expansion_rules.dart  (120 lines)
+  - lib/domain/rules/l_rules.dart  (71 lines)
+  - lib/domain/rules/m_rules.dart  (69 lines)
+  - lib/domain/rules/merge_rules.dart  (274 lines)
+  - lib/domain/rules/progression_rules.dart  (87 lines)
+  - lib/domain/rules/q_setup.dart  (322 lines)
+  - lib/domain/rules/r_rules.dart  (52 lines)
+  - lib/domain/rules/restart_rules.dart  (54 lines)
+  - lib/domain/rules/rule_violation.dart  (53 lines)
+  - lib/domain/rules/rules_engine.dart  (453 lines)
+
+## The planner simulator (lib/domain/simulation/)  (3 files, 409 lines)
+  - lib/domain/simulation/reference_policy.dart  (264 lines)
+  - lib/domain/simulation/simulation_policy.dart  (31 lines)
+  - lib/domain/simulation/simulator.dart  (114 lines)
+
+## The old Today / setup / planning screens (lib/features/daily_plan/)  (12 files, 3638 lines)
+  - lib/features/daily_plan/daily_plan.dart  (2 lines)
+  - lib/features/daily_plan/presentation/pages/daily_plan_page.dart  (94 lines)
+  - lib/features/daily_plan/presentation/providers/planning_providers.dart  (25 lines)
+  - lib/features/daily_plan/presentation/viewmodels/planning_view_model.dart  (67 lines)
+  - lib/features/daily_plan/presentation/viewmodels/today_view_model.dart  (254 lines)
+  - lib/features/daily_plan/presentation/widgets/dialogs.dart  (533 lines)
+  - lib/features/daily_plan/presentation/widgets/failed_load_view.dart  (42 lines)
+  - lib/features/daily_plan/presentation/widgets/op_tile.dart  (40 lines)
+  - lib/features/daily_plan/presentation/widgets/plan_texts.dart  (101 lines)
+  - lib/features/daily_plan/presentation/widgets/setup_view.dart  (1330 lines)
+  - lib/features/daily_plan/presentation/widgets/study_guide_dialog.dart  (161 lines)
+  - lib/features/daily_plan/presentation/widgets/today_view.dart  (989 lines)
+
+## The old planning settings widgets (lib/features/settings/)  (3 files, 624 lines)
+  - lib/features/settings/presentation/widgets/planning_draft.dart  (141 lines)
+  - lib/features/settings/presentation/widgets/planning_fields.dart  (245 lines)
+  - lib/features/settings/presentation/widgets/planning_priority_and_shared.dart  (238 lines)
+
+## The old planner and page-state data layer (lib/planning/)  (27 files, 5629 lines)
+  - lib/planning/config/planning_config.dart  (178 lines)
+  - lib/planning/controller/planning_controller.dart  (412 lines)
+  - lib/planning/data/app_state_codec.dart  (213 lines)
+  - lib/planning/data/app_state_store.dart  (171 lines)
+  - lib/planning/data/file_app_state_store.dart  (181 lines)
+  - lib/planning/data/json_dir_day_record_store.dart  (57 lines)
+  - lib/planning/data/json_reader.dart  (106 lines)
+  - lib/planning/data/planning_settings.dart  (53 lines)
+  - lib/planning/data/preferences_app_state_store.dart  (119 lines)
+  - lib/planning/data/q_codec.dart  (196 lines)
+  - lib/planning/data/settings_codec.dart  (445 lines)
+  - lib/planning/data/stored_state.dart  (115 lines)
+  - lib/planning/day/backfill.dart  (328 lines)
+  - lib/planning/day/daily_planning_service.dart  (480 lines)
+  - lib/planning/day/day_record.dart  (184 lines)
+  - lib/planning/day/past_day.dart  (130 lines)
+  - lib/planning/day/today_session.dart  (111 lines)
+  - lib/planning/facts/planning_facts.dart  (554 lines)
+  - lib/planning/models/logged_op.dart  (60 lines)
+  - lib/planning/models/minutes.dart  (9 lines)
+  - lib/planning/models/plan_op.dart  (32 lines)
+  - lib/planning/models/plan_violation.dart  (68 lines)
+  - lib/planning/planners/planner.dart  (82 lines)
+  - lib/planning/planners/rule_based_planner.dart  (317 lines)
+  - lib/planning/planners/rule_based_simulation_policy.dart  (52 lines)
+  - lib/planning/snapshot/q_snapshot.dart  (437 lines)
+  - lib/planning/validation/plan_validator.dart  (539 lines)
+
+## Tests that covered deleted code or asserted the old state model (test/)  (37 files, 10313 lines)
+  - test/ai/ai_planner_test.dart  (152 lines)
+  - test/ai/plan_parser_test.dart  (48 lines)
+  - test/domain/catch_up_test.dart  (45 lines)
+  - test/domain/d_range_rules_test.dart  (159 lines)
+  - test/domain/degradation_rules_test.dart  (434 lines)
+  - test/domain/expansion_rules_test.dart  (211 lines)
+  - test/domain/page_label_test.dart  (63 lines)
+  - test/domain/progression_rules_test.dart  (205 lines)
+  - test/domain/restart_rules_test.dart  (59 lines)
+  - test/domain/rules_engine_test.dart  (716 lines)
+  - test/domain/shared_pages_test.dart  (591 lines)
+  - test/domain/simulation_test.dart  (108 lines)
+  - test/features/backup/backup_file_dialogs_test.dart  (566 lines)
+  - test/features/backup/backup_service_test.dart  (753 lines)
+  - test/features/browse/browse_juz_test.dart  (217 lines)
+  - test/features/browse/browse_notes_domain_test.dart  (339 lines)
+  - test/features/browse/browse_runtime_checks_test.dart  (376 lines)
+  - test/features/browse/browse_screens_test.dart  (833 lines)
+  - test/features/browse/merged_ch_test.dart  (356 lines)
+  - test/features/daily_plan/auto_backup_test.dart  (193 lines)
+  - test/features/daily_plan/late_log_test.dart  (295 lines)
+  - test/features/daily_plan/today_notes_test.dart  (218 lines)
+  - test/planning/app_state_codec_test.dart  (784 lines)
+  - test/planning/backfill_test.dart  (492 lines)
+  - test/planning/daily_planning_service_test.dart  (175 lines)
+  - test/planning/day_record_restart_test.dart  (161 lines)
+  - test/planning/json_dir_store_test.dart  (47 lines)
+  - test/planning/plan_validator_test.dart  (281 lines)
+  - test/planning/planning_facts_test.dart  (122 lines)
+  - test/planning/planning_simulation_test.dart  (111 lines)
+  - test/planning/preferences_app_state_store_test.dart  (140 lines)
+  - test/planning/q_setup_test.dart  (154 lines)
+  - test/planning/restart_setup_test.dart  (402 lines)
+  - test/planning/rule_based_planner_test.dart  (154 lines)
+  - test/planning/snapshot_builder_test.dart  (189 lines)
+  - test/planning/support.dart  (126 lines)
+  - test/support/loaded_planning.dart  (38 lines)
+
+
+## Moved, not deleted
+  - RULES.md  ->  docs/old/RULES.md  (kept for the notes / reader / Ask sections that still apply; marked superseded at the top)
+  - docs/ARCHITECTURE.md  ->  docs/old/ARCHITECTURE.md  (kept for the notes / reader / Ask sections that still apply; marked superseded at the top)
+
+
+## Removed from inside files that were kept
+  - lib/domain/reference/s_table.dart: the planner-only function that listed the not-learned pages a backward expansion would learn (and its imports of Q and PageState).
+  - lib/features/settings/presentation/pages/settings_page.dart: the planning draft with its Save / Reset buttons, every planning field, the "restart your Q" section. Kept: appearance, backup, Quran data (extracted unchanged); AI and Ask moved into collapsible cards.
+  - lib/features/browse/domain/browse_data.dart and browse_groups.dart: everything built on Q (state of a page, s, ch, merged ch, shared-page summaries). Rewritten on the new status core.
+  - lib/features/browse/presentation/widgets/details_blocks.dart: the merged-ch plumbing.
+  - lib/features/browse/presentation/widgets/unit_info.dart: rewritten (the old page-record facts: units, prime, L, next step down by page).
+  - lib/features/backup: the day-records store and the old state in the backup format (backups of versions 1 and 2 are still read and imported).
+  - lib/notes/data/day_log.dart: reads the new log instead of the old day records; the old successfulRanges helper is gone.
+  - lib/app/dependencies.dart: the planning store, planning controller, day-record store and their wiring.
+  - lib/ai/ai_runtime.dart: the rule-based / AI planner factory (replaced by plannerProviderOf).
+
+## Not deleted, but now unused
+  - The ARB keys of the deleted screens in lib/l10n/ (the generated files were left alone).
+  - lib/domain/reference/page_input.dart, ch_table.dart, s_table.dart, quran_divisions*.dart are still used by Browse and the reader.
+
+
+## Replaced text (not deleted files, but wording that no longer exists)
+  - lib/l10n/app_en.arb, app_fr.arb and the generated app_localizations_en.dart / _fr.dart:
+      aiOfflineNote  "...the offline planner is used."  (there is no offline planner any more)
+      aiPrivacy      "...sends a summary of your Q (page states, no personal text)..."  (it now sends statuses per piece, the numbers, the last days of the log and your wishes)
+    Both were rewritten in English and French.
+
+## This round
+  - Nothing else was deleted. Added only (the self-explaining number control, rules presets and preview, status sheet and guide page, first-run card).

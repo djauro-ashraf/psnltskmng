@@ -2,25 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/domain/models/day.dart';
-import 'package:personaltskmng/features/browse/domain/browse_data.dart';
 import 'package:personaltskmng/features/browse/domain/browse_index.dart';
 import 'package:personaltskmng/features/browse/presentation/providers/browse_providers.dart';
+import 'package:personaltskmng/features/memo/presentation/memo_text.dart';
+import 'package:personaltskmng/memo/models/memo_status.dart';
+import 'package:personaltskmng/memo/models/memo_view.dart';
+import 'package:personaltskmng/memo/models/span.dart';
 import 'package:personaltskmng/quran_data/controller/quran_providers.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
+import 'package:personaltskmng/shared/widgets/status_widgets.dart';
 import 'package:personaltskmng/shared/widgets/division_labels.dart';
-import 'package:personaltskmng/shared/widgets/page_state_widgets.dart';
 
 // What a group says about itself in the Details view, as bare bodies (no card,
 // no title): the Details dropdowns and the group sheet put them where they
 // belong. A body never changes height with what it is told: a value that is not
-// there (no Q yet, the page lines of the print not downloaded) is a dash on its
-// line, not a missing line, because the rows of the stream must not change
-// height under the reader.
+// there (no statuses yet, the page lines of the print not downloaded) is a dash
+// or a short line, because the rows of the stream must not change height under
+// the reader.
 
-/// The info of a page: its state label (capital while an L is active, see
-/// `LRules.label`), progress, prime, last R, L active and the next step down
-/// (the same facts as the Overview's page sheet), then the juz, hizb and rukus
-/// that begin on it.
+/// How a page stands (its ayahs), then the juz, hizb and rukus that begin on it.
 class PageInfoBody extends ConsumerWidget {
   const PageInfoBody({super.key, required this.page});
 
@@ -29,17 +29,10 @@ class PageInfoBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(browseDataProvider);
-    final record = data.record(page);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (record == null)
-          const InfoUnavailable()
-        else
-          PageFacts(
-            info: PageInfo.of(record, data.day, lMonthDays: data.lMonthDays),
-            day: data.day,
-          ),
+        SpanFacts(status: data.statusOfPage(page), today: data.day),
         _PageDivisionsLine(page: page),
       ],
     );
@@ -76,43 +69,8 @@ class _PageDivisionsLine extends ConsumerWidget {
   }
 }
 
-/// The three lines every group but a page has: whether it is complete, its
-/// worst state, and whether all its pages are at least D3. [summary] null (no Q,
-/// or the pages are not known): a dash on each line.
-class SummaryRows extends StatelessWidget {
-  const SummaryRows({super.key, required this.summary});
-
-  final UnitSummary? summary;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final summary = this.summary;
-    Widget yesNo(bool? value) =>
-        Text(value == null ? '—' : (value ? l10n.infoYes : l10n.infoNo));
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InfoRow(label: l10n.infoComplete, value: yesNo(summary?.complete)),
-        InfoRow(
-          label: l10n.infoWorstState,
-          value: summary == null
-              ? const Text('—')
-              : StateBadge(state: summary.worstState),
-        ),
-        InfoRow(
-          label: l10n.infoAllAtLeastD3,
-          value: yesNo(summary?.allAtLeastD3),
-        ),
-      ],
-    );
-  }
-}
-
-/// The info of a juz: whether its pages are complete, their worst state, and
-/// whether all are at least D3. The pages are those of the print the reader
-/// chose; a page the juz shares with the juz before is the earlier juz's for
-/// the state (the rule of a ch). A juz has no notes of its own.
+/// The info of a juz: how its ayahs stand. The pages are those of the print the
+/// reader chose. A juz has no notes of its own.
 class JuzInfoBody extends ConsumerWidget {
   const JuzInfoBody({super.key, required this.juz});
 
@@ -123,17 +81,21 @@ class JuzInfoBody extends ConsumerWidget {
     final data = ref.watch(browseDataProvider);
     final ranges = ref.watch(juzPagesProvider).value;
     final pages = ranges == null || juz > ranges.length ? null : ranges[juz - 1];
-    return SummaryRows(
-      summary: pages == null
-          ? null
-          : data.pagesSummary(pages.ownedFirst, pages.last),
-    );
+    final status = pages == null
+        ? null
+        : data.statusOf(
+            Span(
+              data.spanOfPage(pages.first).first,
+              data.spanOfPage(pages.last).last,
+            ),
+          );
+    return SpanFacts(status: status, today: data.day);
   }
 }
 
-/// The info of a surah, a ch or a part: whether it is complete, its worst
-/// state, and whether all its pages are at least D3. A merged ch also shows its
-/// shared state (the state every page of it has).
+/// The info of a surah, a ch or a part: how its ayahs stand. A ch is cut where
+/// the next one begins, so a page two ch share counts for each with its own
+/// ayahs only.
 class ScopeInfoBody extends ConsumerWidget {
   const ScopeInfoBody({super.key, required this.scope});
 
@@ -141,37 +103,16 @@ class ScopeInfoBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
     final data = ref.watch(browseDataProvider);
-    final summary = switch (scope) {
-      SScope(:final s) => data.sSummary(s),
-      ChScope(:final ch) => data.chSummary(ch),
-      PartScope(:final part) => data.pagesSummary(part.firstPage, part.lastPage),
+    final SpanStatus? status = switch (scope) {
+      SScope(:final s) => data.statusOfS(s),
+      ChScope(:final ch) => data.statusOfCh(ch),
+      PartScope(:final part) => data.statusOf(
+        data.spanOfS(part.s).intersect(data.spanOfCh(part.ch)) ??
+            data.spanOfS(part.s),
+      ),
     };
-    final mergedCh = switch (scope) {
-      ChScope(:final ch) => ch,
-      PartScope(:final part) => part.ch,
-      SScope() => null,
-    };
-    final shared = summary == null || mergedCh == null
-        ? null
-        : data.mergedState(mergedCh);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SummaryRows(summary: summary),
-        if (shared != null) ...[
-          const Divider(height: AppSpacing.xl),
-          Text(l10n.infoMergedShared, style: theme.textTheme.titleSmall),
-          const SizedBox(height: AppSpacing.sm),
-          PageFacts(
-            info: PageInfo.of(shared, data.day, lMonthDays: data.lMonthDays),
-            day: data.day,
-          ),
-        ],
-      ],
-    );
+    return SpanFacts(status: status, today: data.day);
   }
 }
 
@@ -205,7 +146,7 @@ class InfoRow extends StatelessWidget {
   }
 }
 
-/// "The state is not available until your Q is loaded."
+/// "The status is not available yet."
 class InfoUnavailable extends StatelessWidget {
   const InfoUnavailable({super.key});
 
@@ -213,7 +154,7 @@ class InfoUnavailable extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Text(
-      context.l10n.infoUnavailable,
+      MemoText.of(context).statusUnavailable,
       style: theme.textTheme.bodyMedium?.copyWith(
         color: theme.colorScheme.onSurfaceVariant,
       ),
@@ -221,84 +162,60 @@ class InfoUnavailable extends StatelessWidget {
   }
 }
 
-/// The facts of one page record, as lines: the state and its label, progress
-/// (with a bar for a D page), prime, last R, L active until, next step down.
-class PageFacts extends StatelessWidget {
-  const PageFacts({super.key, required this.info, required this.day});
+/// The facts of one stretch of ayahs, as lines: the worst band, how much is
+/// learned (with a bar), the counts per band and how long ago it was touched.
+/// [status] null (no statuses yet): a short line instead.
+class SpanFacts extends StatelessWidget {
+  const SpanFacts({super.key, required this.status, required this.today});
 
-  final PageInfo info;
-  final Day day;
+  final SpanStatus? status;
+
+  /// The day the deadline is counted from.
+  final Day today;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
+    final text = MemoText.of(context);
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final material = MaterialLocalizations.of(context);
-    String date(Day d) => material.formatMediumDate(d.toDateTime());
     final quiet = theme.textTheme.bodyMedium?.copyWith(
-      color: scheme.onSurfaceVariant,
+      color: theme.colorScheme.onSurfaceVariant,
     );
-    final record = info.record;
-    final needed = info.unitsNeeded;
-    final lastR = record.lastR;
-    final lUntil = info.lActiveUntil;
-    final next = info.nextStepDown;
+    final status = this.status;
+    if (status == null) return const InfoUnavailable();
+    if (status.learned == 0) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InfoRow(
+            label: text.worst,
+            value: const StatusBadge(status: MemoStatus.notLearned),
+          ),
+          Text(text.nothingYet, style: quiet),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InfoRow(
-          label: l10n.infoState,
-          value: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              StateBadge(state: info.state),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                info.label,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
+        InfoRow(label: text.worst, value: StatusBadge(status: status.worst)),
         const SizedBox(height: AppSpacing.xs),
-        Text(
-          needed == null
-              ? l10n.sheetProgressNone
-              : l10n.sheetProgress(record.progressUnits, needed),
-          style: quiet,
+        Text(text.learnedOf(status.learned, status.ayahs), style: quiet),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs + 2),
+          child: StatusBar(status: status),
         ),
-        if (needed != null && needed > 0)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs + 2),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(3),
-              child: LinearProgressIndicator(
-                value: (record.progressUnits / needed).clamp(0.0, 1.0).toDouble(),
-                minHeight: 6,
-                backgroundColor: scheme.surfaceContainerHighest,
-                color: scheme.primary,
-              ),
-            ),
-          ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(record.isPrime ? l10n.sheetPrimeYes : l10n.sheetPrimeNo, style: quiet),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          lastR == null
-              ? l10n.sheetLastRNone
-              : l10n.sheetLastR(date(lastR), day.daysSince(lastR)),
-          style: quiet,
-        ),
-        if (lUntil != null) ...[
+        Text(text.countsLine(status), style: quiet),
+        if (status.newestSince != null) ...[
           const SizedBox(height: AppSpacing.xs),
-          Text(l10n.sheetLActive(date(lUntil)), style: quiet),
+          Text(text.lastTouched(status.newestSince!), style: quiet),
         ],
-        if (next != null) ...[
+        if (status.oldestSince != null) ...[
           const SizedBox(height: AppSpacing.xs),
-          Text(l10n.sheetNextStep(date(next)), style: quiet),
+          Text(text.longestUntouched(status.oldestSince!), style: quiet),
+        ],
+        if (status.nextDeadline != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(text.nextStepDown(status.nextDeadline!.epochDay - today.epochDay), style: quiet),
         ],
       ],
     );

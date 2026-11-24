@@ -7,7 +7,7 @@ import 'package:personaltskmng/notes/models/note_coverage.dart';
 /// returns a new book (or this one when nothing changes), so "what if" is just
 /// "apply and discard". Saved on its own, in `notes.json`, never inside the Q.
 ///
-/// The rules in one place (also in RULES.md, Notes):
+/// The rules in one place (also in docs/old/RULES.md, Notes):
 /// - [add]: a text note on a page, any number of them.
 /// - [tap]: "I remembered". Accepted silently, one per note per day, only for
 ///   an open note. The tap is pending until its day is closed.

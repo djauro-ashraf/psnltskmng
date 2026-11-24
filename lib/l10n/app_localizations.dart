@@ -1499,13 +1499,13 @@ abstract class AppLocalizations {
   /// No description provided for @aiOfflineNote.
   ///
   /// In en, this message translates to:
-  /// **'Without a key, or if the provider fails, the offline planner is used.'**
+  /// **'Without a key, or if the provider fails, no plan is made. Everything else in the app works without it.'**
   String get aiOfflineNote;
 
   /// No description provided for @aiPrivacy.
   ///
   /// In en, this message translates to:
-  /// **'A plan request sends a summary of your Q (page states, no personal text) to the provider.'**
+  /// **'A plan request sends the provider: your pieces with how many ayahs are in each status, the numbers behind the statuses, the last days of your log, and the wishes you wrote. Nothing else, and never the Quran text.'**
   String get aiPrivacy;
 
   /// No description provided for @aiModelPickerTitle.

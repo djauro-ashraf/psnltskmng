@@ -12,4 +12,16 @@ abstract final class AppRoutes {
   /// screen above the tabs, reached from Settings and from the Quran side of a
   /// page.
   static const String quranData = '/quran-data';
+
+  /// The agent: say what you want in your own words and the app does it. A
+  /// full screen above the tabs, opened by the command button of the shell and
+  /// from Settings.
+  static const String agent = '/agent';
+
+  /// Pages below Settings (each has a back button to Settings): the numbers
+  /// behind the statuses, the guide that explains them, and the user's own
+  /// partitions.
+  static const String statusRules = '/settings/status-rules';
+  static const String statusGuide = '/settings/status-guide';
+  static const String partitions = '/settings/partitions';
 }

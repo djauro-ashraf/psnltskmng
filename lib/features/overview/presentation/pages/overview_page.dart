@@ -2,615 +2,166 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personaltskmng/core/constants/app_breakpoints.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
-import 'package:personaltskmng/core/theme/page_state_colors.dart';
-import 'package:personaltskmng/domain/models/day.dart';
-import 'package:personaltskmng/domain/models/domain_constants.dart';
-import 'package:personaltskmng/domain/models/page_record.dart';
-import 'package:personaltskmng/domain/models/page_state.dart';
-import 'package:personaltskmng/domain/models/q.dart';
-import 'package:personaltskmng/domain/reference/ch_table.dart';
-import 'package:personaltskmng/domain/reference/s_table.dart';
-import 'package:personaltskmng/domain/rules/degradation_rules.dart';
-import 'package:personaltskmng/domain/rules/l_rules.dart';
-import 'package:personaltskmng/features/daily_plan/presentation/providers/planning_providers.dart';
-import 'package:personaltskmng/features/daily_plan/presentation/viewmodels/planning_view_model.dart';
-import 'package:personaltskmng/features/daily_plan/presentation/viewmodels/today_view_model.dart';
-import 'package:personaltskmng/features/daily_plan/presentation/widgets/plan_texts.dart';
-import 'package:personaltskmng/planning/controller/planning_controller.dart';
-import 'package:personaltskmng/quran_data/controller/quran_providers.dart';
-import 'package:personaltskmng/shared/extensions/l10n_x.dart';
-import 'package:personaltskmng/shared/widgets/empty_state.dart';
-import 'package:personaltskmng/shared/widgets/page_state_widgets.dart';
-import 'package:personaltskmng/shared/widgets/text_flow.dart';
+import 'package:personaltskmng/features/memo/presentation/memo_text.dart';
+import 'package:personaltskmng/features/memo/presentation/providers/memo_providers.dart';
+import 'package:personaltskmng/features/memo/presentation/widgets/segment_sheet.dart';
+import 'package:personaltskmng/memo/models/memo_status.dart';
+import 'package:personaltskmng/memo/models/page_map.dart';
+import 'package:personaltskmng/memo/models/partition.dart';
+import 'package:personaltskmng/memo/models/segment_status.dart';
+import 'package:personaltskmng/shared/widgets/status_widgets.dart';
 
-/// The Q overview: counts, the next M starts and the 71 ch with a colored cell
-/// per page. Read-only: nothing here changes the Q.
-class OverviewPage extends ConsumerWidget {
+/// The overview: the whole Quran page by page at a glance, then the pieces of
+/// the chosen partition (the user's own ch by default) with how each one stands,
+/// in order or most urgent first. Read-only: nothing here changes the log.
+class OverviewPage extends ConsumerStatefulWidget {
   const OverviewPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final load = ref.watch(planningViewModelProvider);
-    // The Today session holds the latest Q; read again after every log and
-    // after the planning settings (L days) change.
-    final today = ref.watch(todayViewModelProvider);
-    ref.watch(settingsRevisionProvider);
-    final controller = ref.read(planningControllerProvider);
+  ConsumerState<OverviewPage> createState() => _OverviewPageState();
+}
 
-    Widget body;
-    switch (load) {
-      case PlanningLoadFailed(:final reason):
-        body = EmptyState(
-          icon: Icons.error_outline_rounded,
-          title: l10n.failedTitle,
-          message: l10n.failedMessage(reason),
-        );
-      case PlanningEmptyStarted():
-        body = EmptyState(
-          icon: Icons.grid_view_rounded,
-          title: l10n.overviewTitle,
-          message: l10n.overviewNeedSetup,
-        );
-      case PlanningLoaded():
-        final q = today.session?.currentQ ?? controller.state.q;
-        final nowDay = Day.fromDateTime(ref.read(todayClockProvider)());
-        body = _OverviewList(
-          q: q,
-          day: today.session?.day ?? nowDay,
-          lMonthDays: controller.settings.constraints.lMonthDays,
-        );
+class _OverviewPageState extends ConsumerState<OverviewPage> {
+  /// The partition chosen here; null follows the default of the settings.
+  String? _partitionId;
+  bool _urgentFirst = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = MemoText.of(context);
+    final theme = Theme.of(context);
+    final memo = ref.watch(memoProvider);
+    final partition = memo.partitionById(_partitionId ?? memo.settings.partitionId);
+    final view = memo.view;
+
+    final spine = <MemoStatus>[
+      for (var page = 1; page <= PageMap.pageCount; page++)
+        view.statusOf(memo.pages.spanOfPage(page)).worst,
+    ];
+    final rows = Worklist.of(view, partition);
+    if (_urgentFirst) {
+      rows.sort((a, b) => Worklist.compareUrgency(a, b, memo.today));
     }
+
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.overviewTitle)),
-      body: body,
-    );
-  }
-}
-
-class _OverviewList extends StatelessWidget {
-  const _OverviewList({
-    required this.q,
-    required this.day,
-    required this.lMonthDays,
-  });
-
-  final Q q;
-  final Day day;
-  final int lMonthDays;
-
-  @override
-  Widget build(BuildContext context) {
-    final table = ChTable.instance;
-    final byCh = q.totalPages == ChTable.totalPages;
-    return Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: AppBreakpoints.formMaxWidth),
-        child: ListView.builder(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.sm,
-            AppSpacing.lg,
-            AppSpacing.xxl,
-          ),
-          itemCount: byCh ? ChTable.chCount + 1 : 1,
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                child: _SummaryCard(q: q),
-              );
-            }
-            final ch = table.byNumber(index);
-            return _ChRow(
-              ch: ch.number,
-              pages: table.pagesOf(ch.number),
-              q: q,
-              day: day,
-              lMonthDays: lMonthDays,
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({required this.q});
-
-  final Q q;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final counts = q.stateCounts;
-    final main = q.mainD;
-    final byCh = q.totalPages == ChTable.totalPages;
-    // Forward is toward higher pages, the way the text runs: to the left when
-    // it runs right to left.
-    final rtl = context.textRunsRightToLeft;
-    final forwardIcon = rtl
-        ? Icons.arrow_back_rounded
-        : Icons.arrow_forward_rounded;
-    final backwardIcon = rtl
-        ? Icons.arrow_forward_rounded
-        : Icons.arrow_back_rounded;
-
-    final lines = <(IconData, String)>[];
-    if (main != null && byCh) {
-      lines.add((
-        Icons.flag_outlined,
-        l10n.overviewMain(chTexts(l10n, main.range).join(', ')),
-      ));
-      // Forward: the page after the main range, when it is a free ND page.
-      final after = main.range.end + 1;
-      if (after <= q.totalPages && q.page(after).state == PageState.nd) {
-        lines.add((forwardIcon, l10n.overviewNextForward(after)));
-      }
-      // Backward: the first page of the first backward candidate.
-      final back = STable.backwardCandidates(q, main.range.start, 1);
-      if (back.isNotEmpty) {
-        final block = STable.backwardBlock(main.range.start)!;
-        lines.add((
-          backwardIcon,
-          l10n.overviewNextBackward(
-            back.first,
-            block.s,
-            rangeText(l10n, block.pages),
-          ),
-        ));
-      }
-    } else {
-      lines.add((Icons.flag_outlined, l10n.overviewNoMain));
-    }
-
-    return Material(
-      color: scheme.surfaceContainerLow,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.hero),
-        side: BorderSide(color: scheme.outlineVariant),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            StateDistributionBar(counts: counts, height: 16),
-            const SizedBox(height: AppSpacing.lg),
-            Wrap(
-              spacing: AppSpacing.lg,
-              runSpacing: AppSpacing.sm,
-              children: [
-                for (final state in StateDistributionBar.order)
-                  _LegendItem(state: state, count: counts[state] ?? 0),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            const Divider(),
-            const SizedBox(height: AppSpacing.lg),
-            Wrap(
-              spacing: AppSpacing.xl,
-              runSpacing: AppSpacing.xs,
-              children: [
+      appBar: AppBar(title: Text(text.overviewTitle)),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: AppBreakpoints.formMaxWidth),
+          child: ListView(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            children: [
+              Text(text.wholeQuran, style: theme.textTheme.titleSmall),
+              const SizedBox(height: AppSpacing.sm),
+              StatusSpine(statuses: spine),
+              if (!memo.pages.exact) ...[
+                const SizedBox(height: AppSpacing.sm),
                 Text(
-                  l10n.overviewDRanges(q.dRanges.length),
-                  style: theme.textTheme.titleSmall,
-                ),
-                Text(
-                  l10n.overviewMerged(q.mergedCh.length),
-                  style: theme.textTheme.titleSmall,
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-            for (final (icon, text) in lines)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Icon(
-                        icon,
-                        size: 18,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(child: Text(text)),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// One legend entry: the cell as it is drawn in the grid, the state's
-/// letters and how many pages are in it.
-class _LegendItem extends StatelessWidget {
-  const _LegendItem({required this.state, required this.count});
-
-  final PageState state;
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _Cell(state: state, size: 14),
-        const SizedBox(width: AppSpacing.xs + 2),
-        Text(
-          state.name.toUpperCase(),
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Text('$count', style: theme.textTheme.titleSmall),
-      ],
-    );
-  }
-}
-
-/// One page. A page in ND is an empty outline (nothing written yet); every
-/// other state is filled. F pages carry a dot as well, so lapsed pages are
-/// told apart by shape and not only by color.
-class _Cell extends StatelessWidget {
-  const _Cell({required this.state, this.size = 12});
-
-  final PageState state;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final colors = context.pageStateColors;
-    final radius = BorderRadius.circular(AppRadius.cell);
-    if (state == PageState.nd) {
-      return Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          borderRadius: radius,
-          border: Border.all(color: scheme.outlineVariant),
-        ),
-      );
-    }
-    final fill = colors.of(state);
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: fill,
-        borderRadius: radius,
-        border: Border.all(
-          color: Color.lerp(fill, scheme.onSurface, 0.22)!,
-          width: 0.75,
-        ),
-      ),
-      child: state.isF
-          ? Container(
-              width: size * 0.32,
-              height: size * 0.32,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.onColorOf(state),
-              ),
-            )
-          : null,
-    );
-  }
-}
-
-class _ChRow extends ConsumerWidget {
-  const _ChRow({
-    required this.ch,
-    required this.pages,
-    required this.q,
-    required this.day,
-    required this.lMonthDays,
-  });
-
-  final int ch;
-  final List<int> pages;
-  final Q q;
-  final Day day;
-  final int lMonthDays;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final merged = q.mergedCh.contains(ch);
-    // Where a juz begins, in the print the reader chose (display only: it needs
-    // the page lines, and without them there are simply no dividers). Under the
-    // 1421 print a juz can begin a page later than in the planner's tables.
-    final juzPages = ref.watch(juzPagesProvider).value;
-    final juzAt = <int, int>{
-      if (juzPages != null) for (final j in juzPages) j.first: j.juz,
-    };
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        InkWell(
-          borderRadius: BorderRadius.circular(AppRadius.control),
-          onTap: () => _showPages(context),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: AppSpacing.md,
-              horizontal: AppSpacing.xs,
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 84,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.chLabelOne(ch),
-                        style: theme.textTheme.titleMedium,
-                      ),
-                      Text(
-                        pagesText(l10n, pages.first, pages.last),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                      if (merged)
-                        Padding(
-                          padding: const EdgeInsets.only(top: AppSpacing.xs),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 1,
-                            ),
-                            decoration: BoxDecoration(
-                              color: scheme.secondaryContainer,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              l10n.overviewBadgeMerged,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: scheme.onSecondaryContainer,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Wrap(
-                    // The cells run in text order: page 1 first, from the
-                    // right edge when the text runs right to left.
-                    textDirection: context.textFlow,
-                    spacing: 3,
-                    runSpacing: 3,
-                    children: [
-                      for (final page in pages) ...[
-                        if (juzAt[page] != null) _JuzMark(juz: juzAt[page]!),
-                        _Cell(state: q.page(page).state),
-                      ],
-                    ],
+                  text.pagesApproximate,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
-            ),
-          ),
-        ),
-        const Divider(),
-      ],
-    );
-  }
-
-  void _showPages(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (context) => _PagesSheet(
-        ch: ch,
-        pages: pages,
-        q: q,
-        day: day,
-        lMonthDays: lMonthDays,
-      ),
-    );
-  }
-}
-
-/// A thin divider with `J15` where a juz begins, between the page cells.
-class _JuzMark extends StatelessWidget {
-  const _JuzMark({required this.juz});
-
-  final int juz;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Semantics(
-      label: 'Juz $juz',
-      excludeSemantics: true,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 1.5,
-            height: 14,
-            color: scheme.outline.withValues(alpha: 0.7),
-          ),
-          const SizedBox(width: 2),
-          Text(
-            'J$juz',
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontSize: 9,
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PagesSheet extends StatelessWidget {
-  const _PagesSheet({
-    required this.ch,
-    required this.pages,
-    required this.q,
-    required this.day,
-    required this.lMonthDays,
-  });
-
-  final int ch;
-  final List<int> pages;
-  final Q q;
-  final Day day;
-  final int lMonthDays;
-
-  /// The units needed to leave a D level, or null for a page that is not D.
-  int? _unitsNeeded(PageRecord p) {
-    if (!p.state.isD) return null;
-    final table = p.isPrime
-        ? DomainConstants.primeProgressionTargetUnits
-        : DomainConstants.progressionTargetUnits;
-    return table[p.state];
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final material = MaterialLocalizations.of(context);
-    String date(Day d) => material.formatMediumDate(d.toDateTime());
-    final quiet = theme.textTheme.bodySmall?.copyWith(
-      color: scheme.onSurfaceVariant,
-    );
-
-    Widget pageTile(int number) {
-      final p = q.page(number);
-      final label = LRules.label(p, day, lMonthDays: lMonthDays);
-      final needed = _unitsNeeded(p);
-      final lastR = p.lastR;
-      final next = DegradationRules.nextDegradationDeadline(p, day);
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: _Cell(state: p.state, size: 18),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: AppSpacing.lg),
+              Row(
                 children: [
-                  Text(
-                    l10n.sheetPageTitle(number, label),
-                    style: theme.textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    needed == null
-                        ? l10n.sheetProgressNone
-                        : l10n.sheetProgress(p.progressUnits, needed),
-                    style: quiet,
-                  ),
-                  if (needed != null && needed > 0)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AppSpacing.xs + 2,
-                      ),
-                      child: LinearProgressIndicator(
-                        value: (p.progressUnits / needed).clamp(0.0, 1.0).toDouble(),
-                        minHeight: 4,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
+                  Expanded(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: partition.id,
+                      items: [
+                        for (final p in memo.partitions)
+                          DropdownMenuItem(value: p.id, child: Text(p.name)),
+                      ],
+                      onChanged: (id) => setState(() => _partitionId = id),
                     ),
-                  Text(
-                    p.isPrime ? l10n.sheetPrimeYes : l10n.sheetPrimeNo,
-                    style: quiet,
                   ),
-                  Text(
-                    lastR == null
-                        ? l10n.sheetLastRNone
-                        : l10n.sheetLastR(date(lastR), day.daysSince(lastR)),
-                    style: quiet,
-                  ),
-                  if (LRules.isActive(p, day, lMonthDays: lMonthDays))
-                    Text(
-                      l10n.sheetLActive(
-                        date(p.lastL!.plusDays(lMonthDays - 1)),
-                      ),
-                      style: quiet,
-                    ),
-                  if (next != null)
-                    Text(l10n.sheetNextStep(date(next)), style: quiet),
                 ],
               ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xl,
-              AppSpacing.xs,
-              AppSpacing.xl,
-              AppSpacing.md,
-            ),
-            child: Text(
-              l10n.chSegmentText(
-                l10n.chLabelOne(ch),
-                pagesText(l10n, pages.first, pages.last),
+              const SizedBox(height: AppSpacing.sm),
+              SegmentedButton<bool>(
+                segments: [
+                  ButtonSegment(value: false, label: Text(text.sortOrder)),
+                  ButtonSegment(value: true, label: Text(text.sortUrgent)),
+                ],
+                selected: {_urgentFirst},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) => setState(() => _urgentFirst = s.first),
               ),
-              style: theme.textTheme.titleLarge,
-            ),
+              const SizedBox(height: AppSpacing.md),
+              for (final row in rows)
+                _SegmentCard(
+                  partition: partition,
+                  row: row,
+                  pages: memo.pages,
+                  onTap: () => showSegmentSheet(
+                    context,
+                    partition: partition,
+                    segment: row.segment,
+                  ),
+                ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-            child: PageSpine(
-              states: [for (final page in pages) q.page(page).state],
-              height: 10,
-            ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SegmentCard extends StatelessWidget {
+  const _SegmentCard({
+    required this.partition,
+    required this.row,
+    required this.pages,
+    required this.onTap,
+  });
+
+  final Partition partition;
+  final SegmentStatus row;
+  final PageMap pages;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = MemoText.of(context);
+    final theme = Theme.of(context);
+    final status = row.status;
+    final p = pages.pagesOf(row.segment.span);
+    final pageText = p.first == p.last ? 'p ${p.first}' : 'p ${p.first}-${p.last}';
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${partition.labelOf(row.segment.number)} · $pageText',
+                      style: theme.textTheme.titleSmall,
+                    ),
+                  ),
+                  StatusBadge(status: status.worst, dense: true),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                text.segmentSubtitle(status.learned, status.ayahs, status.newestSince),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              StatusBar(status: status, height: 8),
+            ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Flexible(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-              shrinkWrap: true,
-              itemCount: pages.length,
-              separatorBuilder: (_, _) => const Divider(),
-              itemBuilder: (context, i) => pageTile(pages[i]),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

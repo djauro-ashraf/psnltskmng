@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
-import 'package:personaltskmng/core/theme/page_state_colors.dart';
+import 'package:personaltskmng/core/theme/status_colors.dart';
 
 /// Material 3 light + dark themes, hand-tuned.
 ///
 /// The look: a well-set page. Spectral (a screen serif) carries titles and
 /// the big numbers, IBM Plex Sans carries everything you tap or scan. The
 /// surfaces are quiet neutrals and the primary is a deep mulberry, which is
-/// far from every page-state hue, so the only saturated things on screen are
-/// the page states themselves (see `PageStateColors`).
+/// far from every status hue, so the only saturated things on screen are
+/// the statuses themselves (see `StatusColors`).
 abstract final class AppTheme {
   /// Font families declared in pubspec.yaml.
   static const String serif = 'Spectral';
@@ -184,7 +184,7 @@ abstract final class AppTheme {
       textTheme: text,
       scaffoldBackgroundColor: scheme.surface,
       extensions: <ThemeExtension<dynamic>>[
-        isDark ? PageStateColors.dark : PageStateColors.light,
+        isDark ? StatusColors.dark : StatusColors.light,
       ],
       appBarTheme: AppBarTheme(
         centerTitle: false,

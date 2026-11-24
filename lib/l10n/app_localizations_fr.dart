@@ -838,11 +838,11 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get aiOfflineNote =>
-      'Sans clé, ou si le fournisseur échoue, le planificateur hors ligne est utilisé.';
+      'Sans clé, ou si le fournisseur échoue, aucun plan n’est fait. Tout le reste de l’application fonctionne sans.';
 
   @override
   String get aiPrivacy =>
-      'Une demande de plan envoie au fournisseur un résumé de votre Q (états des pages, aucun texte personnel).';
+      'Une demande de plan envoie au fournisseur : vos morceaux avec le nombre d’ayahs par statut, les nombres derrière les statuts, les derniers jours de votre journal et les souhaits que vous avez écrits. Rien d’autre, et jamais le texte du Coran.';
 
   @override
   String get aiModelPickerTitle => 'Choisir un modèle';

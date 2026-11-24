@@ -2,47 +2,51 @@ import 'dart:convert';
 
 import 'package:personaltskmng/features/settings/data/models/settings_model.dart';
 import 'package:personaltskmng/features/settings/domain/entities/app_settings.dart';
+import 'package:personaltskmng/memo/data/legacy_import.dart';
+import 'package:personaltskmng/memo/data/memo_codec.dart';
+import 'package:personaltskmng/memo/models/memo_data.dart';
+import 'package:personaltskmng/memo/models/partition.dart';
 import 'package:personaltskmng/notes/data/note_codec.dart';
 import 'package:personaltskmng/notes/models/note_book.dart';
-import 'package:personaltskmng/planning/data/app_state_codec.dart';
-import 'package:personaltskmng/planning/data/planning_settings.dart';
-import 'package:personaltskmng/planning/data/stored_state.dart';
-import 'package:personaltskmng/planning/day/day_record.dart';
 
-/// Complete portable backup containing all state, settings, and historical
-/// day logs. Serializes to/from JSON so users can export and import across devices.
+/// Complete portable backup: the app settings, everything of the memorisation
+/// side (`memo.json`: the log, the settings, the user's partitions, the planner
+/// wishes) and the notes. Serializes to/from JSON so users can export and import
+/// across devices.
+///
+/// Backups made by the old planner (versions 1 and 2) are still read: their
+/// history of M and R becomes the log (see `LegacyImport`), and the rest of the
+/// old planner's data is left behind.
 final class BackupData {
   const BackupData({
     required this.version,
     required this.exportedAt,
     required this.appSettings,
-    required this.planningSettings,
-    required this.state,
-    required this.dayRecords,
+    required this.memo,
     this.notes,
   });
 
-  /// 1: state, settings, day records. 2: also the notes.
-  static const int currentVersion = 2;
+  /// 1: old planner state, settings, day records. 2: also the notes. 3: the
+  /// memorisation file (`memo.json`) instead of the old planner's data.
+  static const int currentVersion = 3;
 
   final int version;
   final DateTime exportedAt;
   final AppSettings appSettings;
-  final PlanningSettings planningSettings;
-  final StoredState state;
-  final List<DayRecord> dayRecords;
+  final MemoData memo;
 
   /// Every note, open and archived, or null when the backup holds none because
   /// it was made before notes existed (version 1): restoring such a backup
   /// leaves the notes on the device as they are.
   final NoteBook? notes;
 
-  /// Creates a backup bundle from active runtime stores.
+  /// How many log lines the backup holds.
+  int get eventCount => memo.events.length;
+
+  /// Creates a backup bundle from the active data.
   factory BackupData.create({
     required AppSettings appSettings,
-    required PlanningSettings planningSettings,
-    required StoredState state,
-    required List<Map<String, Object?>> dayRecordsJson,
+    required MemoData memo,
     NoteBook notes = const NoteBook(),
     DateTime? exportedAt,
   }) {
@@ -50,9 +54,7 @@ final class BackupData {
       version: currentVersion,
       exportedAt: exportedAt ?? DateTime.now(),
       appSettings: appSettings,
-      planningSettings: planningSettings,
-      state: state,
-      dayRecords: [for (final json in dayRecordsJson) DayRecord(json)],
+      memo: memo,
       notes: notes,
     );
   }
@@ -63,10 +65,9 @@ final class BackupData {
       'version': version,
       'exportedAt': exportedAt.toIso8601String(),
       'appSettings': SettingsModel.fromEntity(appSettings).toJson(),
-      'planningSettings': AppStateCodec.settingsToText(planningSettings),
-      'state': AppStateCodec.stateToText(state),
-      'dayRecords': [for (final r in dayRecords) r.json],
-      // The notes keep their own text form (`notes.json`), like the state.
+      // The memorisation data keeps its own text form (`memo.json`).
+      'memo': MemoCodec.toText(memo),
+      // The notes keep their own text form (`notes.json`), like the memo.
       if (notes != null) 'notes': NoteCodec.toText(notes!),
     };
     return const JsonEncoder.withIndent('  ').convert(map);
@@ -95,25 +96,25 @@ final class BackupData {
         ? SettingsModel.fromJson(appSettingsJson).toEntity()
         : const AppSettings();
 
-    final planningSettingsText = decoded['planningSettings'] as String?;
-    if (planningSettingsText == null) {
-      throw const FormatException('Missing planningSettings in backup.');
-    }
-    final decodedSettings =
-        AppStateCodec.settingsFromText(planningSettingsText);
-
-    final stateText = decoded['state'] as String?;
-    if (stateText == null) {
-      throw const FormatException('Missing state in backup.');
-    }
-    final state = AppStateCodec.stateFromText(stateText);
-
-    final dayRecordsList = decoded['dayRecords'] as List<dynamic>? ?? [];
-    final dayRecords = <DayRecord>[];
-    for (final item in dayRecordsList) {
-      if (item is Map<String, dynamic>) {
-        dayRecords.add(DayRecord(Map<String, Object?>.from(item)));
+    final MemoData memo;
+    if (version >= 3) {
+      final memoText = decoded['memo'];
+      if (memoText is! String) {
+        throw const FormatException('Missing memo in backup.');
       }
+      memo = MemoCodec.fromText(memoText);
+    } else {
+      final stateText = decoded['state'];
+      if (stateText is! String) {
+        throw const FormatException('Missing state in backup.');
+      }
+      final events = LegacyImport.eventsFrom(stateText);
+      memo = MemoData(
+        events: events,
+        nextId: events.length + 1,
+        partitions: [Partition.originalCh()],
+        legacyImported: true,
+      );
     }
 
     // Read now, before anything is written: a backup with unreadable notes is
@@ -131,9 +132,7 @@ final class BackupData {
       version: version,
       exportedAt: exportedAt,
       appSettings: appSettings,
-      planningSettings: decodedSettings.settings,
-      state: state,
-      dayRecords: dayRecords,
+      memo: memo,
       notes: notes,
     );
   }

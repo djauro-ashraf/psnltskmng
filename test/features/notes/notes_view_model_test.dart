@@ -1,18 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personaltskmng/domain/models/day.dart';
-import 'package:personaltskmng/features/daily_plan/presentation/providers/planning_providers.dart';
+import 'package:personaltskmng/features/memo/presentation/providers/memo_providers.dart';
 import 'package:personaltskmng/features/notes/presentation/providers/notes_providers.dart';
 import 'package:personaltskmng/features/notes/presentation/viewmodels/notes_view_model.dart';
 import 'package:personaltskmng/notes/controller/notes_controller.dart';
-import 'package:personaltskmng/notes/data/day_log.dart';
 import 'package:personaltskmng/notes/data/note_store.dart';
-import 'package:personaltskmng/planning/day/day_record.dart';
+
+import '../../support/fake_day_log.dart';
 
 void main() {
   late DateTime now;
   late InMemoryNoteStore store;
-  late InMemoryDayRecordStore records;
+  late FakeDayLog records;
   late ProviderContainer container;
 
   NotesViewModel vm() => container.read(notesViewModelProvider.notifier);
@@ -21,32 +21,23 @@ void main() {
   setUp(() async {
     now = DateTime(2026, 10, 10, 9);
     store = InMemoryNoteStore();
-    records = InMemoryDayRecordStore();
+    records = FakeDayLog();
     final controller = NotesController(
       store: store,
-      dayLog: dayLogReaderOf(records, () => 'q'),
+      dayLog: records.reader,
     );
     await controller.load();
     container = ProviderContainer(
       overrides: [
         notesControllerProvider.overrideWithValue(controller),
-        todayClockProvider.overrideWithValue(() => now),
+        memoClockProvider.overrideWithValue(() => now),
       ],
     );
     addTearDown(container.dispose);
   });
 
-  Future<void> logR(DateTime when, int from, int to, {bool ok = true}) =>
-      records.save(
-        DayRecord({
-          'schema': 1,
-          'qId': 'q',
-          'day': Day.fromDateTime(when).toString(),
-          'logged': [
-            {'op': 'R', 'from': from, 'to': to, 'ok': ok},
-          ],
-        }),
-      );
+  Future<void> logR(DateTime when, int from, int to) =>
+      records.logR(Day.fromDateTime(when), from, to);
 
   test('add publishes the note and the open-note counts', () async {
     expect(await vm().add(page: 12, s: 2, ch: 3, text: 'a verb'), isTrue);
@@ -89,7 +80,7 @@ void main() {
     await vm().add(page: 12, s: 2, ch: 3, text: 'x');
     final id = state().book.open.single.id;
     await vm().remembered(id);
-    await logR(now, 10, 20, ok: false); // a failed R does not count
+    // Nothing is logged that day: no covering R.
     now = DateTime(2026, 10, 11, 8);
     await vm().refresh();
 

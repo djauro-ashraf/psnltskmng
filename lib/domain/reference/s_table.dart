@@ -1,6 +1,4 @@
 import 'package:personaltskmng/domain/models/page_range.dart';
-import 'package:personaltskmng/domain/models/page_state.dart';
-import 'package:personaltskmng/domain/models/q.dart';
 import 'package:personaltskmng/domain/reference/ch_table.dart';
 
 /// One s of [STable]: its exact first and last page.
@@ -101,29 +99,6 @@ abstract final class STable {
     final s = highestStartingBefore(rangeStart);
     if (s == null) return null;
     return BackwardBlock(s, PageRange(_rows[s - 1].first, rangeStart - 1));
-  }
-
-  /// The ND pages a backward expansion learns, in the order they are learned,
-  /// at most [maxPages]: starting at [rangeStart], take the backward block, put
-  /// its ND pages in page order on the list (F3 and every other state are
-  /// skipped), then continue from the block's first page with the block
-  /// before, until the list is full or the start is 1. Inside a block the pages
-  /// go up, the blocks go down. Empty for a Q that is not the 604-page Q or
-  /// when [maxPages] <= 0. Pure: reads the page states of [q] only.
-  static List<int> backwardCandidates(Q q, int rangeStart, int maxPages) {
-    if (q.totalPages != ChTable.totalPages || maxPages <= 0) return const [];
-    final out = <int>[];
-    var start = rangeStart;
-    while (out.length < maxPages && start >= 2) {
-      final block = backwardBlock(start)!;
-      for (final page in block.pages.pages) {
-        if (q.page(page).state != PageState.nd) continue;
-        if (out.length >= maxPages) return out;
-        out.add(page);
-      }
-      start = block.pages.start;
-    }
-    return out;
   }
 
   static const List<_S> _rows = [

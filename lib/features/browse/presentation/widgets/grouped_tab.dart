@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:personaltskmng/core/theme/page_state_colors.dart';
+import 'package:personaltskmng/core/theme/status_colors.dart';
+import 'package:personaltskmng/features/memo/presentation/memo_text.dart';
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/features/browse/domain/browse_data.dart';
 import 'package:personaltskmng/features/browse/domain/browse_groups.dart';
@@ -56,7 +57,7 @@ class _GroupedTabState extends ConsumerState<GroupedTab>
 
   BrowseSection _sectionOf(AppLocalizations l10n, BrowseGroup group) {
     final unit = group.unit;
-    final state = group.state;
+    final status = group.status;
     final hasNotes = group.hasNotes;
     final scheme = Theme.of(context).colorScheme;
     String? title;
@@ -72,10 +73,10 @@ class _GroupedTabState extends ConsumerState<GroupedTab>
           : pagesLabel(l10n, group.firstPage, group.lastPage);
       accentColor = scheme.primary;
       if (unit == BrowseUnit.s) aside = SurahHeaderAside(s: group.number);
-    } else if (state != null) {
-      title = state.name.toUpperCase();
+    } else if (status != null) {
+      title = MemoText.of(context).status(status);
       subtitle = widget.countLabel(l10n, group.items.length);
-      accentColor = context.pageStateColors.of(state);
+      accentColor = context.statusColors.of(status);
     } else if (hasNotes != null) {
       title = hasNotes ? l10n.browseGroupHasNotes : l10n.browseGroupNoNotes;
       subtitle = widget.countLabel(l10n, group.items.length);

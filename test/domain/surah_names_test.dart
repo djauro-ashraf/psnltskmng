@@ -4,10 +4,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:personaltskmng/domain/reference/s_table.dart';
 import 'package:personaltskmng/domain/reference/surah_names.dart';
 
-List<File> _dartFiles(String directory) => [
-  for (final entity in Directory(directory).listSync(recursive: true))
-    if (entity is File && entity.path.endsWith('.dart')) entity,
-];
+List<File> _dartFiles(String directory) {
+  final dir = Directory(directory);
+  if (!dir.existsSync()) return const [];
+  return [
+    for (final entity in dir.listSync(recursive: true))
+      if (entity is File && entity.path.endsWith('.dart')) entity,
+  ];
+}
 
 void main() {
   group('SurahNames', () {

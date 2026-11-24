@@ -2,34 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personaltskmng/app/app.dart';
-import 'package:personaltskmng/features/daily_plan/presentation/providers/planning_providers.dart';
+import 'package:personaltskmng/features/memo/presentation/providers/memo_providers.dart';
+import 'package:personaltskmng/features/memo/presentation/providers/reading_providers.dart';
 import 'package:personaltskmng/features/settings/domain/entities/app_settings.dart';
 import 'package:personaltskmng/features/settings/presentation/providers/settings_providers.dart';
-import 'package:personaltskmng/planning/controller/planning_controller.dart';
-import 'package:personaltskmng/planning/data/app_state_store.dart';
-import 'package:personaltskmng/planning/day/day_record.dart';
+import 'package:personaltskmng/features/today/presentation/pages/today_page.dart';
+import 'package:personaltskmng/memo/controller/memo_controller.dart';
+import 'package:personaltskmng/memo/controller/reading_controller.dart';
+import 'package:personaltskmng/memo/data/memo_store.dart';
+import 'package:personaltskmng/memo/data/reading_store.dart';
 
 import 'support/fake_settings_repository.dart';
 
-/// Builds a [PlanningController] backed by empty in-memory stores and loads
-/// it (returns [PlanningLoadStartedFresh] because no data exists yet).
-Future<PlanningController> _freshController() async {
-  final ctrl = PlanningController(
-    store: InMemoryAppStateStore(),
-    dayRecords: InMemoryDayRecordStore(),
-  );
-  await ctrl.load();
-  return ctrl;
+/// A [MemoController] on an empty in-memory store, loaded (a first run).
+Future<MemoController> _freshController() async {
+  final controller = MemoController(store: InMemoryMemoStore());
+  await controller.load();
+  return controller;
 }
 
-Widget _app(
-  FakeSettingsRepository repository,
-  PlanningController controller,
-) {
+Widget _app(FakeSettingsRepository repository, MemoController memo) {
   return ProviderScope(
     overrides: [
       settingsRepositoryProvider.overrideWithValue(repository),
-      planningControllerProvider.overrideWithValue(controller),
+      memoControllerProvider.overrideWithValue(memo),
+      readingControllerProvider.overrideWithValue(
+        ReadingController(store: InMemoryReadingStore()),
+      ),
     ],
     child: const PersonalTskMngApp(),
   );
@@ -37,11 +36,11 @@ Widget _app(
 
 void main() {
   testWidgets('opens on Today and can navigate to Settings', (tester) async {
-    final ctrl = await _freshController();
-    await tester.pumpWidget(_app(FakeSettingsRepository(), ctrl));
+    final memo = await _freshController();
+    await tester.pumpWidget(_app(FakeSettingsRepository(), memo));
     await tester.pumpAndSettle();
 
-    expect(find.text('Set up your Q'), findsOneWidget);
+    expect(find.byType(TodayPage), findsOneWidget);
 
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
@@ -53,11 +52,11 @@ void main() {
   testWidgets('renders in French when the language is set to fr', (
     tester,
   ) async {
-    final ctrl = await _freshController();
+    final memo = await _freshController();
     await tester.pumpWidget(
       _app(
         FakeSettingsRepository(initial: const AppSettings(localeCode: 'fr')),
-        ctrl,
+        memo,
       ),
     );
     await tester.pumpAndSettle();

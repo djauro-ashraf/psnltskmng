@@ -2,78 +2,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:personaltskmng/domain/models/day.dart';
 import 'package:personaltskmng/domain/models/page_range.dart';
 import 'package:personaltskmng/notes/controller/notes_controller.dart';
-import 'package:personaltskmng/notes/data/day_log.dart';
 import 'package:personaltskmng/notes/data/note_store.dart';
-import 'package:personaltskmng/planning/day/day_record.dart';
+import '../support/fake_day_log.dart';
 
 const Day _d0 = Day(20000);
 
 Day _day(int n) => Day(20000 + n);
 
-Map<String, Object?> _op(
-  String op,
-  int from,
-  int to, {
-  bool ok = true,
-}) => {'op': op, 'from': from, 'to': to, 'ok': ok};
-
-DayRecord _record(Day day, List<Map<String, Object?>> logged) =>
-    DayRecord({'schema': 1, 'qId': 'q', 'day': day.toString(), 'logged': logged});
-
 void main() {
-  group('successfulRanges', () {
-    test('keeps successful R and L, drops M, failures and bad entries', () {
-      final ranges = successfulRanges({
-        'logged': [
-          _op('R', 10, 20),
-          _op('L', 30, 30),
-          _op('M', 40, 50),
-          _op('R', 60, 70, ok: false),
-          {'op': 'R', 'from': 'x', 'to': 5, 'ok': true},
-          {'op': 'R', 'from': 9, 'to': 5, 'ok': true},
-          'not a map',
-        ],
-      });
-      expect(ranges.map((r) => '${r.start}-${r.end}'), ['10-20', '30-30']);
-    });
-
-    test('no logged list is no ranges', () {
-      expect(successfulRanges(const {}), isEmpty);
-      expect(successfulRanges(const {'logged': 3}), isEmpty);
-    });
-  });
-
-  group('dayLogReaderOf', () {
-    test('reads the record of that Q and day; a day without one has none', () async {
-      final store = InMemoryDayRecordStore();
-      await store.save(_record(_d0, [_op('R', 100, 110)]));
-      final reader = dayLogReaderOf(store, () => 'q');
-      expect(
-        (await reader(_d0)).map((r) => r.start),
-        [100],
-      );
-      expect(await reader(_day(1)), isEmpty);
-    });
-
-    test('another Q\'s record is not read', () async {
-      final store = InMemoryDayRecordStore();
-      await store.save(_record(_d0, [_op('R', 100, 110)]));
-      final reader = dayLogReaderOf(store, () => 'other');
-      expect(await reader(_d0), isEmpty);
-    });
-  });
-
   group('NotesController', () {
     late InMemoryNoteStore store;
-    late InMemoryDayRecordStore records;
+    late FakeDayLog records;
     late NotesController controller;
 
     setUp(() async {
       store = InMemoryNoteStore();
-      records = InMemoryDayRecordStore();
+      records = FakeDayLog();
       controller = NotesController(
         store: store,
-        dayLog: dayLogReaderOf(records, () => 'q'),
+        dayLog: records.reader,
       );
       await controller.load();
     });
@@ -136,7 +83,7 @@ void main() {
         text: 'hello',
         today: _d0,
       ))!;
-      await records.save(_record(_d0, [_op('R', 10, 20)]));
+      await records.logR(_d0, 10, 20);
 
       await controller.tap(note.id, _d0);
       // Same day: not judged, shown as a pending tick only.
@@ -156,10 +103,8 @@ void main() {
         text: 'hello',
         today: _d0,
       ))!;
-      // A failed R, and an M, do not count.
-      await records.save(
-        _record(_d0, [_op('R', 10, 20, ok: false), _op('M', 10, 20)]),
-      );
+      // Nothing was logged that day (an M, or an R that changed nothing, is not
+      // an R in the day log), so the tap is not covered.
       await controller.tap(note.id, _d0);
       await controller.settle(_day(1));
 
@@ -178,7 +123,7 @@ void main() {
         today: _d0,
       ))!;
       for (final n in [0, 1, 3, 4, 8]) {
-        await records.save(_record(_day(n), [_op('R', 12, 12)]));
+        await records.logR(_day(n), 12, 12);
         await controller.tap(note.id, _day(n));
         await controller.settle(_day(n + 1));
       }
@@ -196,7 +141,7 @@ void main() {
         text: 'hello',
         today: _d0,
       ))!;
-      await records.save(_record(_d0, [_op('R', 12, 12)]));
+      await records.logR(_d0, 12, 12);
       await controller.tap(note.id, _d0);
 
       // The app was not opened on day 1; on day 2 the tap of day 0 is judged
@@ -263,7 +208,7 @@ void main() {
       expect(controller.book.notes.length, 1);
 
       for (final n in [0, 1, 2, 3, 4]) {
-        await records.save(_record(_day(n), [_op('R', 12, 12)]));
+        await records.logR(_day(n), 12, 12);
         await controller.tap(note.id, _day(n));
         await controller.settle(_day(n + 1));
       }
@@ -275,7 +220,7 @@ void main() {
       expect(restored.count, 0);
     });
 
-    test('the controller never writes to the day records', () async {
+    test('the controller never writes to the day log', () async {
       final note = (await controller.add(
         page: 12,
         s: 2,
@@ -283,11 +228,11 @@ void main() {
         text: 'hello',
         today: _d0,
       ))!;
-      await records.save(_record(_d0, [_op('R', 12, 12)]));
-      final before = (await records.readAll()).toString();
+      await records.logR(_d0, 12, 12);
+      final before = records.toString();
       await controller.tap(note.id, _d0);
       await controller.settle(_day(1));
-      expect((await records.readAll()).toString(), before);
+      expect(records.toString(), before);
     });
   });
 }

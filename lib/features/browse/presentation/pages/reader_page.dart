@@ -11,6 +11,8 @@ import 'package:personaltskmng/features/browse/domain/details_group.dart';
 import 'package:personaltskmng/features/browse/domain/reader_request.dart';
 import 'package:personaltskmng/features/browse/presentation/browse_paths.dart';
 import 'package:personaltskmng/features/browse/presentation/pages/browse_not_found_page.dart';
+import 'package:personaltskmng/features/memo/presentation/providers/reading_providers.dart';
+import 'package:personaltskmng/memo/controller/reading_tracker.dart';
 import 'package:personaltskmng/features/browse/presentation/providers/browse_providers.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/auto_read_pill.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/context_line_bar.dart';
@@ -103,6 +105,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   int _pageSeq = 0;
   int _contextSeq = 0;
 
+  // The time each page is in front of the reader, for the suggested log (see
+  // `ReadingTracker`). Measures nothing when reading suggestions are off.
+  late final ReadingTracker _tracker;
+  Timer? _readingTimer;
+
   late final ScreenWake _wake;
   late final ProviderContainer _container;
   bool _containerSet = false;
@@ -111,6 +118,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _tracker = createReadingTracker(ref);
+    _page.addListener(_trackPage);
+    _readingTimer = Timer.periodic(const Duration(seconds: 45), (_) {
+      _tracker.flush();
+      _persistReading();
+    });
     _wake = ref.read(screenWakeProvider);
     ref.listenManual<bool>(
       keepAwakeProvider,
@@ -153,6 +166,21 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     }
     // Not now: a provider must not change while the tree is being torn down.
     Future<void>.microtask(_saveLastRead);
+    _readingTimer?.cancel();
+    _page.removeListener(_trackPage);
+    _tracker.leave();
+    if (_containerSet) {
+      Future<void>.microtask(() {
+        try {
+          unawaited(
+            _container
+                .read(readingProvider.notifier)
+                .persistAndRefresh()
+                .catchError((_) {}),
+          );
+        } catch (_) {}
+      });
+    }
     _page.dispose();
     _context.dispose();
     super.dispose();
@@ -160,8 +188,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _tracker.resume();
+    } else if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _tracker.pause();
+    }
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
+      _persistReading();
       _saveLastRead();
       if (_containerSet) {
         try {
@@ -219,6 +255,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
         _context.value = at == null ? null : ContextLine.at(at);
         _resolved = true;
       });
+      _trackPage();
       if (_view == QuranView.mushaf) unawaited(_refreshMushafContext(entry.page));
     } catch (_) {
       if (mounted) setState(() => _failed = true);
@@ -552,8 +589,39 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     return '$page / ${MushafPage.pageCount}';
   }
 
+  /// Saves the reading evidence (never throws: a build without the reading
+  /// wiring, like a widget test, simply has nothing to save).
+  void _persistReading() {
+    try {
+      unawaited(
+        ref
+            .read(readingProvider.notifier)
+            .persistAndRefresh()
+            .catchError((_) {}),
+      );
+    } catch (_) {}
+  }
+
+  /// The page in front of the reader changed (or the reader just opened): the
+  /// tracker starts counting it.
+  void _trackPage() {
+    if (_resolved) _tracker.pageShown(_page.value);
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Any touch or scroll keeps the page counting (see `ReadingTracker`); the
+    // listener never takes part in the touch.
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) => _tracker.interaction(),
+      onPointerMove: (_) => _tracker.interaction(),
+      onPointerSignal: (_) => _tracker.interaction(),
+      child: _buildReader(context),
+    );
+  }
+
+  Widget _buildReader(BuildContext context) {
     if (_notFound) return const BrowseNotFoundPage();
     if (_failed) {
       return Scaffold(

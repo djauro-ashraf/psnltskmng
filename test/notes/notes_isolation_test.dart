@@ -4,10 +4,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// The rule: the notes live in their own file and never influence the
 /// planner. Checked on the imports, which is where an influence would start.
-List<File> _dartFiles(String directory) => [
-  for (final entity in Directory(directory).listSync(recursive: true))
-    if (entity is File && entity.path.endsWith('.dart')) entity,
-];
+List<File> _dartFiles(String directory) {
+  final dir = Directory(directory);
+  if (!dir.existsSync()) return const [];
+  return [
+    for (final entity in dir.listSync(recursive: true))
+      if (entity is File && entity.path.endsWith('.dart')) entity,
+  ];
+}
 
 Iterable<String> _imports(File file) => [
   for (final line in file.readAsLinesSync())

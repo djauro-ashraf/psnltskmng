@@ -5,10 +5,14 @@ import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 
 import '../support/divisions_fixture.dart';
 
-List<File> _dartFiles(String directory) => [
-  for (final entity in Directory(directory).listSync(recursive: true))
-    if (entity is File && entity.path.endsWith('.dart')) entity,
-];
+List<File> _dartFiles(String directory) {
+  final dir = Directory(directory);
+  if (!dir.existsSync()) return const [];
+  return [
+    for (final entity in dir.listSync(recursive: true))
+      if (entity is File && entity.path.endsWith('.dart')) entity,
+  ];
+}
 
 void main() {
   final fixture = DivisionsFixture.instance;

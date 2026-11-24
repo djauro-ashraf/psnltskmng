@@ -1,12 +1,9 @@
 import 'package:http/http.dart' as http;
 import 'package:personaltskmng/ai/ai_models.dart';
-import 'package:personaltskmng/ai/ai_planner.dart';
+import 'package:personaltskmng/ai/ai_provider.dart';
 import 'package:personaltskmng/ai/api_key_store.dart';
 import 'package:personaltskmng/ai/gemini_provider.dart';
 import 'package:personaltskmng/ai/groq_provider.dart';
-import 'package:personaltskmng/planning/controller/planning_controller.dart';
-import 'package:personaltskmng/planning/planners/rule_based_planner.dart';
-import 'package:personaltskmng/planning/validation/plan_validator.dart';
 
 /// One AI provider the app can use (the providers the code already has).
 final class AiProviderInfo {
@@ -50,9 +47,8 @@ AiProviderInfo aiProviderInfo(String id) => aiProviderInfos.firstWhere(
   orElse: () => aiProviderInfos.first,
 );
 
-/// The AI settings as the planner factory sees them right now. Mutable on
-/// purpose: the settings screen changes it, and the next plan reads it (the
-/// controller builds its planner lazily, see `PlanningController.plannerChanged`).
+/// The AI settings as the planner sees them right now. Mutable on purpose: the
+/// settings screen changes it, and the next plan reads it.
 /// Pure Dart. Holds no key, only which providers HAVE one.
 final class AiRuntime {
   AiRuntime({
@@ -82,22 +78,16 @@ final class AiRuntime {
   }
 }
 
-/// The planner factory of the app: the AI planner (with the rule-based planner
-/// as its offline fallback) when the AI is enabled and a key is saved for the
-/// chosen provider, otherwise the rule-based planner.
-PlannerFactory aiAwarePlannerFactory({
+/// The AI provider the planner asks, or null when the AI is off or the chosen
+/// provider has no saved key (the planner then simply is not offered). Read
+/// every time a plan is asked for, so a change in the settings applies at once.
+AiProvider? plannerProviderOf({
   required AiRuntime runtime,
   required ApiKeyStore keys,
   http.Client? client,
-}) => (engine, config) {
-  final offline = RuleBasedPlanner(engine: engine);
-  if (!runtime.enabled || !runtime.hasKey) return offline;
-  final provider = runtime.providerId == GroqProvider.providerId
+}) {
+  if (!runtime.enabled || !runtime.hasKey) return null;
+  return runtime.providerId == GroqProvider.providerId
       ? GroqProvider(keys: keys, model: runtime.model, client: client)
       : GeminiProvider(keys: keys, model: runtime.model, client: client);
-  return AiPlanner(
-    providers: [provider],
-    fallback: offline,
-    validator: PlanValidator(engine: engine, config: config),
-  );
-};
+}

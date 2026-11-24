@@ -11,37 +11,32 @@ import 'package:personaltskmng/features/backup/services/backup_files.dart';
 import 'package:personaltskmng/features/backup/services/drive_auth.dart';
 import 'package:personaltskmng/features/backup/services/drive_backup_service.dart';
 import 'package:personaltskmng/features/backup/services/drive_file_api.dart';
-import 'package:personaltskmng/features/daily_plan/presentation/providers/planning_providers.dart';
-import 'package:personaltskmng/features/daily_plan/presentation/viewmodels/planning_view_model.dart';
-import 'package:personaltskmng/features/daily_plan/presentation/viewmodels/today_view_model.dart';
+import 'package:personaltskmng/features/memo/presentation/providers/memo_providers.dart';
 import 'package:personaltskmng/features/notes/presentation/providers/notes_providers.dart';
 import 'package:personaltskmng/features/notes/presentation/viewmodels/notes_view_model.dart';
 import 'package:personaltskmng/features/settings/presentation/providers/settings_providers.dart';
 import 'package:personaltskmng/features/settings/presentation/viewmodels/settings_view_model.dart';
-import 'package:personaltskmng/planning/controller/planning_controller.dart';
 import 'package:personaltskmng/shared/widgets/app_snackbar.dart';
 
 /// After a backup was restored, the screens read the restored data: the
-/// settings, the planning status, today's session and the notes.
+/// settings, the log and the notes.
 void refreshAfterRestore(WidgetRef ref) {
   ref.invalidate(settingsViewModelProvider);
-  ref.read(settingsRevisionProvider.notifier).bump();
-  ref.invalidate(planningViewModelProvider);
-  ref.invalidate(todayViewModelProvider);
+  ref.invalidate(memoProvider);
   ref.read(notesViewModelProvider.notifier).refresh();
 }
 
-/// Whether this device already holds a set-up Q: a restore then replaces real
-/// data (on a first run there is nothing to lose, so nothing to ask).
+/// Whether this device already holds a log: a restore then replaces real data
+/// (on a first run there is nothing to lose, so nothing to ask).
 bool _hasDataHere(WidgetRef ref) =>
-    ref.read(planningControllerProvider).status is PlanningLoaded;
+    ref.read(memoControllerProvider).data.events.isNotEmpty;
 
 String _formatTime(DateTime time) => time.toLocal().toString().split('.')[0];
 
-/// "Loaded 40 days of history and 12 notes." for the snackbar after a restore.
+/// "Loaded 240 log lines and 12 notes." for the snackbar after a restore.
 String _restoredMessage(String from, BackupData restored) {
   final notes = restored.notes;
-  return 'Restored from $from: ${restored.dayRecords.length} days of history'
+  return 'Restored from $from: ${restored.eventCount} log lines'
       '${notes == null ? '' : ' and ${notes.notes.length} notes'}.';
 }
 
@@ -105,8 +100,8 @@ class _BackupSummary extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('• Pages in Q: ${backup.state.q.totalPages}'),
-          Text('• Study History: ${backup.dayRecords.length} days logged'),
+          Text('• Log: ${backup.eventCount} lines'),
+          Text('• Own partitions: ${backup.memo.partitions.length}'),
           Text(
             notes == null
                 ? '• Notes: none in this backup (the ones here stay as they are)'
@@ -126,17 +121,15 @@ class _BackupSummary extends StatelessWidget {
 /// Opens a modal dialog to export the full application backup: save it as a
 /// file (the user chooses where) or copy the text.
 Future<void> showExportBackupDialog(BuildContext context, WidgetRef ref) async {
-  final controller = ref.read(planningControllerProvider);
+  final memo = ref.read(memoControllerProvider);
   final settingsRepo = ref.read(settingsRepositoryProvider);
-  final dayRecords = ref.read(dayRecordStoreProvider);
   final backupService = ref.read(backupServiceProvider);
   final notes = ref.read(notesControllerProvider);
 
   try {
     final backup = await backupService.createBackup(
-      controller: controller,
+      memo: memo,
       settingsRepo: settingsRepo,
-      dayRecordsStore: dayRecords,
       notes: notes,
     );
 
@@ -460,9 +453,8 @@ class _ImportBackupDialogState extends ConsumerState<_ImportBackupDialog> {
           .read(backupServiceProvider)
           .restoreFromJson(
             raw,
-            controller: ref.read(planningControllerProvider),
+            memo: ref.read(memoControllerProvider),
             settingsRepo: ref.read(settingsRepositoryProvider),
-            dayRecordsStore: ref.read(dayRecordStoreProvider),
             notes: ref.read(notesControllerProvider),
           );
       refreshAfterRestore(widget.parentRef);
@@ -470,8 +462,7 @@ class _ImportBackupDialogState extends ConsumerState<_ImportBackupDialog> {
       Navigator.of(context).pop();
       showAppSnackBar(
         context,
-        'Data restored successfully! Loaded ${restored.dayRecords.length} days '
-        'of history'
+        'Data restored successfully! Loaded ${restored.eventCount} log lines'
         '${restored.notes == null ? '' : ' and ${restored.notes!.notes.length} notes'}.',
       );
     } catch (e) {
@@ -762,9 +753,8 @@ class _GoogleDriveDialogState extends ConsumerState<GoogleDriveDialog> {
     });
     try {
       await _service.uploadBackupToDrive(
-        controller: ref.read(planningControllerProvider),
+        memo: ref.read(memoControllerProvider),
         settingsRepo: ref.read(settingsRepositoryProvider),
-        dayRecordsStore: ref.read(dayRecordStoreProvider),
         notes: ref.read(notesControllerProvider),
       );
       await ref
@@ -797,9 +787,8 @@ class _GoogleDriveDialogState extends ConsumerState<GoogleDriveDialog> {
     });
     try {
       final restored = await _service.restoreFromDrive(
-        controller: ref.read(planningControllerProvider),
+        memo: ref.read(memoControllerProvider),
         settingsRepo: ref.read(settingsRepositoryProvider),
-        dayRecordsStore: ref.read(dayRecordStoreProvider),
         notes: ref.read(notesControllerProvider),
       );
       refreshAfterRestore(widget.parentRef);

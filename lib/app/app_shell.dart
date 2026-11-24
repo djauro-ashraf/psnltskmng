@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:personaltskmng/agent/controller/agent_providers.dart';
 import 'package:personaltskmng/core/constants/app_breakpoints.dart';
+import 'package:personaltskmng/core/constants/app_routes.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
+import 'package:personaltskmng/features/agent/presentation/agent_text.dart';
 import 'package:personaltskmng/features/browse/browse.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 
@@ -45,9 +48,21 @@ class AppShell extends ConsumerWidget {
     ];
     final width = MediaQuery.sizeOf(context).width;
 
+    // The command button: there once the agent is on and has its key, on every
+    // tab, but not over the reading screens (the page is for reading).
+    final agentButton = ref.watch(agentAvailableProvider) && !reading
+        ? FloatingActionButton.small(
+            heroTag: 'agent-command-button',
+            tooltip: AgentText.of(context).openTooltip,
+            onPressed: () => context.push(AppRoutes.agent),
+            child: const Icon(Icons.auto_awesome_rounded),
+          )
+        : null;
+
     if (width < AppBreakpoints.compact) {
       return Scaffold(
         body: navigationShell,
+        floatingActionButton: agentButton,
         bottomNavigationBar: reading
             ? null
             : NavigationBar(
@@ -67,6 +82,7 @@ class AppShell extends ConsumerWidget {
 
     final extended = width >= AppBreakpoints.expanded;
     return Scaffold(
+      floatingActionButton: agentButton,
       body: Row(
         children: [
           NavigationRail(

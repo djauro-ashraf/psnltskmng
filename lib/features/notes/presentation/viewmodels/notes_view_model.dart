@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personaltskmng/domain/models/day.dart';
-import 'package:personaltskmng/features/daily_plan/presentation/providers/planning_providers.dart';
+import 'package:personaltskmng/features/memo/presentation/providers/memo_providers.dart';
 import 'package:personaltskmng/features/notes/presentation/providers/notes_providers.dart';
 import 'package:personaltskmng/notes/controller/notes_controller.dart';
 import 'package:personaltskmng/notes/models/note.dart';
@@ -61,7 +61,7 @@ final class NotesState {
 class NotesViewModel extends Notifier<NotesState> {
   NotesController get _controller => ref.read(notesControllerProvider);
 
-  Day _today() => Day.fromDateTime(ref.read(todayClockProvider)());
+  Day _today() => Day.fromDateTime(ref.read(memoClockProvider)());
 
   @override
   NotesState build() {

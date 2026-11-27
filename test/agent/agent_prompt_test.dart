@@ -83,6 +83,7 @@ void main() {
         '"status-rules"',
         '"status-guide"',
         '"partitions"',
+        '"reading-options"',
         '"page": 12',
         '"surah": 2',
         '"ch": 5',

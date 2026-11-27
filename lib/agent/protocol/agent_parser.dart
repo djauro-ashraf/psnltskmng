@@ -331,6 +331,14 @@ abstract final class AgentParser {
         return AgentScreen.statusGuide;
       case 'partitions':
         return AgentScreen.partitions;
+      case 'readingoptions':
+      case 'readeroptions':
+      case 'options':
+      case 'mushafspacing':
+      case 'spacing':
+      case 'linespacing':
+      case 'wordspacing':
+        return AgentScreen.readingOptions;
       default:
         return null;
     }

@@ -22,8 +22,11 @@ class AskSettingsSection extends ConsumerStatefulWidget {
   const AskSettingsSection({super.key});
 
   /// The model the chat falls back to for [providerId] when the field is empty.
-  static String chatDefaultModel(String providerId) =>
-      providerId == 'groq' ? GroqChat.defaultModel : GeminiChat.defaultModel;
+  static String chatDefaultModel(String providerId) => switch (providerId) {
+    'groq' => GroqChat.defaultModel,
+    'gemini' => GeminiChat.defaultModel,
+    _ => aiProviderInfo(providerId).defaultModel,
+  };
 
   /// "1.4 KB", "3.2 MB": the room the chats take.
   static String sizeLabel(int bytes) {

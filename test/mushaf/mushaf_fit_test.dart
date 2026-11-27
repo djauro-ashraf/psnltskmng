@@ -18,6 +18,26 @@ void main() {
       expect(fit.top, closeTo((2000 - fit.pitch * 15) / 2, 1e-9));
     });
 
+    test('the reader can set how far apart the lines may be', () {
+      MushafFit fit(double factor) => MushafFit.compute(
+        refSize: 100,
+        widestAtRef: 2000,
+        width: 400,
+        height: 2000,
+        lines: 15,
+        pitchFactor: factor,
+      );
+      final close = fit(1.6);
+      final wide = fit(2.6);
+      // The glyphs do not depend on it: only the room between the lines does.
+      expect(close.fontSize, wide.fontSize);
+      expect(close.pitch, closeTo(close.fontSize * 1.6, 1e-9));
+      expect(wide.pitch, closeTo(wide.fontSize * 2.6, 1e-9));
+      expect(close.pitch, lessThan(wide.pitch));
+      // The page stays centered either way.
+      expect(close.top, closeTo((2000 - close.pitch * 15) / 2, 1e-9));
+    });
+
     test('a short room shrinks the glyphs instead of crowding the lines', () {
       final fit = MushafFit.compute(
         refSize: 100,

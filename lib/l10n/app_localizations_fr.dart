@@ -1335,6 +1335,22 @@ class AppLocalizationsFr extends AppLocalizations {
   String get readerTextSize => 'Taille du texte';
 
   @override
+  String get readerMushafSpacing => 'Espacement du Mushaf';
+
+  @override
+  String get readerLineSpacing => 'Entre les lignes';
+
+  @override
+  String get readerWordSpacing => 'Entre les mots';
+
+  @override
+  String get readerSpacingHint =>
+      'Des espaces plus petits entre les mots agrandissent les lettres : la ligne la plus large de la page en fixe la taille. Des lignes plus proches laissent de la place au-dessus et au-dessous de la page. Les mots ne quittent jamais leur ligne imprimée.';
+
+  @override
+  String get readerSpacingReset => 'Rétablir l’espacement';
+
+  @override
   String get readerKeepAwake => 'Garder l’écran allumé pendant la lecture';
 
   @override

@@ -29,12 +29,15 @@ final class MushafFit {
   static const double minPitchFactor = 1.5;
 
   /// ... nor farther than this many (on a tall screen the page is centered
-  /// instead of stretched).
-  static const double maxPitchFactor = 2.6;
+  /// instead of stretched). Was 2.6, which on a tall phone pulled the lines
+  /// well apart; the printed Madinah page sits near 2.
+  static const double maxPitchFactor = 2.0;
 
   /// The gap kept between two words of a line, in font sizes. Stretched lines
-  /// spread the room that is left evenly between their words.
-  static const double wordGapEm = 0.1;
+  /// spread the room that is left evenly between their words. The widest line
+  /// of a page has exactly this gap and it sets the glyph size of the whole
+  /// page, so a smaller gap means bigger glyphs (was 0.1).
+  static const double wordGapEm = 0.06;
 
   /// A hair of room on the width, so rounding never overflows a line.
   static const double widthSlack = 0.99;
@@ -43,12 +46,16 @@ final class MushafFit {
   /// between them) drawn at [refSize]. [lines] is the number of lines the page
   /// has: a page with fewer than 15 (the first two) is spread over the same
   /// height as a full one.
+  ///
+  /// [pitchFactor] is the farthest a line may be from the next, in font sizes
+  /// (the reader's choice; [maxPitchFactor] until they set it).
   static MushafFit compute({
     required double refSize,
     required double widestAtRef,
     required double width,
     required double height,
     required int lines,
+    double pitchFactor = maxPitchFactor,
   }) {
     if (refSize <= 0 || widestAtRef <= 0 || width <= 0 || height <= 0) {
       return none;
@@ -61,7 +68,7 @@ final class MushafFit {
     if (pitch < size * minPitchFactor) size = pitch / minPitchFactor;
     // A page with fewer lines may be spread wider than a full one.
     final spread = lines < 15 ? 15 / lines : 1.0;
-    final maxPitch = size * maxPitchFactor * spread;
+    final maxPitch = size * pitchFactor * spread;
     if (pitch > maxPitch) pitch = maxPitch;
     final top = (height - pitch * lines) / 2;
     return MushafFit(fontSize: size, pitch: pitch, top: top < 0 ? 0 : top);

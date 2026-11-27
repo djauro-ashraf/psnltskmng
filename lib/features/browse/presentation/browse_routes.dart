@@ -65,7 +65,10 @@ GoRoute browseRoute() => GoRoute(
       builder: (context, state) {
         final ayah = _ayah(state);
         final view = QuranView.values.asNameMap()[state.uri.queryParameters['view']];
-        return _reader(ayah == null ? null : ReadAyah(ayah, view: view));
+        return _reader(
+          ayah == null ? null : ReadAyah(ayah, view: view),
+          openOptions: state.uri.queryParameters['options'] == '1',
+        );
       },
     ),
     GoRoute(
@@ -136,6 +139,7 @@ AyahRef? _ayah(GoRouterState state) {
   return ayah.isValid ? ayah : null;
 }
 
-Widget _reader(ReaderRequest? request) => request == null
+Widget _reader(ReaderRequest? request, {bool openOptions = false}) =>
+    request == null
     ? const BrowseNotFoundPage()
-    : ReaderPage(request: request);
+    : ReaderPage(request: request, openOptions: openOptions);

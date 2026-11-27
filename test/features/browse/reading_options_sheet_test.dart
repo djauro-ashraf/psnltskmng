@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/reading_options_sheet.dart';
 import 'package:personaltskmng/mushaf/controller/mushaf_edition.dart';
 import 'package:personaltskmng/mushaf/models/mushaf_edition.dart';
+import 'package:personaltskmng/mushaf/models/mushaf_spacing.dart';
 import 'package:personaltskmng/quran_data/controller/quran_prefs.dart';
 import 'package:personaltskmng/quran_data/controller/quran_providers.dart';
 import 'package:personaltskmng/quran_data/data/pack_storage.dart';
@@ -113,6 +114,63 @@ void main() {
       expect(find.text('Text size'), findsOneWidget);
       expect(find.text('Keep screen on while reading'), findsOneWidget);
       expect(find.text('Show ruku ticks'), findsOneWidget);
+    });
+  });
+
+  group('The Mushaf spacing', () {
+    testReader('is in the Mushaf view, at its defaults, with nothing to reset', (
+      tester,
+    ) async {
+      await _open(tester);
+
+      expect(find.text('Mushaf spacing'), findsOneWidget);
+      expect(find.text('Between lines'), findsOneWidget);
+      expect(find.text('Between words'), findsOneWidget);
+      expect(find.text(MushafSpacing.percent(MushafSpacing.lineDefault)), findsOneWidget);
+      expect(find.text(MushafSpacing.percent(MushafSpacing.wordDefault)), findsOneWidget);
+      final reset = find.widgetWithText(TextButton, 'Reset spacing');
+      await tester.ensureVisible(reset);
+      expect(tester.widget<TextButton>(reset).onPressed, isNull);
+    });
+
+    testReader('is not in Details or Words, where it could not be seen', (
+      tester,
+    ) async {
+      for (final view in [QuranView.details, QuranView.words]) {
+        await _open(
+          tester,
+          prefs: MemoryQuranPrefsStore({QuranPrefKeys.view: view.name}),
+        );
+        expect(find.text('Mushaf spacing'), findsNothing, reason: view.name);
+        expect(find.text('Between lines'), findsNothing, reason: view.name);
+        expect(find.text('Between words'), findsNothing, reason: view.name);
+      }
+    });
+
+    testReader('shows what was set, and a tap on reset brings the defaults back', (
+      tester,
+    ) async {
+      final prefs = MemoryQuranPrefsStore();
+      final container = await _open(tester, prefs: prefs);
+
+      await container.read(mushafLineSpacingProvider.notifier).set(1.6);
+      await container.read(mushafWordSpacingProvider.notifier).set(0.03);
+      await tester.pumpAndSettle();
+      expect(find.text('160%'), findsOneWidget);
+      expect(find.text('3%'), findsOneWidget);
+      expect(prefs.get(QuranPrefKeys.mushafLineSpacing), '1.60');
+      expect(prefs.get(QuranPrefKeys.mushafWordSpacing), '0.03');
+
+      final reset = find.widgetWithText(TextButton, 'Reset spacing');
+      await tester.ensureVisible(reset);
+      await tester.tap(reset);
+      await tester.pumpAndSettle();
+
+      expect(container.read(mushafLineSpacingProvider), MushafSpacing.lineDefault);
+      expect(container.read(mushafWordSpacingProvider), MushafSpacing.wordDefault);
+      // Nothing is kept while it is the default.
+      expect(prefs.get(QuranPrefKeys.mushafLineSpacing), isNull);
+      expect(prefs.get(QuranPrefKeys.mushafWordSpacing), isNull);
     });
   });
 
@@ -510,12 +568,14 @@ void main() {
       final container = await _open(tester, prefs: prefs);
       expect(_on(tester, 'Keep screen on while reading'), isFalse);
 
+      await tester.ensureVisible(_switch('Keep screen on while reading'));
       await tester.tap(_switch('Keep screen on while reading'));
       await tester.pumpAndSettle();
       expect(_on(tester, 'Keep screen on while reading'), isTrue);
       expect(container.read(keepAwakeProvider), isTrue);
       expect(prefs.get(QuranPrefKeys.keepAwake), 'true');
 
+      await tester.ensureVisible(_switch('Keep screen on while reading'));
       await tester.tap(_switch('Keep screen on while reading'));
       await tester.pumpAndSettle();
       expect(_on(tester, 'Keep screen on while reading'), isFalse);
@@ -530,12 +590,14 @@ void main() {
       final container = await _open(tester, prefs: prefs);
       expect(_on(tester, 'Show ruku ticks'), isFalse);
 
+      await tester.ensureVisible(_switch('Show ruku ticks'));
       await tester.tap(_switch('Show ruku ticks'));
       await tester.pumpAndSettle();
       expect(_on(tester, 'Show ruku ticks'), isTrue);
       expect(container.read(rukuTicksProvider), isTrue);
       expect(prefs.get(QuranPrefKeys.rukuTicks), 'true');
 
+      await tester.ensureVisible(_switch('Show ruku ticks'));
       await tester.tap(_switch('Show ruku ticks'));
       await tester.pumpAndSettle();
       expect(_on(tester, 'Show ruku ticks'), isFalse);
@@ -545,6 +607,7 @@ void main() {
     testReader('the two switches are independent', (tester) async {
       await _open(tester);
 
+      await tester.ensureVisible(_switch('Show ruku ticks'));
       await tester.tap(_switch('Show ruku ticks'));
       await tester.pumpAndSettle();
 
@@ -578,6 +641,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(_sizeChips.at(2));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(_switch('Show ruku ticks'));
       await tester.tap(_switch('Show ruku ticks'));
       await tester.pumpAndSettle();
       await finish(tester);

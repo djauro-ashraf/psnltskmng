@@ -114,10 +114,10 @@ void main() {
   });
 
   group('The tabs', () {
-    testReader('Surahs first, then ch and Juz, and Pages last', (tester) async {
+    testReader('Surahs first, then Juz and Pages, and ch last', (tester) async {
       await _open(tester);
 
-      final order = ['Surahs', 'ch', 'Juz', 'Pages'];
+      final order = ['Surahs', 'Juz', 'Pages', 'ch'];
       var left = -1.0;
       for (final label in order) {
         expect(_tab(label), findsOneWidget, reason: label);

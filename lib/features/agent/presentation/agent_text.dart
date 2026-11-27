@@ -1,6 +1,10 @@
 import 'package:flutter/widgets.dart';
 import 'package:personaltskmng/agent/models/agent_command.dart';
+import 'package:personaltskmng/agent/controller/agent_providers.dart';
+import 'package:personaltskmng/agent/models/agent_settings.dart';
 import 'package:personaltskmng/agent/models/agent_turn.dart';
+import 'package:personaltskmng/agent/routing/agent_module.dart';
+import 'package:personaltskmng/agent/routing/agent_router.dart';
 import 'package:personaltskmng/ai/ai_provider.dart';
 import 'package:personaltskmng/domain/models/day.dart';
 import 'package:personaltskmng/memo/models/memo_event.dart';
@@ -131,6 +135,10 @@ class AgentText {
     AgentScreen.statusRules => _t('Status rules', 'Règles des statuts'),
     AgentScreen.statusGuide => _t('Status guide', 'Guide des statuts'),
     AgentScreen.partitions => _t('Partitions', 'Partitions'),
+    AgentScreen.readingOptions => _t(
+      'Reading options (spacing, text size)',
+      'Options de lecture (espacement, taille du texte)',
+    ),
   };
 
   String _place(AgentPlace place) {
@@ -407,6 +415,118 @@ class AgentText {
         'que l’agent puisse répondre à leur sujet et les gérer. Désactivé : il '
         'ne voit jamais une note et ne peut qu’en ajouter.',
   );
+  // -- what the AI is taught (the routing) ---------------------------------------
+  String get routingTitle => _t('What the AI is taught', 'Ce que l’IA apprend');
+  String get routingHelp => _t(
+    'The agent’s language is cut in parts. A request is sent with only the '
+        'parts it needs, so it is small: it fits the free plans, and many more '
+        'of them fit in a day.',
+    'Le langage de l’agent est découpé en parties. Une demande n’est envoyée '
+        'qu’avec les parties dont elle a besoin : elle est petite, passe dans '
+        'les offres gratuites, et beaucoup plus tiennent dans une journée.',
+  );
+  String routingName(AgentRouting routing) => switch (routing) {
+    AgentRouting.off => _t('Everything', 'Tout'),
+    AgentRouting.local => _t('By words', 'Par mots'),
+    AgentRouting.smart => _t('Smart', 'Intelligent'),
+  };
+  String routingAbout(AgentRouting routing) => switch (routing) {
+    AgentRouting.off => _t(
+      'Always the whole language: the biggest requests.',
+      'Toujours tout le langage : les plus grosses demandes.',
+    ),
+    AgentRouting.local => _t(
+      'Chosen from the words of your request. No extra request.',
+      'Choisi d’après les mots de votre demande. Aucune requête en plus.',
+    ),
+    AgentRouting.smart => _t(
+      'Like “By words”; when the words say nothing, a small model sorts the '
+          'request (one more, very small, request).',
+      'Comme « Par mots » ; quand les mots ne disent rien, un petit modèle '
+          'trie la demande (une requête de plus, très petite).',
+    ),
+  };
+
+  // -- the router card of the settings --------------------------------------------
+  String get routerSettingsTitle =>
+      _t('Request router', 'Routeur de demandes');
+  String get routerDedicatedTitle =>
+      _t('Dedicated sorter (optional)', 'Trieur dédié (facultatif)');
+  String get routerDedicatedHelp => _t(
+    'A free Cloudflare account can sort your requests on a quota of its own, '
+        'so your main provider keeps its tokens. Fill both fields. Leave them '
+        'empty, or if it fails, the agent’s own provider sorts instead. In the '
+        'Cloudflare dashboard, Workers AI → Use REST API shows the account ID '
+        'and creates an API token with the Workers AI permission.',
+    'Un compte Cloudflare gratuit peut trier vos demandes sur un quota à lui, '
+        'et votre fournisseur principal garde ses jetons. Remplissez les deux '
+        'champs. Laissés vides, ou en cas d’échec, c’est le fournisseur de '
+        'l’agent qui trie. Dans le tableau de bord Cloudflare, Workers AI → '
+        'Use REST API donne l’identifiant du compte et crée un jeton d’API '
+        'avec la permission Workers AI.',
+  );
+  String get routerAccountLabel =>
+      _t('Cloudflare account ID', 'Identifiant de compte Cloudflare');
+  String get routerTokenLabel =>
+      _t('Cloudflare API token', 'Jeton d’API Cloudflare');
+  String routerStatus(RouterSetup setup) => switch (setup) {
+    RouterSetup.none => _t(
+      'Not set: the agent’s own provider sorts.',
+      'Non configuré : le fournisseur de l’agent trie.',
+    ),
+    RouterSetup.incomplete => _t(
+      'Only one of the two is saved: the agent’s own provider sorts until both are.',
+      'Un seul des deux est enregistré : le fournisseur de l’agent trie tant que les deux ne le sont pas.',
+    ),
+    RouterSetup.ready => _t(
+      'Ready: Cloudflare sorts first, the agent’s own provider if it fails.',
+      'Prêt : Cloudflare trie d’abord, le fournisseur de l’agent en cas d’échec.',
+    ),
+  };
+  String get routerAccountInvalid => _t(
+    'The account ID has only letters and digits.',
+    'L’identifiant de compte ne contient que des lettres et des chiffres.',
+  );
+  String get routerTest => _t('Test', 'Tester');
+  String routerTestOk(String modules, int milliseconds) => _t(
+    'It works: a sample request was sorted as “$modules” in $milliseconds ms.',
+    'Ça marche : une demande d’essai a été triée « $modules » en $milliseconds ms.',
+  );
+  String get routerTestUnreadable => _t(
+    'It answered, but not in a form the app can read. The agent’s own provider sorts instead.',
+    'Il a répondu, mais sous une forme que l’application ne lit pas. Le fournisseur de l’agent trie à la place.',
+  );
+  String routerTestFailed(String why) => _t(
+    'It failed: $why The agent’s own provider sorts instead.',
+    'Échec : $why Le fournisseur de l’agent trie à la place.',
+  );
+
+  /// One line under an answer: what the AI was taught, how that was chosen and
+  /// about how many tokens the request had.
+  String routeCaption(AgentTurn turn) {
+    final how = switch (turn.routedBy) {
+      RouteVia.rules => _t('by words', 'par mots'),
+      RouteVia.sticky => _t('follow-up', 'suite'),
+      RouteVia.triage => _t('small model', 'petit modèle'),
+      RouteVia.fallback => _t('default set', 'jeu par défaut'),
+      RouteVia.asked => _t('asked by the AI', 'demandé par l’IA'),
+      RouteVia.all || null => '',
+    };
+    final what = turn.routedBy == RouteVia.all
+        ? _t('everything', 'tout')
+        : turn.modules.isEmpty
+        ? _t('core only', 'noyau seul')
+        : [for (final m in AgentModules.ordered(turn.modules)) m.id].join(', ');
+    final tokens = turn.promptTokens >= 1000
+        ? '${(turn.promptTokens / 1000).toStringAsFixed(1)}K'
+        : '${turn.promptTokens}';
+    return [
+      '${_t('Taught', 'Appris')}: $what',
+      if (how.isNotEmpty) how,
+      '≈ $tokens ${_t('tokens', 'jetons')}',
+    ].join(' · ');
+  }
+
   String get keyHelp => _t(
     'The agent’s own key, kept in secure storage on this device, apart from '
         'the other keys.',

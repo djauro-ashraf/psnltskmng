@@ -58,6 +58,27 @@ void main() {
       );
     });
 
+    test('an ayah can open the reading options over it', () {
+      expect(
+        BrowsePaths.readAyah(const AyahRef(2, 6), options: true),
+        '/browse/read/a/2/6?options=1',
+      );
+      expect(
+        BrowsePaths.readAyah(
+          const AyahRef(2, 6),
+          view: QuranView.mushaf,
+          options: true,
+        ),
+        '/browse/read/a/2/6?view=mushaf&options=1',
+      );
+      expect(
+        BrowsePaths.isReadingScreen(
+          BrowsePaths.readAyah(const AyahRef(2, 6), options: true),
+        ),
+        isTrue,
+      );
+    });
+
     test('every path of the reader is a reading screen', () {
       for (final path in [
         BrowsePaths.readPage(1),

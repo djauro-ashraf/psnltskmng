@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personaltskmng/domain/reference/quran_divisions.dart';
+import 'package:personaltskmng/mushaf/models/mushaf_spacing.dart';
 import 'package:personaltskmng/quran_data/controller/quran_prefs.dart';
 import 'package:personaltskmng/quran_data/models/reader_entry.dart';
 import 'package:personaltskmng/quran_data/models/words_stream.dart';
@@ -366,6 +367,85 @@ void main() {
       final container = _container(_FailingStore());
       await container.read(lastReadProvider.notifier).save(last);
       expect(container.read(lastReadProvider), last);
+    });
+  });
+
+  group('the Mushaf spacing', () {
+    test('is the default until the reader sets it, and nothing is kept', () {
+      final store = MemoryQuranPrefsStore();
+      final container = _container(store);
+      expect(container.read(mushafLineSpacingProvider), MushafSpacing.lineDefault);
+      expect(container.read(mushafWordSpacingProvider), MushafSpacing.wordDefault);
+      expect(store.get(QuranPrefKeys.mushafLineSpacing), isNull);
+      expect(store.get(QuranPrefKeys.mushafWordSpacing), isNull);
+    });
+
+    test('is kept under its own key and read back next time', () async {
+      final store = MemoryQuranPrefsStore();
+      final container = _container(store);
+      await container.read(mushafLineSpacingProvider.notifier).set(1.75);
+      await container.read(mushafWordSpacingProvider.notifier).set(0.04);
+      expect(store.get(QuranPrefKeys.mushafLineSpacing), '1.75');
+      expect(store.get(QuranPrefKeys.mushafWordSpacing), '0.04');
+
+      final next = _container(store);
+      expect(next.read(mushafLineSpacingProvider), 1.75);
+      expect(next.read(mushafWordSpacingProvider), 0.04);
+    });
+
+    test('stays inside its range and on the grid of its slider', () async {
+      final container = _container(MemoryQuranPrefsStore());
+      final line = container.read(mushafLineSpacingProvider.notifier);
+      await line.set(0.5);
+      expect(container.read(mushafLineSpacingProvider), MushafSpacing.lineMin);
+      await line.set(9);
+      expect(container.read(mushafLineSpacingProvider), MushafSpacing.lineMax);
+      await line.set(1.83);
+      expect(container.read(mushafLineSpacingProvider), 1.85);
+
+      final word = container.read(mushafWordSpacingProvider.notifier);
+      await word.set(0);
+      expect(container.read(mushafWordSpacingProvider), MushafSpacing.wordMin);
+      await word.set(1);
+      expect(container.read(mushafWordSpacingProvider), MushafSpacing.wordMax);
+    });
+
+    test('something unreadable is the default', () {
+      final container = _container(
+        MemoryQuranPrefsStore({
+          QuranPrefKeys.mushafLineSpacing: 'wide',
+          QuranPrefKeys.mushafWordSpacing: '',
+        }),
+      );
+      expect(container.read(mushafLineSpacingProvider), MushafSpacing.lineDefault);
+      expect(container.read(mushafWordSpacingProvider), MushafSpacing.wordDefault);
+    });
+
+    test('setting the default again removes what was kept', () async {
+      final store = MemoryQuranPrefsStore();
+      final container = _container(store);
+      final line = container.read(mushafLineSpacingProvider.notifier);
+      await line.set(1.6);
+      expect(store.get(QuranPrefKeys.mushafLineSpacing), '1.60');
+      await line.reset();
+      expect(store.get(QuranPrefKeys.mushafLineSpacing), isNull);
+      expect(container.read(mushafLineSpacingProvider), MushafSpacing.lineDefault);
+    });
+
+    test('setting the same value again writes nothing', () async {
+      final store = _CountingStore();
+      final container = _container(store);
+      final line = container.read(mushafLineSpacingProvider.notifier);
+      await line.set(1.6);
+      await line.set(1.6);
+      await line.set(1.62);
+      expect(store.writes, 1);
+    });
+
+    test('holds for the session even if it cannot be saved', () async {
+      final container = _container(_FailingStore());
+      await container.read(mushafWordSpacingProvider.notifier).set(0.03);
+      expect(container.read(mushafWordSpacingProvider), 0.03);
     });
   });
 }

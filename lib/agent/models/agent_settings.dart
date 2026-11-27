@@ -18,6 +18,28 @@ enum AgentApproval {
   }
 }
 
+/// How the agent chooses what its AI is taught for a request (see
+/// `AgentRouter`).
+enum AgentRouting {
+  /// Always the whole language: the biggest request, no routing.
+  off,
+
+  /// By the words of the request only: no extra request. A request the words
+  /// do not place gets the commonest modules, and the AI may ask for more.
+  local,
+
+  /// By the words, and when they say nothing, a small model is asked which
+  /// modules fit (one more, very small, request).
+  smart;
+
+  static AgentRouting fromName(Object? name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return AgentRouting.smart;
+  }
+}
+
 /// The agent's own settings: on or off, its own provider, model and approval
 /// mode. Not the planner's and not the assistant's: the agent can use another
 /// provider, another model and another key than both. Kept on this device (see
@@ -29,6 +51,7 @@ final class AgentSettings {
     this.models = const {},
     this.approval = AgentApproval.ask,
     this.shareNotes = true,
+    this.routing = AgentRouting.smart,
   });
 
   final bool enabled;
@@ -45,6 +68,9 @@ final class AgentSettings {
   /// answer about them and remember, restore or delete them by id. Off: it
   /// never sees a note and can only add new ones.
   final bool shareNotes;
+
+  /// How what the AI is taught is chosen for each request.
+  final AgentRouting routing;
 
   /// The model the agent calls: the one typed for [provider], else the
   /// provider's recommended free model, else the provider's default.
@@ -69,12 +95,14 @@ final class AgentSettings {
     Map<String, String>? models,
     AgentApproval? approval,
     bool? shareNotes,
+    AgentRouting? routing,
   }) => AgentSettings(
     enabled: enabled ?? this.enabled,
     provider: provider ?? this.provider,
     models: models ?? this.models,
     approval: approval ?? this.approval,
     shareNotes: shareNotes ?? this.shareNotes,
+    routing: routing ?? this.routing,
   );
 
   String encode() => jsonEncode({
@@ -83,6 +111,7 @@ final class AgentSettings {
     'models': models,
     'approval': approval.name,
     'shareNotes': shareNotes,
+    'routing': routing.name,
   });
 
   /// Reads what [encode] wrote. Anything missing or unusable falls back to the
@@ -113,6 +142,7 @@ final class AgentSettings {
           shareNotes: map['shareNotes'] is bool
               ? map['shareNotes'] as bool
               : true,
+          routing: AgentRouting.fromName(map['routing']),
         );
       }
     } catch (_) {

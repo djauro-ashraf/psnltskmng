@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:personaltskmng/mushaf/models/mushaf_spacing.dart';
 import 'package:personaltskmng/quran_data/models/ayah_copy.dart';
 import 'package:personaltskmng/quran_data/models/ayah_sections.dart';
 import 'package:personaltskmng/quran_data/models/quran_view.dart';
@@ -80,6 +81,14 @@ abstract final class QuranPrefKeys {
 
   /// The reading speed in words per minute for auto-read.
   static const String wordsPerMinute = 'quran.wpm';
+
+  /// The distance between the lines of the Mushaf, in font sizes (see
+  /// [MushafSpacing]); absent while it is the default.
+  static const String mushafLineSpacing = 'quran.mushafLineSpacing';
+
+  /// The gap between the words of the Mushaf, in font sizes; absent while it
+  /// is the default.
+  static const String mushafWordSpacing = 'quran.mushafWordSpacing';
 }
 
 /// The value of the translation choice that means "no translation". It is not
@@ -279,6 +288,67 @@ class RukuTicksNotifier extends _FlagNotifier {
 final rukuTicksProvider = NotifierProvider<RukuTicksNotifier, bool>(
   RukuTicksNotifier.new,
 );
+
+/// A spacing of the Mushaf page, in font sizes, kept as a number. Nothing is
+/// kept while it is the default, so the default can still be improved later
+/// for a reader who never chose.
+abstract class _SpacingNotifier extends Notifier<double> {
+  String get key;
+  double get fallback;
+  double snap(double value);
+
+  @override
+  double build() {
+    final stored = double.tryParse(
+      ref.watch(quranPrefsStoreProvider).get(key) ?? '',
+    );
+    return stored == null ? fallback : snap(stored);
+  }
+
+  Future<void> set(double value) async {
+    final next = snap(value);
+    if (next == state) return;
+    state = next;
+    await _save(ref, key, next == fallback ? null : next.toStringAsFixed(2));
+  }
+
+  /// Back to the default.
+  Future<void> reset() => set(fallback);
+}
+
+/// The distance between the lines of the Mushaf page.
+class MushafLineSpacingNotifier extends _SpacingNotifier {
+  @override
+  String get key => QuranPrefKeys.mushafLineSpacing;
+
+  @override
+  double get fallback => MushafSpacing.lineDefault;
+
+  @override
+  double snap(double value) => MushafSpacing.snapLine(value);
+}
+
+final mushafLineSpacingProvider =
+    NotifierProvider<MushafLineSpacingNotifier, double>(
+      MushafLineSpacingNotifier.new,
+    );
+
+/// The gap between the words of the Mushaf page.
+class MushafWordSpacingNotifier extends _SpacingNotifier {
+  @override
+  String get key => QuranPrefKeys.mushafWordSpacing;
+
+  @override
+  double get fallback => MushafSpacing.wordDefault;
+
+  @override
+  double snap(double value) => MushafSpacing.snapWord(value);
+}
+
+final mushafWordSpacingProvider =
+    NotifierProvider<MushafWordSpacingNotifier, double>(
+      MushafWordSpacingNotifier.new,
+    );
 
 /// The last ayah read and the view it was read in, for the Continue row of
 /// Browse. It is saved when the reader pauses or leaves, never on a scroll tick.

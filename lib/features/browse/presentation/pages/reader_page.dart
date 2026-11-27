@@ -70,9 +70,17 @@ import 'package:personaltskmng/shared/widgets/words_stream_view.dart';
 /// The place is saved (Continue reading) when the app pauses and when the reader
 /// leaves, not on scroll ticks.
 class ReaderPage extends ConsumerStatefulWidget {
-  const ReaderPage({super.key, required this.request});
+  const ReaderPage({
+    super.key,
+    required this.request,
+    this.openOptions = false,
+  });
 
   final ReaderRequest request;
+
+  /// Open the reading options over the page as soon as it is there (the agent
+  /// took the reader here so that the spacing can be set and seen).
+  final bool openOptions;
 
   @override
   ConsumerState<ReaderPage> createState() => _ReaderPageState();
@@ -227,6 +235,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     final locator = ref.read(pageLocatorProvider);
     final v2 = ref.read(mushafEditionProvider) == MushafEdition.v2;
     final savedView = ref.read(quranViewProvider);
+    final viewNotifier = ref.read(quranViewProvider.notifier);
     final unitNotifier = ref.read(wordsUnitProvider.notifier);
     try {
       final entry = await ReaderResolver.resolve(
@@ -257,9 +266,21 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
       });
       _trackPage();
       if (_view == QuranView.mushaf) unawaited(_refreshMushafContext(entry.page));
+      if (widget.openOptions) unawaited(_openOptionsOnArrival(viewNotifier));
     } catch (_) {
       if (mounted) setState(() => _failed = true);
     }
+  }
+
+  /// The reading options, over the page, as it opens. The view on screen is
+  /// made the saved one first, so the sheet offers what this view has (the
+  /// spacing is the Mushaf's) and not what an earlier view had.
+  Future<void> _openOptionsOnArrival(QuranViewNotifier viewNotifier) async {
+    await viewNotifier.set(_view);
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(showReadingOptions(context));
+    });
   }
 
   // -- following the reader --------------------------------------------------

@@ -13,6 +13,7 @@ import 'package:personaltskmng/features/settings/presentation/widgets/agent_sett
 import 'package:personaltskmng/features/settings/presentation/widgets/ai_planner_section.dart';
 import 'package:personaltskmng/features/settings/presentation/widgets/ask_settings_section.dart';
 import 'package:personaltskmng/features/settings/presentation/widgets/memo_settings_sections.dart';
+import 'package:personaltskmng/features/settings/presentation/widgets/router_settings_section.dart';
 import 'package:personaltskmng/l10n/app_localizations.dart';
 import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 import 'package:personaltskmng/shared/widgets/app_snackbar.dart';
@@ -65,6 +66,11 @@ class SettingsPage extends StatelessWidget {
                 context,
                 AgentText.of(context).settingsTitle,
                 const AgentSettingsSection(),
+              ),
+              _expansion(
+                context,
+                AgentText.of(context).routerSettingsTitle,
+                const RouterSettingsSection(),
               ),
               const _QuranDataSection(),
             ],

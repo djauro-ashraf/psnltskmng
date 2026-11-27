@@ -87,6 +87,11 @@ enum AgentScreen {
 
   /// The user's own partitions.
   partitions,
+
+  /// The reading options sheet over the Mushaf, where the spacing between the
+  /// lines and between the words is set. The agent only opens it: what is best
+  /// is for the user to see and choose.
+  readingOptions,
 }
 
 /// A place the agent can take the user to.

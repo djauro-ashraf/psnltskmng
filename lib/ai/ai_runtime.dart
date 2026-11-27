@@ -1,4 +1,5 @@
 import 'package:http/http.dart' as http;
+import 'package:personaltskmng/ai/ai_factory.dart';
 import 'package:personaltskmng/ai/ai_models.dart';
 import 'package:personaltskmng/ai/ai_provider.dart';
 import 'package:personaltskmng/ai/api_key_store.dart';
@@ -24,6 +25,19 @@ final class AiProviderInfo {
   /// The free-plan models offered in the model list (see `ai_models.dart`).
   /// Only a convenience: the model field still takes any text.
   final List<AiModelInfo> models;
+
+  /// The model for small, quick jobs such as sorting a request (see
+  /// `AgentRouter`): the provider's light model, else its small one, else its
+  /// default. A job like that does not need to be wise, and a small model is
+  /// quick and leaves the day's tokens for the real answer.
+  String get routerModel {
+    for (final note in [AiModelNote.light, AiModelNote.small]) {
+      for (final model in models) {
+        if (model.note == note) return model.id;
+      }
+    }
+    return defaultModel;
+  }
 }
 
 /// The providers the app offers, in the order they are shown.
@@ -39,6 +53,18 @@ const List<AiProviderInfo> aiProviderInfos = [
     'Groq',
     GroqProvider.defaultModel,
     models: groqModels,
+  ),
+  AiProviderInfo(
+    'github',
+    'GitHub Models',
+    'openai/gpt-4.1-mini',
+    models: githubModels,
+  ),
+  AiProviderInfo(
+    'openrouter',
+    'OpenRouter',
+    'google/gemma-4-31b-it:free',
+    models: openRouterModels,
   ),
 ];
 
@@ -87,7 +113,10 @@ AiProvider? plannerProviderOf({
   http.Client? client,
 }) {
   if (!runtime.enabled || !runtime.hasKey) return null;
-  return runtime.providerId == GroqProvider.providerId
-      ? GroqProvider(keys: keys, model: runtime.model, client: client)
-      : GeminiProvider(keys: keys, model: runtime.model, client: client);
+  return jsonProviderFor(
+    providerId: runtime.providerId,
+    keys: keys,
+    model: runtime.model,
+    client: client,
+  );
 }

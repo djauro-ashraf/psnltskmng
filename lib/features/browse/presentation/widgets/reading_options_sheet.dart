@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personaltskmng/core/constants/app_spacing.dart';
 import 'package:personaltskmng/mushaf/controller/mushaf_edition.dart';
 import 'package:personaltskmng/mushaf/models/mushaf_edition.dart';
+import 'package:personaltskmng/mushaf/models/mushaf_spacing.dart';
 import 'package:personaltskmng/quran_data/controller/auto_read_provider.dart';
 import 'package:personaltskmng/quran_data/controller/quran_prefs.dart';
 import 'package:personaltskmng/quran_data/controller/quran_providers.dart';
@@ -25,7 +26,8 @@ Future<void> showReadingOptions(BuildContext context) =>
     );
 
 /// The unit of the stream (Details and Words), the translation (or none), the
-/// sections of the ayah card that are open (the ones of the way to read), the text size, keep the screen on, and the ruku ticks of the
+/// sections of the ayah card that are open (the ones of the way to read), the text size, the spacing of the Mushaf page
+/// (between lines and between words, in the Mushaf view), keep the screen on, and the ruku ticks of the
 /// Mushaf.
 class ReadingOptionsSheet extends ConsumerWidget {
   const ReadingOptionsSheet({super.key});
@@ -245,6 +247,10 @@ class ReadingOptionsSheet extends ConsumerWidget {
             ],
           ),
 
+          // -- spacing of the Mushaf ---------------------------------------------
+          // Only where it can be seen: in the Mushaf view.
+          if (view == QuranView.mushaf) _MushafSpacingSection(heading: heading),
+
           // -- switches ---------------------------------------------------------
           // -- auto-read -------------------------------------------------------
           heading(l10n.autoReadTitle),
@@ -271,6 +277,104 @@ class ReadingOptionsSheet extends ConsumerWidget {
   }
 }
 
+
+/// The "Mushaf spacing" section: how far apart the lines of the page are and
+/// how wide the gap between words is, each on a slider, with the way back to
+/// the defaults. The page behind changes as the slider moves, so the reader
+/// sees it and chooses. The lines themselves never move: only the room around
+/// and between them does.
+class _MushafSpacingSection extends ConsumerWidget {
+  const _MushafSpacingSection({required this.heading});
+
+  final Widget Function(String text) heading;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final line = ref.watch(mushafLineSpacingProvider);
+    final word = ref.watch(mushafWordSpacingProvider);
+    final atDefault =
+        line == MushafSpacing.lineDefault && word == MushafSpacing.wordDefault;
+
+    Widget slider({
+      required String label,
+      required double value,
+      required double min,
+      required double max,
+      required double step,
+      required ValueChanged<double> onChanged,
+    }) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
+            Text(
+              MushafSpacing.percent(value),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        Slider(
+          value: value,
+          min: min,
+          max: max,
+          divisions: ((max - min) / step).round(),
+          label: MushafSpacing.percent(value),
+          onChanged: onChanged,
+        ),
+      ],
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        heading(l10n.readerMushafSpacing),
+        slider(
+          label: l10n.readerLineSpacing,
+          value: line,
+          min: MushafSpacing.lineMin,
+          max: MushafSpacing.lineMax,
+          step: MushafSpacing.lineStep,
+          onChanged: (value) =>
+              ref.read(mushafLineSpacingProvider.notifier).set(value),
+        ),
+        slider(
+          label: l10n.readerWordSpacing,
+          value: word,
+          min: MushafSpacing.wordMin,
+          max: MushafSpacing.wordMax,
+          step: MushafSpacing.wordStep,
+          onChanged: (value) =>
+              ref.read(mushafWordSpacingProvider.notifier).set(value),
+        ),
+        Text(
+          l10n.readerSpacingHint,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton(
+            onPressed: atDefault
+                ? null
+                : () {
+                    ref.read(mushafLineSpacingProvider.notifier).reset();
+                    ref.read(mushafWordSpacingProvider.notifier).reset();
+                  },
+            child: Text(l10n.readerSpacingReset),
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 /// The "At the end of a unit" section: a 3-way segmented button (Flow · Gate ·
 /// Locked) with a hint line, and a "Same for every unit" switch. When the switch

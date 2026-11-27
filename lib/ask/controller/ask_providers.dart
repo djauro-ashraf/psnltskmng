@@ -2,10 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personaltskmng/ai/ai_chat_provider.dart';
+import 'package:personaltskmng/ai/ai_factory.dart';
 import 'package:personaltskmng/ai/ai_provider.dart';
 import 'package:personaltskmng/ai/api_key_store.dart';
-import 'package:personaltskmng/ai/gemini_chat.dart';
-import 'package:personaltskmng/ai/groq_chat.dart';
 import 'package:personaltskmng/ask/data/ask_settings_store.dart';
 import 'package:personaltskmng/ask/data/chat_store.dart';
 import 'package:personaltskmng/ask/data/in_memory_chat_store.dart';
@@ -85,22 +84,10 @@ final aiChatClientProvider =
       ref,
       args,
     ) {
-      final keys = ref.watch(aiKeyStoreProvider);
-      final providerId = args.providerId;
-      final model = args.model;
-      if (providerId == 'groq') {
-        return GroqChat(
-          keys: keys,
-          model: (model != null && model.isNotEmpty)
-              ? model
-              : GroqChat.defaultModel,
-        );
-      }
-      return GeminiChat(
-        keys: keys,
-        model: (model != null && model.isNotEmpty)
-            ? model
-            : GeminiChat.defaultModel,
+      return chatProviderFor(
+        providerId: args.providerId,
+        keys: ref.watch(aiKeyStoreProvider),
+        model: args.model,
       );
     });
 

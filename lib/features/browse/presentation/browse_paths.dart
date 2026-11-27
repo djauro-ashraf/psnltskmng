@@ -14,6 +14,7 @@ import 'package:personaltskmng/quran_data/models/quran_view.dart';
 /// /browse/read/part/:s/:ch               a surah inside a ch, limited to its pages
 /// /browse/read/p/:page                   that page
 /// /browse/read/a/:s/:a[?view=words]      an ayah (Continue reading)
+///                       [&options=1]     with the reading options open over it
 /// /browse/read/range/:from/:to           pages (the range Today revises)
 /// /browse/tafsir/:s/:a                   the tafsir of an ayah (full screen)
 /// /browse/ask[/...]                      the assistant
@@ -36,10 +37,20 @@ abstract final class BrowsePaths {
   static String readPart(int s, int ch) => '$read/part/$s/$ch';
   static String readRange(int from, int to) => '$read/range/$from/$to';
 
-  /// An ayah; [view] is the view of the last time (Continue reading).
-  static String readAyah(AyahRef ayah, {QuranView? view}) =>
-      '$read/a/${ayah.surah}/${ayah.ayah}'
-      '${view == null ? '' : '?view=${view.name}'}';
+  /// An ayah; [view] is the view of the last time (Continue reading). With
+  /// [options] the reading options open over the page as it appears.
+  static String readAyah(
+    AyahRef ayah, {
+    QuranView? view,
+    bool options = false,
+  }) {
+    final query = [
+      if (view != null) 'view=${view.name}',
+      if (options) 'options=1',
+    ];
+    return '$read/a/${ayah.surah}/${ayah.ayah}'
+        '${query.isEmpty ? '' : '?${query.join('&')}'}';
+  }
 
   static String tafsirOf(AyahRef ayah) =>
       '$tafsir/${ayah.surah}/${ayah.ayah}';

@@ -429,6 +429,13 @@ class _TurnView extends ConsumerWidget {
       body.add(Text(text.dropped(turn.dropped), style: muted));
     }
 
+    // What the AI was taught for this request and what it cost: the user can
+    // see the routing work and tune it (Settings, Agent).
+    if (turn.routedBy != null && turn.phase != AgentPhase.thinking) {
+      gap();
+      body.add(Text(text.routeCaption(turn), style: muted));
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.lg),
       child: Column(

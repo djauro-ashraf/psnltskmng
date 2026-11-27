@@ -8,6 +8,7 @@ import 'package:personaltskmng/mushaf/controller/mushaf_providers.dart';
 import 'package:personaltskmng/mushaf/data/mushaf_source.dart';
 import 'package:personaltskmng/mushaf/models/mushaf_fit.dart';
 import 'package:personaltskmng/mushaf/models/mushaf_page.dart';
+import 'package:personaltskmng/mushaf/models/mushaf_spacing.dart';
 import 'package:personaltskmng/mushaf/models/page_ayahs.dart';
 import 'package:personaltskmng/mushaf/models/page_ticks.dart';
 import 'package:personaltskmng/quran_data/controller/quran_prefs.dart';
@@ -53,6 +54,8 @@ class MushafPageView extends ConsumerWidget {
     final l10n = context.l10n;
     final textFont = ref.watch(mushafTextFontProvider).value;
     final showRukus = ref.watch(rukuTicksProvider);
+    final lineSpacing = ref.watch(mushafLineSpacingProvider);
+    final wordSpacing = ref.watch(mushafWordSpacingProvider);
     final ticks = <PageTick>[
       for (final tick
           in ref.watch(pageTicksProvider(page)).value ?? const <PageTick>[])
@@ -68,6 +71,8 @@ class MushafPageView extends ConsumerWidget {
               page: page,
               fontFamily: fontFamily,
               textFontFamily: textFont,
+              lineSpacing: lineSpacing,
+              wordGap: wordSpacing,
               ticks: ticks,
               selectedAyah: selectedAyah,
               onAyahTap: onAyahTap,
@@ -93,6 +98,8 @@ class MushafPageCanvas extends StatelessWidget {
     required this.page,
     required this.fontFamily,
     this.textFontFamily,
+    this.lineSpacing = MushafSpacing.lineDefault,
+    this.wordGap = MushafSpacing.wordDefault,
     this.ticks = const [],
     this.selectedAyah,
     this.onAyahTap,
@@ -119,6 +126,12 @@ class MushafPageCanvas extends StatelessWidget {
   /// The Unicode font of the banner and the basmallah (null: the platform's).
   final String? textFontFamily;
 
+  /// The farthest a line may be from the next, and the gap kept between the
+  /// words of the widest line, both in font sizes (the reader's choice, see
+  /// [MushafSpacing]).
+  final double lineSpacing;
+  final double wordGap;
+
   /// The basmallah, as the Hafs text spells it.
   static const String basmallah = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ';
 
@@ -127,8 +140,11 @@ class MushafPageCanvas extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return LayoutBuilder(
       builder: (context, constraints) {
+        // The side room is kept small: the widest line sets the size of the
+        // glyphs, so every dp of width given to the page makes them bigger.
+        // (Wide enough that the 3 px ticks on the edge never touch a glyph.)
         const padding = EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
+          horizontal: _sideRoom,
           vertical: AppSpacing.sm,
         );
         final width = constraints.maxWidth - padding.horizontal;
@@ -213,6 +229,9 @@ class MushafPageCanvas extends StatelessWidget {
   /// The width of the room a tick can be tapped in.
   static const double _tickRoom = 24;
 
+  /// The room kept on each side of the page (was [AppSpacing.md], 12).
+  static const double _sideRoom = 6;
+
   /// Draws the widest line at a reference size to find the size that fills the
   /// width.
   MushafFit _measure(double width, double height) {
@@ -228,6 +247,7 @@ class MushafPageCanvas extends StatelessWidget {
       width: width,
       height: height,
       lines: page.lines.length,
+      pitchFactor: lineSpacing,
     );
   }
 
@@ -257,7 +277,7 @@ class MushafPageCanvas extends StatelessWidget {
       total += painter.width;
       painter.dispose();
     }
-    return total + (words.length - 1) * size * MushafFit.wordGapEm;
+    return total + (words.length - 1) * size * wordGap;
   }
 
   Widget _buildLine(
@@ -282,6 +302,7 @@ class MushafPageCanvas extends StatelessWidget {
           onAyahTap: onAyahTap,
           stretched: !line.centered,
           width: width,
+          wordGap: wordGap,
         );
       case MushafLineType.surahName:
         final surah = line.surah;
@@ -337,6 +358,7 @@ class _WordsLine extends StatelessWidget {
     required this.onAyahTap,
     required this.stretched,
     required this.width,
+    required this.wordGap,
   });
 
   final List<_DrawnWord> words;
@@ -350,6 +372,9 @@ class _WordsLine extends StatelessWidget {
   final void Function(String ayah)? onAyahTap;
   final bool stretched;
   final double width;
+
+  /// The gap kept between two words of a centered line, in font sizes.
+  final double wordGap;
 
   @override
   Widget build(BuildContext context) {
@@ -374,7 +399,7 @@ class _WordsLine extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           for (var i = 0; i < texts.length; i++) ...[
-            if (i > 0) SizedBox(width: fontSize * MushafFit.wordGapEm),
+            if (i > 0) SizedBox(width: fontSize * wordGap),
             texts[i],
           ],
         ],

@@ -35,7 +35,7 @@ It answers with one JSON object: `{"say": "...", "actions": [ ... ]}` (at most 1
 |---|---|
 | `log` | `op` `M`/`R`, `range` (`p 12-15`, `ch 3`, `s 2`, `j 30`, `2:255-260`), optional `day` (`today`, `yesterday`, `YYYY-MM-DD`, never in the future) |
 | `logDay` | `day`: the day the Today screen logs for |
-| `open` | one of `screen` (`today` `browse` `overview` `settings` `quran-data` `chats` `status-rules` `status-guide` `partitions`), `page`, `surah`, `ch`, `juz`, `part` `[s, ch]`, `pages` `[from, to]`, `ayah` (+ `view`), `tafsir`, `assistant` (`true` or `{ayah, prompt}`) |
+| `open` | one of `screen` (`today` `browse` `overview` `settings` `quran-data` `chats` `status-rules` `status-guide` `partitions` `reading-options`), `page`, `surah`, `ch`, `juz`, `part` `[s, ch]`, `pages` `[from, to]`, `ayah` (+ `view`), `tafsir`, `assistant` (`true` or `{ayah, prompt}`) |
 | `set` | `setting` + `value`, from the catalog below |
 | `partition` | `op` `save` (`name`, `unit`, `starts`, optional `id` to replace) or `delete` (`id`) |
 | `note` | `op` `add` (`page`, `text`, optional `s`, `ch`), `remembered` (open note), `restore` / `delete` (archived note), with `id` |
@@ -94,3 +94,12 @@ To add a setting: one entry in `AgentCatalog`, one `case` in `readAgentSettings`
 - Several rounds (the AI asks the app for data, then decides): today the picture of the app goes with every message instead.
 - Opening a particular section of the Settings screen (it opens the screen).
 - Voice input.
+
+## Prompt modules and routing
+
+The language is cut in modules and a request is taught only the ones it needs (the
+free plans of the providers cap a request at about 8,000 tokens). `docs/AI.md`
+explains the modules, the router (conversation, words, a small model, and the
+AI's own `{"need": [...]}`), the three modes in Settings, and the list of things
+to touch when a setting, an instruction or a module is added. `AgentPrompt.system`
+is still the whole language, and is what the "Everything" mode sends.

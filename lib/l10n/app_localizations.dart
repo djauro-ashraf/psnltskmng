@@ -2354,6 +2354,36 @@ abstract class AppLocalizations {
   /// **'Text size'**
   String get readerTextSize;
 
+  /// No description provided for @readerMushafSpacing.
+  ///
+  /// In en, this message translates to:
+  /// **'Mushaf spacing'**
+  String get readerMushafSpacing;
+
+  /// No description provided for @readerLineSpacing.
+  ///
+  /// In en, this message translates to:
+  /// **'Between lines'**
+  String get readerLineSpacing;
+
+  /// No description provided for @readerWordSpacing.
+  ///
+  /// In en, this message translates to:
+  /// **'Between words'**
+  String get readerWordSpacing;
+
+  /// No description provided for @readerSpacingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Smaller gaps between words make the letters bigger: the widest line of the page sets their size. Closer lines leave room above and below the page. Words never leave their printed line.'**
+  String get readerSpacingHint;
+
+  /// No description provided for @readerSpacingReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset spacing'**
+  String get readerSpacingReset;
+
   /// No description provided for @readerKeepAwake.
   ///
   /// In en, this message translates to:

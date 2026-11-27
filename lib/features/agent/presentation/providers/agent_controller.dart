@@ -7,9 +7,12 @@ import 'package:personaltskmng/agent/models/agent_settings.dart';
 import 'package:personaltskmng/agent/models/agent_turn.dart';
 import 'package:personaltskmng/agent/protocol/agent_parser.dart';
 import 'package:personaltskmng/agent/protocol/agent_prompt.dart';
+import 'package:personaltskmng/agent/routing/agent_module.dart';
+import 'package:personaltskmng/agent/routing/agent_router.dart';
 import 'package:personaltskmng/ai/ai_provider.dart';
 import 'package:personaltskmng/ask/controller/ask_providers.dart';
 import 'package:personaltskmng/core/constants/app_routes.dart';
+import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/features/agent/presentation/providers/agent_settings_io.dart';
 import 'package:personaltskmng/features/backup/presentation/providers/backup_providers.dart';
 import 'package:personaltskmng/features/browse/domain/browse_index.dart';
@@ -82,26 +85,16 @@ class AgentController extends Notifier<AgentChatState> {
       return;
     }
 
-    final List<AiMessage> messages;
-    try {
-      messages = await _messages(clean, [
-        for (final t in state.turns)
-          if (t.id != id) t,
-      ]);
-    } catch (_) {
-      _change(
-        id,
-        (t) => t.copyWith(phase: AgentPhase.failed, failure: AgentFailure.other),
-      );
-      return;
-    }
-    if (!ref.mounted) return;
-
     final String raw;
     try {
-      raw = await client.generateJson(
-        system: AgentPrompt.system,
-        messages: messages,
+      raw = await _converse(
+        id,
+        clean,
+        [
+          for (final t in state.turns)
+            if (t.id != id) t,
+        ],
+        client,
       );
     } on AiProviderException catch (e) {
       _change(
@@ -174,9 +167,111 @@ class AgentController extends Notifier<AgentChatState> {
       commands.any((c) => c.alwaysAsk) ||
       (approval == AgentApproval.ask && commands.any((c) => c.changesData));
 
+  // -- what the AI is taught -----------------------------------------------------
+
+  /// One request to the AI, with what it needs to be taught: the modules are
+  /// chosen ([_route]), the prompt and the picture of the app are built from
+  /// them, and when the AI answers that it was not taught enough
+  /// (`{"need": [...]}`) it is taught that and asked once more. What was
+  /// taught, how it was chosen and about how many tokens it took are kept on
+  /// the turn, for the screen. Returns the raw answer ('' if the app went away
+  /// meanwhile).
+  Future<String> _converse(
+    String id,
+    String text,
+    List<AgentTurn> earlier,
+    AiProvider client,
+  ) async {
+    final routing = ref.read(agentSettingsProvider).routing;
+    var route = await _route(
+      text,
+      earlier.isEmpty ? const {} : earlier.last.modules,
+      routing,
+    );
+    for (var round = 0; ; round++) {
+      if (!ref.mounted) return '';
+      final modules = route.modules;
+      final messages = await _messages(text, earlier, modules);
+      final system = routing == AgentRouting.off
+          ? AgentPrompt.system
+          : AgentPrompt.build(modules);
+      final tokens = AgentPrompt.estimateTokens(system) +
+          messages.fold<int>(0, (n, m) => n + AgentPrompt.estimateTokens(m.text));
+      if (!ref.mounted) return '';
+      final via = route.via;
+      _change(
+        id,
+        (t) => t.copyWith(modules: modules, routedBy: via, promptTokens: tokens),
+      );
+
+      final raw = await client.generateJson(system: system, messages: messages);
+      if (!ref.mounted || routing == AgentRouting.off || round > 0) return raw;
+      final missing = AgentRouter.needOf(raw).difference(modules);
+      if (missing.isEmpty) return raw;
+      route = RouteDecision({...modules, ...missing}, RouteVia.asked);
+    }
+  }
+
+  /// The modules of one request: the conversation and the words first (they
+  /// cost nothing); when they say nothing, a small model if the routing is
+  /// `smart`; and when nobody can say, the commonest modules. A sort that
+  /// failed is never an error of the request.
+  Future<RouteDecision> _route(
+    String text,
+    Set<AgentModule> previous,
+    AgentRouting routing,
+  ) async {
+    if (routing == AgentRouting.off) {
+      return const RouteDecision(AgentModules.all, RouteVia.all);
+    }
+    final byRules = AgentRouter.decide(text, previous: previous);
+    if (!byRules.needsTriage) return byRules;
+
+    if (routing == AgentRouting.smart) {
+      List<AiProvider> small;
+      try {
+        small = ref.read(agentRouterClientsProvider);
+      } catch (_) {
+        small = const [];
+      }
+      final message = AiMessage(
+        AiRole.user,
+        AgentRouter.triageMessage(text, previous: previous),
+      );
+      // The first that gives a usable answer sorts the request; one that has
+      // no key, is slow, is limited or is not understood is passed over.
+      for (final model in small) {
+        try {
+          final raw = await model.generateJson(
+            system: AgentRouter.triageSystem,
+            messages: [message],
+          );
+          final picked = AgentRouter.parseTriage(raw);
+          if (picked != null) {
+            return RouteDecision(
+              picked.take(AgentModules.most).toSet(),
+              RouteVia.triage,
+            );
+          }
+        } catch (_) {
+          continue;
+        }
+      }
+    }
+    // What the words did find, if they found anything; else the commonest.
+    return byRules.modules.isNotEmpty
+        ? byRules
+        : const RouteDecision(AgentModules.fallback, RouteVia.fallback);
+  }
+
   /// What goes to the AI: the last few answered turns as history, then the
-  /// user's words with the picture of the app as it is now.
-  Future<List<AiMessage>> _messages(String text, List<AgentTurn> earlier) async {
+  /// user's words with the picture of the app as it is now (the parts that
+  /// [modules] read).
+  Future<List<AiMessage>> _messages(
+    String text,
+    List<AgentTurn> earlier,
+    Set<AgentModule> modules,
+  ) async {
     final answered = [
       for (final t in earlier)
         if (t.reply != null) t,
@@ -186,9 +281,10 @@ class AgentController extends Notifier<AgentChatState> {
         : answered;
     final memo = ref.read(memoProvider);
     final share = ref.read(agentSettingsProvider).shareNotes;
+    final needs = AgentModules.stateOf(modules);
 
     List<({String id, int page, String text, bool open})>? notes;
-    if (share) {
+    if (share && needs.contains(AgentState.notes)) {
       final all = ref.read(notesViewModelProvider).book.notes;
       notes = [
         for (final n in all)
@@ -200,21 +296,25 @@ class AgentController extends Notifier<AgentChatState> {
 
     var translations = <({String id, String title})>[];
     var tafsirs = <({String id, String title})>[];
-    try {
-      final installed = await ref
-          .read(installedTranslationsProvider.future)
-          .timeout(const Duration(seconds: 3));
-      translations = [for (final p in installed) (id: p.id, title: p.title)];
-    } catch (_) {
-      // Not downloaded, or the storage is not there: none are listed.
+    if (needs.contains(AgentState.translations)) {
+      try {
+        final installed = await ref
+            .read(installedTranslationsProvider.future)
+            .timeout(const Duration(seconds: 3));
+        translations = [for (final p in installed) (id: p.id, title: p.title)];
+      } catch (_) {
+        // Not downloaded, or the storage is not there: none are listed.
+      }
     }
-    try {
-      final sources = await ref
-          .read(tafsirSourcesProvider.future)
-          .timeout(const Duration(seconds: 3));
-      tafsirs = [for (final t in sources) (id: t.id, title: t.title)];
-    } catch (_) {
-      // Same.
+    if (needs.contains(AgentState.tafsirs)) {
+      try {
+        final sources = await ref
+            .read(tafsirSourcesProvider.future)
+            .timeout(const Duration(seconds: 3));
+        tafsirs = [for (final t in sources) (id: t.id, title: t.title)];
+      } catch (_) {
+        // Same.
+      }
     }
 
     return [
@@ -237,6 +337,7 @@ class AgentController extends Notifier<AgentChatState> {
           plannerAvailable: ref.read(planViewModelProvider.notifier).available,
           lastActions: _lastActions(earlier),
           attentionDays: memo.settings.attentionDays,
+          modules: modules,
           notes: notes,
           translations: translations,
           tafsirs: tafsirs,
@@ -435,8 +536,21 @@ class AgentController extends Notifier<AgentChatState> {
         BrowseIndex.instance.part(place.surah, place.ch) == null) {
       return AgentResult(command: c, kind: AgentResultKind.failed);
     }
+    // The reading options open over the Mushaf at the place the reader left
+    // off (the first full page of the Quran when they never read).
+    if (place is ScreenPlace && place.screen == AgentScreen.readingOptions) {
+      final last = ref.read(lastReadProvider);
+      return _done(c, route: _optionsPath(last?.ayah ?? _optionsStart));
+    }
     return _done(c, route: _path(place));
   }
+
+  /// Where the reading options open when there is no place read yet: the start
+  /// of page 3, a page with the usual 15 lines (pages 1 and 2 have 8).
+  static const AyahRef _optionsStart = AyahRef(2, 6);
+
+  static String _optionsPath(AyahRef at) =>
+      BrowsePaths.readAyah(at, view: QuranView.mushaf, options: true);
 
   static String _path(AgentPlace place) => switch (place) {
     ScreenPlace p => _screenPath(p.screen),
@@ -464,6 +578,7 @@ class AgentController extends Notifier<AgentChatState> {
     AgentScreen.statusRules => AppRoutes.statusRules,
     AgentScreen.statusGuide => AppRoutes.statusGuide,
     AgentScreen.partitions => AppRoutes.partitions,
+    AgentScreen.readingOptions => _optionsPath(_optionsStart),
   };
 
   // -- partitions ---------------------------------------------------------------

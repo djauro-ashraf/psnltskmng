@@ -1,4 +1,6 @@
 import 'package:personaltskmng/agent/models/agent_command.dart';
+import 'package:personaltskmng/agent/routing/agent_module.dart';
+import 'package:personaltskmng/agent/routing/agent_router.dart';
 import 'package:personaltskmng/ai/ai_provider.dart';
 
 /// Where one turn of the conversation stands.
@@ -96,6 +98,9 @@ final class AgentTurn {
     this.error,
     this.errorKind,
     this.undone = false,
+    this.modules = const {},
+    this.routedBy,
+    this.promptTokens = 0,
   });
 
   final String id;
@@ -126,6 +131,13 @@ final class AgentTurn {
   /// True once the logs of this turn were undone.
   final bool undone;
 
+  /// What the AI was taught for this turn, how that was chosen, and about how
+  /// many tokens the request had (the system prompt and the messages), for the
+  /// screen: the user can see what a request cost and tune the routing.
+  final Set<AgentModule> modules;
+  final RouteVia? routedBy;
+  final int promptTokens;
+
   /// The logs this turn wrote (an undo removes them all).
   List<int> get groups => [
     for (final r in results)
@@ -145,6 +157,9 @@ final class AgentTurn {
     String? error,
     AiErrorKind? errorKind,
     bool? undone,
+    Set<AgentModule>? modules,
+    RouteVia? routedBy,
+    int? promptTokens,
   }) => AgentTurn(
     id: id,
     userText: userText,
@@ -158,6 +173,9 @@ final class AgentTurn {
     error: error ?? this.error,
     errorKind: errorKind ?? this.errorKind,
     undone: undone ?? this.undone,
+    modules: modules ?? this.modules,
+    routedBy: routedBy ?? this.routedBy,
+    promptTokens: promptTokens ?? this.promptTokens,
   );
 }
 

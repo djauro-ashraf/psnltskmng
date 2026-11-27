@@ -13,6 +13,7 @@ import 'package:personaltskmng/features/browse/presentation/pages/reader_page.da
 import 'package:personaltskmng/features/browse/presentation/widgets/context_line_bar.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/details_blocks.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/reader_bar.dart';
+import 'package:personaltskmng/features/browse/presentation/widgets/reading_options_sheet.dart';
 import 'package:personaltskmng/features/browse/presentation/widgets/unit_swipe.dart';
 import 'package:personaltskmng/mushaf/controller/mushaf_edition.dart';
 import 'package:personaltskmng/mushaf/data/mushaf_source.dart';
@@ -45,9 +46,10 @@ Widget _reader(
   double textScale = 1,
   List overrides = const [],
   NotesController? notes,
+  bool openOptions = false,
 }) {
   final router = stubRouter(
-    home: ReaderPage(request: request),
+    home: ReaderPage(request: request, openOptions: openOptions),
     visited: visited,
     tafsirAnswer: tafsirAnswer ?? const AyahRef(2, 30),
   );
@@ -97,6 +99,35 @@ Future<void> _tapEmptyRoom(WidgetTester tester) async {
 }
 
 void main() {
+  group('the reading options on arrival', () {
+    testReader('open over the Mushaf when the route asks (the agent took the reader here)', (tester) async {
+      useWindow(tester, _window);
+      final prefs = MemoryQuranPrefsStore({
+        QuranPrefKeys.view: QuranView.words.name,
+      });
+      await _open(
+        tester,
+        _reader(
+          const ReadAyah(AyahRef(2, 6), view: QuranView.mushaf),
+          prefs: prefs,
+          openOptions: true,
+        ),
+      );
+
+      expect(find.byType(ReadingOptionsSheet), findsOneWidget);
+      // The view on screen is the saved one, so the sheet has the spacing.
+      expect(prefs.get(QuranPrefKeys.view), QuranView.mushaf.name);
+      expect(find.text('Mushaf spacing'), findsOneWidget);
+    });
+
+    testReader('stay closed when nothing asks', (tester) async {
+      useWindow(tester, _window);
+      await _open(tester, _reader(const ReadPage(106)));
+
+      expect(find.byType(ReadingOptionsSheet), findsNothing);
+    });
+  });
+
   group('the page as printed', () {
     testReader('opens on the Mushaf with the reading line, not a title bar', (tester) async {
       useWindow(tester, _window);

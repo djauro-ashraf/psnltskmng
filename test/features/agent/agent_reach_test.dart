@@ -12,6 +12,7 @@ import 'package:personaltskmng/ai/ai_provider.dart';
 import 'package:personaltskmng/ai/ai_runtime.dart';
 import 'package:personaltskmng/core/constants/app_routes.dart';
 import 'package:personaltskmng/domain/models/day.dart';
+import 'package:personaltskmng/domain/reference/quran_divisions.dart';
 import 'package:personaltskmng/features/agent/presentation/providers/agent_controller.dart';
 import 'package:personaltskmng/features/agent/presentation/providers/agent_settings_io.dart';
 import 'package:personaltskmng/features/browse/presentation/browse_paths.dart';
@@ -22,6 +23,8 @@ import 'package:personaltskmng/features/settings/presentation/providers/settings
 import 'package:personaltskmng/memo/controller/memo_controller.dart';
 import 'package:personaltskmng/memo/data/memo_store.dart';
 import 'package:personaltskmng/memo/models/status_rules.dart';
+import 'package:personaltskmng/quran_data/controller/quran_prefs.dart';
+import 'package:personaltskmng/quran_data/models/reader_entry.dart';
 
 import '../../support/fake_settings_repository.dart';
 
@@ -230,6 +233,57 @@ void main() {
         expect(last().results.single.kind, AgentResultKind.done);
         agent().consumeRoute();
       }
+    });
+
+    test('the reading options open over the Mushaf, where the reader left off', () async {
+      final ai = _FakeAi([
+        _answer('{"do":"open","screen":"reading-options"}'),
+        _answer('{"do":"open","screen":"reading-options"}'),
+      ]);
+      await build(ai);
+
+      // Nothing read yet: a full page of the Quran.
+      await agent().send('let me adjust the line spacing');
+      expect(
+        chat().route,
+        BrowsePaths.readAyah(
+          const AyahRef(2, 6),
+          view: QuranView.mushaf,
+          options: true,
+        ),
+      );
+      expect(last().results.single.kind, AgentResultKind.done);
+      agent().consumeRoute();
+
+      // After reading in Words: the same place, in the Mushaf (the spacing is
+      // the Mushaf's).
+      await container
+          .read(lastReadProvider.notifier)
+          .save(const LastRead(AyahRef(18, 10), QuranView.words));
+      await agent().send('and the spacing between words');
+      expect(
+        chat().route,
+        BrowsePaths.readAyah(
+          const AyahRef(18, 10),
+          view: QuranView.mushaf,
+          options: true,
+        ),
+      );
+    });
+
+    test('opening them changes nothing and asks nothing', () async {
+      await build(
+        _FakeAi([_answer('{"do":"open","screen":"reading-options"}')]),
+        approval: AgentApproval.ask,
+      );
+
+      await agent().send('open the spacing');
+
+      expect(last().phase, AgentPhase.done);
+      expect(
+        const OpenCommand(ScreenPlace(AgentScreen.readingOptions)).changesData,
+        isFalse,
+      );
     });
 
     test('a surah the ch does not hold is refused, not opened', () async {

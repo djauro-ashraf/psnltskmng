@@ -254,6 +254,12 @@ void main() {
         'status-rules': AgentScreen.statusRules,
         'status-guide': AgentScreen.statusGuide,
         'partitions': AgentScreen.partitions,
+        'reading-options': AgentScreen.readingOptions,
+        'Reading options': AgentScreen.readingOptions,
+        'reading_options': AgentScreen.readingOptions,
+        'options': AgentScreen.readingOptions,
+        'mushaf-spacing': AgentScreen.readingOptions,
+        'spacing': AgentScreen.readingOptions,
       };
       for (final entry in expected.entries) {
         final p = place('"screen":"${entry.key}"') as ScreenPlace;

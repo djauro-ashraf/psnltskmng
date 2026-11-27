@@ -7,6 +7,9 @@ import 'package:personaltskmng/agent/controller/agent_providers.dart';
 import 'package:personaltskmng/agent/data/agent_settings_store.dart';
 import 'package:personaltskmng/agent/models/agent_settings.dart';
 import 'package:personaltskmng/agent/models/agent_turn.dart';
+import 'package:personaltskmng/agent/protocol/agent_prompt.dart';
+import 'package:personaltskmng/agent/routing/agent_module.dart';
+import 'package:personaltskmng/agent/routing/agent_router.dart';
 import 'package:personaltskmng/ai/ai_provider.dart';
 import 'package:personaltskmng/domain/models/day.dart';
 import 'package:personaltskmng/features/agent/presentation/providers/agent_controller.dart';
@@ -65,6 +68,9 @@ void main() {
   Future<void> build(
     _FakeAi? ai, {
     AgentApproval approval = AgentApproval.auto,
+    AgentRouting routing = AgentRouting.smart,
+    _FakeAi? small,
+    List<_FakeAi> sorters = const [],
   }) async {
     final memo = MemoController(store: InMemoryMemoStore());
     await memo.load();
@@ -74,9 +80,16 @@ void main() {
         memoClockProvider.overrideWithValue(() => today.toDateTime()),
         settingsRepositoryProvider.overrideWithValue(FakeSettingsRepository()),
         agentClientProvider.overrideWithValue(ai),
+        // The models that sort a request, in order (none, unless a test gives
+        // some).
+        agentRouterClientsProvider.overrideWithValue([?small, ...sorters]),
         agentSettingsStoreProvider.overrideWithValue(
           MemoryAgentSettingsStore(
-            AgentSettings(enabled: true, approval: approval).encode(),
+            AgentSettings(
+              enabled: true,
+              approval: approval,
+              routing: routing,
+            ).encode(),
           ),
         ),
       ],
@@ -367,6 +380,281 @@ void main() {
     });
   });
 
+  group('what the AI is taught', () {
+    Map<String, dynamic> appOf(_FakeAi ai, [int call = 0]) =>
+        (jsonDecode(ai.calls[call].last.text) as Map<String, dynamic>)['app']
+            as Map<String, dynamic>;
+
+    test('a plain log request is taught the log module and nothing else', () async {
+      final ai = _FakeAi([_answer('')]);
+      await build(ai);
+
+      await agent().send('I reviewed ch 5');
+
+      final system = ai.systems.single;
+      expect(system, contains('"do": "log"'));
+      expect(system, isNot(contains('"do": "erase"')));
+      expect(system, isNot(contains('"do": "partition"')));
+      expect(system, isNot(contains('rule.<key>')));
+      expect(last().modules, {AgentModule.log});
+      expect(last().routedBy, RouteVia.rules);
+      // It is far smaller than the whole language.
+      expect(
+        AgentPrompt.estimateTokens(system),
+        lessThan(AgentPrompt.estimateTokens(AgentPrompt.system) ~/ 2),
+      );
+      expect(last().promptTokens, greaterThan(0));
+    });
+
+    test('the picture of the app holds only what those modules read', () async {
+      final ai = _FakeAi([_answer('')]);
+      await build(ai);
+
+      await agent().send('I reviewed ch 5');
+
+      final app = appOf(ai);
+      expect(app.keys, containsAll(['today', 'units', 'recentLog', 'logDay']));
+      for (final key in ['settings', 'notes', 'translations', 'tafsirs']) {
+        expect(app.containsKey(key), isFalse, reason: key);
+      }
+    });
+
+    test('a setting is taught with its own group and sees only that group', () async {
+      final ai = _FakeAi([_answer('')]);
+      await build(ai);
+
+      await agent().send('switch to dark mode');
+
+      expect(ai.systems.single, contains('- theme:'));
+      expect(ai.systems.single, isNot(contains('plannerMaxItems')));
+      expect(ai.systems.single, isNot(contains('rule.<key>')));
+      final settings = appOf(ai)['settings'] as Map<String, dynamic>;
+      expect(settings.containsKey('theme'), isTrue);
+      expect(settings.containsKey('plannerMaxItems'), isFalse);
+      expect(settings.containsKey('attentionLimit'), isFalse);
+      expect(last().modules, {AgentModule.settingsApp});
+    });
+
+    test('with routing off the AI is taught the whole language', () async {
+      final ai = _FakeAi([_answer('')]);
+      await build(ai, routing: AgentRouting.off);
+
+      await agent().send('I reviewed ch 5');
+
+      expect(ai.systems.single, AgentPrompt.system);
+      expect(last().routedBy, RouteVia.all);
+    });
+
+    test('a request the words do not place is sorted by the small model', () async {
+      final ai = _FakeAi([_answer('')]);
+      final small = _FakeAi(['{"modules":["settings.ai"]}']);
+      await build(ai, small: small);
+
+      await agent().send('please make it shorter');
+
+      expect(small.calls, hasLength(1));
+      expect(small.systems.single, contains('JSON'));
+      expect(ai.systems.single, contains('- plannerMaxItems:'));
+      expect(ai.systems.single, isNot(contains('- theme:')));
+      expect(last().modules, {AgentModule.settingsAi});
+      expect(last().routedBy, RouteVia.triage);
+    });
+
+    test('a small model that fails is not an error of the request', () async {
+      final ai = _FakeAi([_answer('', say: 'Done.')]);
+      final small = _FakeAi()
+        ..failWith = const AiProviderException(AiErrorKind.rateLimited, 'slow');
+      await build(ai, small: small);
+
+      await agent().send('please make it shorter');
+
+      expect(last().phase, AgentPhase.done);
+      expect(last().say, 'Done.');
+      expect(last().routedBy, RouteVia.fallback);
+      expect(last().modules, AgentModules.fallback);
+    });
+
+    test('the first sorter that answers sorts, and the others are not asked', () async {
+      final ai = _FakeAi([_answer('')]);
+      final first = _FakeAi(['{"modules":["notes"]}']);
+      final second = _FakeAi(['{"modules":["data"]}']);
+      await build(ai, sorters: [first, second]);
+
+      await agent().send('please make it shorter');
+
+      expect(first.calls, hasLength(1));
+      expect(second.calls, isEmpty);
+      expect(last().modules, {AgentModule.notes});
+    });
+
+    test('a sorter that fails is passed over for the next', () async {
+      final ai = _FakeAi([_answer('')]);
+      final first = _FakeAi()
+        ..failWith = const AiProviderException(
+          AiErrorKind.missingKey,
+          'No Cloudflare API key stored',
+        );
+      final second = _FakeAi(['{"modules":["settings.ai"]}']);
+      await build(ai, sorters: [first, second]);
+
+      await agent().send('please make it shorter');
+
+      expect(second.calls, hasLength(1));
+      expect(last().modules, {AgentModule.settingsAi});
+      expect(last().routedBy, RouteVia.triage);
+    });
+
+    test('a sorter that answers nonsense is passed over too', () async {
+      final ai = _FakeAi([_answer('')]);
+      final first = _FakeAi(['I am sorry, I cannot do that']);
+      final second = _FakeAi(['{"modules":["open"]}']);
+      await build(ai, sorters: [first, second]);
+
+      await agent().send('please make it shorter');
+
+      expect(first.calls, hasLength(1));
+      expect(last().modules, {AgentModule.open});
+    });
+
+    test('when every sorter fails the commonest modules are taught', () async {
+      final ai = _FakeAi([_answer('')]);
+      final failing = const AiProviderException(AiErrorKind.timeout, 'slow');
+      await build(
+        ai,
+        sorters: [_FakeAi()..failWith = failing, _FakeAi()..failWith = failing],
+      );
+
+      await agent().send('please make it shorter');
+
+      expect(last().phase, AgentPhase.done);
+      expect(last().modules, AgentModules.fallback);
+      expect(last().routedBy, RouteVia.fallback);
+    });
+
+    test('a small model that answers nonsense is the same', () async {
+      final ai = _FakeAi([_answer('')]);
+      await build(ai, small: _FakeAi(['I am sorry, I cannot do that']));
+
+      await agent().send('please make it shorter');
+
+      expect(last().routedBy, RouteVia.fallback);
+    });
+
+    test('by words only, no small model is ever asked', () async {
+      final ai = _FakeAi([_answer('')]);
+      final small = _FakeAi(['{"modules":["notes"]}']);
+      await build(ai, routing: AgentRouting.local, small: small);
+
+      await agent().send('please make it shorter');
+
+      expect(small.calls, isEmpty);
+      expect(last().routedBy, RouteVia.fallback);
+    });
+
+    test('when the words place the request the small model is not asked', () async {
+      final ai = _FakeAi([_answer('')]);
+      final small = _FakeAi(['{"modules":["notes"]}']);
+      await build(ai, small: small);
+
+      await agent().send('open page 12');
+
+      expect(small.calls, isEmpty);
+      expect(last().modules, contains(AgentModule.open));
+    });
+
+    test('small talk costs the core and nothing else', () async {
+      final ai = _FakeAi([_answer('', say: 'Hello!')]);
+      await build(ai);
+
+      await agent().send('hi');
+
+      expect(last().modules, isEmpty);
+      expect(ai.systems.single, contains('command interpreter'));
+      expect(ai.systems.single, isNot(contains('"do": "log"')));
+      expect(appOf(ai).keys.toSet(), {'today', 'weekday'});
+    });
+
+    test('a short reply to the last turn is taught what the last turn was', () async {
+      final ai = _FakeAi([
+        _answer('{"do":"open","page":12}'),
+        _answer('', say: 'Anything else?'),
+      ]);
+      await build(ai);
+      await agent().send('open page 12');
+      final first = last().modules;
+
+      await agent().send('thanks');
+
+      expect(last().modules, first);
+      expect(last().routedBy, RouteVia.sticky);
+    });
+
+    test('the AI may ask for a module it was not taught, and gets it once', () async {
+      final ai = _FakeAi([
+        jsonEncode({'need': ['settings.ai']}),
+        _answer('{"do":"set","setting":"plannerMaxItems","value":4}'),
+      ]);
+      await build(ai);
+
+      await agent().send('I reviewed ch 5');
+
+      expect(ai.calls, hasLength(2));
+      expect(ai.systems.first, isNot(contains('plannerMaxItems')));
+      expect(ai.systems.last, contains('plannerMaxItems'));
+      // What it was taught first is still taught.
+      expect(ai.systems.last, contains('"do": "log"'));
+      expect(last().routedBy, RouteVia.asked);
+      expect(
+        last().modules,
+        containsAll([AgentModule.log, AgentModule.settingsAi]),
+      );
+      expect(last().phase, AgentPhase.done);
+      expect(last().commands, hasLength(1));
+    });
+
+    test('it is asked at most once more', () async {
+      final ai = _FakeAi([
+        jsonEncode({'need': ['notes']}),
+        jsonEncode({'need': ['data']}),
+      ]);
+      await build(ai);
+
+      await agent().send('I reviewed ch 5');
+
+      expect(ai.calls, hasLength(2));
+      expect(last().phase, AgentPhase.failed);
+    });
+
+    test('with routing off a need is not a thing the AI can ask', () async {
+      final ai = _FakeAi([
+        jsonEncode({'need': ['notes']}),
+      ]);
+      await build(ai, routing: AgentRouting.off);
+
+      await agent().send('I reviewed ch 5');
+
+      expect(ai.calls, hasLength(1));
+    });
+
+    test('an answer that holds instructions is never taken for a need', () async {
+      final ai = _FakeAi([
+        jsonEncode({
+          'say': 'ok',
+          'need': ['notes'],
+          'actions': [
+            {'do': 'open', 'page': 3},
+          ],
+        }),
+      ]);
+      await build(ai);
+
+      await agent().send('open page 3');
+
+      expect(ai.calls, hasLength(1));
+      expect(last().commands, hasLength(1));
+    });
+  });
+
   group('what goes to the AI', () {
     test('the app language, then the words with the picture of the app', () async {
       final ai = _FakeAi([_answer('')]);
@@ -385,7 +673,8 @@ void main() {
 
     test('the picture of the app carries the settings, the new ones too', () async {
       final ai = _FakeAi([_answer('')]);
-      await build(ai);
+      // Routing off: the whole picture, as before the language was cut.
+      await build(ai, routing: AgentRouting.off);
 
       await agent().send('hello');
 

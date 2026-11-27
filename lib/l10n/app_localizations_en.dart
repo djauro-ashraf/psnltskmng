@@ -1322,6 +1322,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readerTextSize => 'Text size';
 
   @override
+  String get readerMushafSpacing => 'Mushaf spacing';
+
+  @override
+  String get readerLineSpacing => 'Between lines';
+
+  @override
+  String get readerWordSpacing => 'Between words';
+
+  @override
+  String get readerSpacingHint =>
+      'Smaller gaps between words make the letters bigger: the widest line of the page sets their size. Closer lines leave room above and below the page. Words never leave their printed line.';
+
+  @override
+  String get readerSpacingReset => 'Reset spacing';
+
+  @override
   String get readerKeepAwake => 'Keep screen on while reading';
 
   @override

@@ -12,14 +12,15 @@ import 'package:personaltskmng/shared/extensions/l10n_x.dart';
 
 /// The Browse tab: the four lists as screens of one tab, switched at the top,
 /// under the Details | Mushaf | Words switch (how a tap on a row opens it) and
-/// the Continue row. Surahs first, Pages last.
+/// the Continue row. Surahs first, the user's own ch last.
 ///
 /// - Surahs: every surah (114), groupable by ch, by state or by open notes;
-/// - ch: every ch (71), groupable by surah, by state or by open notes;
 /// - Juz: the 30 juz, groupable by state or by open notes. Hizb and ruku are not
 ///   lists: they are places to jump to (Go to, banners, the context line);
 /// - Pages: every page (604 by default), groupable by surah, by ch, by juz, by
-///   state or by open notes.
+///   state or by open notes;
+/// - ch: every ch (71), groupable by surah, by state or by open notes. Last,
+///   because it is the user's own cut, after the ones the Quran comes with.
 ///
 /// Every row shows its open-note count. A tap on a row opens the reader (child
 /// routes, see `browse_routes.dart`) in the way to read the switch says; in
@@ -53,9 +54,9 @@ class BrowsePage extends ConsumerWidget {
             TabBar(
               tabs: [
                 Tab(text: l10n.browseSsTitle),
-                Tab(text: l10n.browseChTitle),
                 Tab(text: l10n.browseJuzTitle),
                 Tab(text: l10n.browsePsTitle),
+                Tab(text: l10n.browseChTitle),
               ],
             ),
             Expanded(
@@ -68,14 +69,6 @@ class BrowsePage extends ConsumerWidget {
                     countLabel: surahCountText,
                     rowOf: (context, s) =>
                         SRow(s: s, path: BrowsePaths.readSurah(s)),
-                  ),
-                  GroupedTab(
-                    groupings: BrowseGroups.forCh,
-                    groupsOf: (grouping, data) =>
-                        BrowseGroups.chList(grouping, data: data),
-                    countLabel: (l10n, count) => l10n.browseChCount(count),
-                    rowOf: (context, ch) =>
-                        ChRow(ch: ch, path: BrowsePaths.readCh(ch)),
                   ),
                   const _JuzTab(),
                   GroupedTab(
@@ -90,6 +83,14 @@ class BrowsePage extends ConsumerWidget {
                     countLabel: pageCountText,
                     rowOf: (context, page) =>
                         PageRow(page: page, path: BrowsePaths.readPage(page)),
+                  ),
+                  GroupedTab(
+                    groupings: BrowseGroups.forCh,
+                    groupsOf: (grouping, data) =>
+                        BrowseGroups.chList(grouping, data: data),
+                    countLabel: (l10n, count) => l10n.browseChCount(count),
+                    rowOf: (context, ch) =>
+                        ChRow(ch: ch, path: BrowsePaths.readCh(ch)),
                   ),
                 ],
               ),
